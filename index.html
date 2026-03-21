@@ -598,13 +598,51 @@ function drawChests() {
 // ─── Goal Flag ───────────────────────────────────────────────────────────────
 function drawGoalFlag() {
   const gx = sx(LEVEL_W - 90); if (gx < -50 || gx > W+50) return;
+
+  if (currentLevel === 2) {
+    // Castle for Level 3
+    const cx = gx, cy = GROUND_Y, cw = 80, wall = 160;
+    const base = cy - wall;
+    // Main wall
+    ctx.fillStyle = '#263238'; ctx.fillRect(cx, base, cw, wall);
+    // Stone lines
+    ctx.fillStyle = '#1A2328';
+    for (let row = 0; row < wall; row += 18) {
+      const off = (Math.floor(row/18) % 2) * 18;
+      for (let col = off; col < cw; col += 36) ctx.fillRect(cx+col, base+row, 18, 1);
+      ctx.fillRect(cx, base+row, cw, 1);
+    }
+    // Battlements (5 merlons)
+    ctx.fillStyle = '#263238';
+    for (let i = 0; i < 5; i++) {
+      if (i % 2 === 0) ctx.fillRect(cx + i*16, base-20, 16, 20);
+    }
+    // Gate arch
+    ctx.fillStyle = '#000010';
+    ctx.fillRect(cx+28, base+wall-50, 24, 50);
+    ctx.beginPath(); ctx.arc(cx+40, base+wall-50, 12, Math.PI, 0); ctx.fill();
+    // Windows
+    ctx.fillStyle = '#000010';
+    ctx.fillRect(cx+10, base+30, 12, 16); ctx.fillRect(cx+58, base+30, 12, 16);
+    // Window glow (candles inside)
+    const wg = 0.5 + Math.sin(tick*0.07)*0.3;
+    ctx.fillStyle = `rgba(255,200,80,${wg})`;
+    ctx.fillRect(cx+12, base+32, 8, 12); ctx.fillRect(cx+60, base+32, 8, 12);
+    // Flag on tower
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(cx+37, base-50, 4, 32);
+    ctx.fillStyle = '#00BCD4'; ctx.fillRect(cx+41, base-50, 22, 14);
+    ctx.fillStyle = '#FFF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('WIN', cx+43, base-39);
+    return;
+  }
+
   ctx.fillStyle = '#78909C'; ctx.fillRect(gx+22, 200, 6, GROUND_Y-200);
   ctx.fillStyle = '#B0BEC5'; ctx.fillRect(gx+22, 200, 3, GROUND_Y-200);
-  ctx.fillStyle = currentLevel === 2 ? '#00BCD4' : currentLevel === 1 ? '#9C27B0' : '#F44336';
+  ctx.fillStyle = currentLevel === 1 ? '#9C27B0' : '#F44336';
   ctx.fillRect(gx+28, 200, 44, 30);
   ctx.fillStyle = '#FFEB3B'; ctx.fillRect(gx+28, 200, 44, 11);
   ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(currentLevel === 2 ? 'WIN!' : 'GOAL!', gx+31, 224);
+  ctx.fillText('GOAL!', gx+31, 224);
   ctx.fillStyle = '#FDD835'; ctx.fillRect(gx+18, 194, 14, 14);
   ctx.fillStyle = '#F57F17'; ctx.fillRect(gx+20, 196, 10, 10);
 }
