@@ -425,7 +425,7 @@ const BADGE_DEFS = [
   { id: 'unlucky',      name: 'Unlucky',      desc: 'Search 4 empty rooms before the key', color: '#9C27B0', icon: '🔑' },
   { id: 'murderer',     name: 'Murderer',          desc: 'Kill 25 enemies',                     color: '#F44336', icon: '💀' },
   { id: 'reallylike',   name: 'You REALLY like this game', desc: 'Beat the game 10 times',   color: '#E91E63', icon: '🎮' },
-  { id: 'trillionaire', name: 'Trillionaire',              desc: 'Collect 1000 coins total',  color: '#FFE57F', icon: '$' },
+  { id: 'trillionaire', name: 'Trillionaire',              desc: 'Collect 500 coins total',   color: '#FFE57F', icon: '$' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -853,7 +853,7 @@ function update() {
         // Trillionaire badge: 1000 coins across all sessions
         totalCoinsEver++;
         localStorage.setItem('cb_tcoins', totalCoinsEver);
-        if (totalCoinsEver >= 1000 && !badges.has('trillionaire')) {
+        if (totalCoinsEver >= 500 && !badges.has('trillionaire')) {
           badges.add('trillionaire');
           localStorage.setItem('cb_badges', JSON.stringify([...badges]));
           badgeNotif = { name: 'Trillionaire', timer: 240 };
