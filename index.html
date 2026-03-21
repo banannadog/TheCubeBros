@@ -433,7 +433,8 @@ const BADGE_DEFS = [
   { id: 'murderer',     name: 'Murderer',          desc: 'Kill 25 enemies',                     color: '#F44336', icon: '💀' },
   { id: 'reallylike',   name: 'You REALLY like this game', desc: 'Beat the game 10 times',   color: '#E91E63', icon: '🎮' },
   { id: 'trillionaire', name: 'Trillionaire',              desc: 'Collect 500 coins total',   color: '#FFE57F', icon: '$' },
-  { id: 'invincible',   name: 'Invincible',               desc: 'Beat all four levels without taking damage', color: '#00BCD4', icon: '🛡' },
+  { id: 'invincible',     name: 'Invincible',     desc: 'Beat all four levels without taking damage', color: '#00BCD4', icon: '🛡' },
+  { id: 'indestructible', name: 'Indestructible', desc: 'Beat all four levels on Hard mode',           color: '#FF6F00', icon: '💪' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -712,6 +713,11 @@ function startCutscene() {
     badges.add('invincible');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Invincible', timer: 240 };
+  }
+  if (difficulty === 'hard' && !badges.has('indestructible')) {
+    badges.add('indestructible');
+    localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Indestructible', timer: 240 };
   }
   gamesBeaten++;
   localStorage.setItem('cb_wins', gamesBeaten);
