@@ -31,7 +31,8 @@ const JUMP_FORCE     = -13;
 const MOVE_SPEED     = 4.5;
 const LEVEL_W        = 3500;
 const GROUND_Y       = 410;
-const POWERUP_FRAMES = 300; // 5s at 60fps
+const POWERUP_FRAMES = 300; // 5s at 60fps (size)
+const SPEED_FRAMES   = 150; // 2.5s at 60fps
 
 // ─── Input ───────────────────────────────────────────────────────────────────
 const keys = {};
@@ -192,7 +193,7 @@ function makePlayer(startX, colors, ctrlFns) {
 
 function applyPowerup(p, type) {
   if (type === 'speed') {
-    p.powerups.speed = POWERUP_FRAMES;
+    p.powerups.speed = SPEED_FRAMES;
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#FFD700', 14);
   } else {
     if (p.powerups.size === 0) { p.y -= 14; p.w = 42; p.h = 42; }
