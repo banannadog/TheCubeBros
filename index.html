@@ -280,7 +280,7 @@ const BADGE_DEFS = [
   { id: 'swordfighter', name: 'Swordfighter', desc: 'Defeat the King',               color: '#B0BEC5', icon: '⚔' },
   { id: 'adventurer',   name: 'Adventurer',   desc: 'Beat all four levels',           color: '#66BB6A', icon: '🗺' },
   { id: 'unlucky',      name: 'Unlucky',      desc: 'Search 4 empty rooms before the key', color: '#9C27B0', icon: '🔑' },
-  { id: 'murderer',     name: 'Murderer',          desc: 'Kill 10 enemies',                     color: '#F44336', icon: '💀' },
+  { id: 'murderer',     name: 'Murderer',          desc: 'Kill 25 enemies',                     color: '#F44336', icon: '💀' },
   { id: 'reallylike',   name: 'You REALLY like this game', desc: 'Beat the game 10 times',   color: '#E91E63', icon: '🎮' },
 ];
 const SKIN_DEFS = [
@@ -1396,7 +1396,7 @@ function drawPlayerCube(p) {
 // ─── Night Vision Helper ──────────────────────────────────────────────────────
 function checkMurdererBadge() {
   localStorage.setItem('cb_kills', enemyKillCount);
-  if (enemyKillCount >= 10 && !badges.has('murderer')) {
+  if (enemyKillCount >= 25 && !badges.has('murderer')) {
     badges.add('murderer');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Murderer', timer: 240 };
