@@ -266,6 +266,7 @@ let badges = new Set(JSON.parse(localStorage.getItem('cb_badges') || '[]'));
 let badgesPanelOpen = false;   // pauses game when true
 let skinsPanelOpen  = false;   // pauses game when true
 let badgeNotif = null;         // { name, timer } — popup above BADGES button
+let jasonFlash = 0;           // frames remaining for "MAKE THEM REMEMBER" flash
 let equippedSkin = localStorage.getItem('cb_skin') || null;
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
@@ -308,6 +309,7 @@ function applyPowerup(p, type) {
   if (type === 'speed') {
     p.powerups.speed = SPEED_FRAMES;
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#FFD700', 14);
+    if (equippedSkin === 'murderer') jasonFlash = 60;
   } else if (type === 'size') {
     if (p.powerups.size === 0) { p.y -= 14; p.w = 42; p.h = 42; }
     p.powerups.size = POWERUP_FRAMES;
@@ -679,6 +681,7 @@ function update() {
     return;
   }
   if (badgeNotif) { badgeNotif.timer--; if (badgeNotif.timer <= 0) badgeNotif = null; }
+  if (jasonFlash > 0) jasonFlash--;
   if (badgesPanelOpen || skinsPanelOpen) return;
   if (gameState !== 'playing' || gameOver || won) return;
   tick++;
@@ -2073,6 +2076,23 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
   drawHUD();
+  // Fire Jason flash banner
+  if (jasonFlash > 0) {
+    const alpha = jasonFlash > 20 ? 1 : jasonFlash / 20;
+    const scale = (jasonFlash <= 60 && jasonFlash > 50) ? 1 + (60 - jasonFlash) * 0.04 : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(W / 2, 28);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#B71C1C';
+    ctx.fillRect(-120, -16, 240, 28);
+    ctx.strokeStyle = '#FF1744'; ctx.lineWidth = 2;
+    ctx.strokeRect(-119, -15, 238, 26);
+    ctx.fillStyle = '#FF1744'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('MAKE THEM REMEMBER', 0, 7);
+    ctx.restore();
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
   drawBadgesPanel();
   drawSkinsPanel();
   if (gameOver) {
