@@ -67,10 +67,14 @@ function updateTouchState(e) {
         touch[key] = true;
     }
     // Menu card selection on touch
+    const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
     if (gameState === 'select') {
-      const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
-      if (tx >= c1X && tx <= c1X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); initGame(1); }
-      if (tx >= c2X && tx <= c2X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); initGame(2); }
+      if (tx >= c1X && tx <= c1X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); pendingPlayers=1; gameState='difficulty'; menuSel=0; }
+      if (tx >= c2X && tx <= c2X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); pendingPlayers=2; gameState='difficulty'; menuSel=0; }
+    }
+    if (gameState === 'difficulty') {
+      if (tx >= c1X && tx <= c1X+cW && ty >= cY && ty <= cY+cH) { difficulty='easy'; playTacoBell(); initGame(pendingPlayers); }
+      if (tx >= c2X && tx <= c2X+cW && ty >= cY && ty <= cY+cH) { difficulty='hard'; playTacoBell(); initGame(pendingPlayers); }
     }
   }
 }
@@ -368,9 +372,11 @@ function updateMoneyTrail() {
 }
 
 // ─── Game State ──────────────────────────────────────────────────────────────
-let gameState  = 'select';  // 'select' | 'playing' | 'transition'
-let menuSel    = 0;
-let numPlayers = 1;
+let gameState     = 'select';  // 'select' | 'difficulty' | 'playing' | 'transition'
+let menuSel       = 0;
+let numPlayers    = 1;
+let difficulty    = 'easy';   // 'easy' | 'hard'
+let pendingPlayers = 1;
 let currentLevel = 0;       // 0-indexed
 let transitionTimer = 0;
 let player1, player2;
@@ -497,7 +503,7 @@ function startLevel(n) {
   levelW = d.levelWidth || LEVEL_W;
   platforms = [...d.platforms]; // mutable copy so we can push/splice door
   coins   = d.rawCoins.map(([x,y]) => ({ x, y, collected: false, bob: Math.random()*Math.PI*2 }));
-  enemies = d.enemies.map(e => ({ ...e, alive: true, squish: 0, vx: -Math.abs(e.vx) }));
+  enemies = d.enemies.map(e => ({ ...e, alive: true, squish: 0, vx: -Math.abs(e.vx) * (difficulty === 'hard' ? 1.8 : 1) }));
   chests  = d.chests.map(c => ({ ...c, opened: false }));
   for (const p of [player1, player2]) {
     if (!p) continue;
@@ -641,7 +647,8 @@ function updateBoss(active) {
       for (const p of active) {
         if (p.invincible > 0) continue;
         if (overlap(swordX, boss.y+18, 38, 14, p.x, p.y, p.w, p.h)) {
-          p.lives--; tookDamage = true; p.invincible = 100; p.vy = -7;
+          if (difficulty === 'hard') p.lives = 0; else p.lives--;
+          tookDamage = true; p.invincible = 100; p.vy = -7;
           p.vx = p.x < boss.x + boss.w/2 ? -5 : 5;
           spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF4444', 10);
         }
@@ -917,7 +924,7 @@ function update() {
         enemyKillCount++; checkMurdererBadge();
         break;
       } else {
-        p.lives--; tookDamage = true; p.invincible = 100; p.vy = -7;
+        p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true; p.invincible = 100; p.vy = -7;
         p.vx = p.x < e.x+e.w/2 ? -5 : 5;
         spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF7043', 8);
       }
@@ -2193,6 +2200,80 @@ function drawSelectScreen() {
   ctx.textAlign='left';
 }
 
+// ─── Difficulty Screen ────────────────────────────────────────────────────────
+function drawDifficultyScreen() {
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0a0a1a'); g.addColorStop(1,'#1a0505');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  for (let i = 0; i < 60; i++) {
+    const blink = Math.sin(tick*.03+i)*.4+.6;
+    ctx.globalAlpha = blink; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect((i*137+50)%W, (i*97+30)%(H-80), i%3===0?2:1, i%3===0?2:1);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'center';
+  ctx.fillStyle = '#29B6F6'; ctx.font = 'bold 42px monospace';
+  ctx.shadowColor = '#29B6F6'; ctx.shadowBlur = 20;
+  ctx.fillText('★ THE CUBE BROS ★', W/2, 90); ctx.shadowBlur = 0;
+  ctx.fillStyle = '#546E7A'; ctx.font = '14px monospace';
+  ctx.fillText('SELECT DIFFICULTY', W/2, 118);
+
+  const cW=220, cH=200, cY=148, c1X=W/2-cW-20, c2X=W/2+20;
+
+  // EASY card
+  const eaSel = menuSel === 0;
+  ctx.fillStyle = eaSel ? 'rgba(76,175,80,0.25)' : 'rgba(255,255,255,0.04)';
+  ctx.fillRect(c1X, cY, cW, cH);
+  ctx.strokeStyle = eaSel ? '#4CAF50' : '#334'; ctx.lineWidth = eaSel ? 3 : 1.5;
+  ctx.strokeRect(c1X, cY, cW, cH);
+  if (eaSel) {
+    ctx.strokeStyle = `rgba(76,175,80,${.3+Math.sin(tick*.08)*.2})`;
+    ctx.lineWidth = 6; ctx.strokeRect(c1X-1,cY-1,cW+2,cH+2);
+  }
+  const sz1 = 52, eaCubeX = c1X+cW/2-sz1/2, eaCubeY = cY+40+Math.sin(tick*.06)*8;
+  drawMiniCube(eaCubeX, eaCubeY, sz1, P1.mid, P1.dark, P1.light);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(eaCubeX+sz1*.52, eaCubeY+sz1*.28, sz1*.14, sz1*.14);
+  ctx.fillRect(eaCubeX+sz1*.73, eaCubeY+sz1*.28, sz1*.14, sz1*.14);
+  ctx.fillStyle = eaSel ? '#AED581' : '#556'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('Normal gameplay', c1X+cW/2, cY+120);
+  ctx.fillStyle = eaSel ? '#FFF' : '#889'; ctx.font = 'bold 20px monospace';
+  ctx.fillText('EASY', c1X+cW/2, cY+cH-22);
+  if (eaSel) { ctx.fillStyle='#4CAF50'; ctx.font='12px monospace'; ctx.fillText('▶ ENTER to start ◀', c1X+cW/2, cY+cH-6); }
+
+  // HARD card
+  const hdSel = menuSel === 1;
+  ctx.fillStyle = hdSel ? 'rgba(244,67,54,0.25)' : 'rgba(255,255,255,0.04)';
+  ctx.fillRect(c2X, cY, cW, cH);
+  ctx.strokeStyle = hdSel ? '#F44336' : '#334'; ctx.lineWidth = hdSel ? 3 : 1.5;
+  ctx.strokeRect(c2X, cY, cW, cH);
+  if (hdSel) {
+    ctx.strokeStyle = `rgba(244,67,54,${.3+Math.sin(tick*.08)*.2})`;
+    ctx.lineWidth = 6; ctx.strokeRect(c2X-1,cY-1,cW+2,cH+2);
+  }
+  const sz2 = 52, hdCubeX = c2X+cW/2-sz2/2, hdCubeY = cY+40+Math.sin(tick*.06+1)*8;
+  drawMiniCube(hdCubeX, hdCubeY, sz2, '#8B0000', '#5C0000', '#C62828');
+  ctx.fillStyle = '#FF4444';
+  ctx.fillRect(hdCubeX+sz2*.52, hdCubeY+sz2*.28, sz2*.14, sz2*.14);
+  ctx.fillRect(hdCubeX+sz2*.73, hdCubeY+sz2*.28, sz2*.14, sz2*.14);
+  ctx.fillStyle = hdSel ? '#EF9A9A' : '#556'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('Enemies are faster', c2X+cW/2, cY+112);
+  ctx.fillText('Enemies deal 2x damage', c2X+cW/2, cY+124);
+  ctx.fillText('Boss = instant kill', c2X+cW/2, cY+136);
+  ctx.fillStyle = hdSel ? '#FFF' : '#889'; ctx.font = 'bold 20px monospace';
+  ctx.fillText('HARD', c2X+cW/2, cY+cH-22);
+  if (hdSel) { ctx.fillStyle='#F44336'; ctx.font='12px monospace'; ctx.fillText('▶ ENTER to start ◀', c2X+cW/2, cY+cH-6); }
+
+  // Arrow indicator
+  ctx.fillStyle = `rgba(41,182,246,${.7+Math.sin(tick*.1)*.3})`;
+  ctx.font='bold 22px monospace'; ctx.textAlign='left';
+  ctx.fillText('▶', (menuSel===0?c1X:c2X)-24, cY+cH/2+8);
+  ctx.fillStyle='#445'; ctx.font='12px monospace'; ctx.textAlign='center';
+  ctx.fillText('← → to choose  |  ENTER to confirm', W/2, 390);
+  ctx.fillStyle='#334'; ctx.font='11px monospace';
+  ctx.fillText('R = return to menu during play', W/2, 410);
+  ctx.textAlign='left';
+}
+
 // ─── Level Transition Screen ──────────────────────────────────────────────────
 function drawTransition() {
   drawBackground(); drawPlatforms();
@@ -2421,8 +2502,9 @@ function drawPlayerSword() {
 
 // ─── Main Draw ───────────────────────────────────────────────────────────────
 function draw() {
-  if (gameState === 'select')     { drawSelectScreen(); return; }
-  if (gameState === 'transition') { drawTransition();   return; }
+  if (gameState === 'select')     { drawSelectScreen();     return; }
+  if (gameState === 'difficulty') { drawDifficultyScreen(); return; }
+  if (gameState === 'transition') { drawTransition();       return; }
   if (gameState === 'cutscene')   { drawCutscene();     return; }
   const darkMode = currentLevel === 2 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
@@ -2485,11 +2567,18 @@ function draw() {
 // ─── Input ───────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (gameState === 'select') {
-    if (e.code==='Digit1')                               { menuSel=0; playTacoBell(); initGame(1); }
-    else if (e.code==='Digit2')                          { menuSel=1; playTacoBell(); initGame(2); }
+    if (e.code==='Digit1')                               { menuSel=0; playTacoBell(); pendingPlayers=1; gameState='difficulty'; menuSel=0; }
+    else if (e.code==='Digit2')                          { menuSel=0; playTacoBell(); pendingPlayers=2; gameState='difficulty'; menuSel=0; }
     else if (e.code==='ArrowLeft'  || e.code==='KeyA')   menuSel=0;
     else if (e.code==='ArrowRight' || e.code==='KeyD')   menuSel=1;
-    else if (e.code==='Enter' || e.code==='Space')       { playTacoBell(); initGame(menuSel+1); }
+    else if (e.code==='Enter' || e.code==='Space')       { playTacoBell(); pendingPlayers=menuSel+1; gameState='difficulty'; menuSel=0; }
+  } else if (gameState === 'difficulty') {
+    if (e.code==='ArrowLeft'  || e.code==='KeyA')   menuSel=0;
+    else if (e.code==='ArrowRight' || e.code==='KeyD')   menuSel=1;
+    else if (e.code==='Enter' || e.code==='Space') {
+      difficulty = menuSel===0 ? 'easy' : 'hard';
+      playTacoBell(); initGame(pendingPlayers);
+    } else if (e.code==='KeyR') { gameState='select'; menuSel=0; }
   } else {
     if (e.code==='KeyR') gameState='select';
   }
@@ -2500,10 +2589,14 @@ canvas.addEventListener('click', e => {
   const rect2 = canvas.getBoundingClientRect();
   const mx2 = (e.clientX - rect2.left) * (W / rect2.width);
   const my2 = (e.clientY - rect2.top)  * (H / rect2.height);
+  const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
   if (gameState === 'select') {
-    const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
-    if (mx2 >= c1X && mx2 <= c1X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); initGame(1); return; }
-    if (mx2 >= c2X && mx2 <= c2X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); initGame(2); return; }
+    if (mx2 >= c1X && mx2 <= c1X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); pendingPlayers=1; gameState='difficulty'; menuSel=0; return; }
+    if (mx2 >= c2X && mx2 <= c2X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); pendingPlayers=2; gameState='difficulty'; menuSel=0; return; }
+  }
+  if (gameState === 'difficulty') {
+    if (mx2 >= c1X && mx2 <= c1X+cW && my2 >= cY && my2 <= cY+cH) { difficulty='easy'; playTacoBell(); initGame(pendingPlayers); return; }
+    if (mx2 >= c2X && mx2 <= c2X+cW && my2 >= cY && my2 <= cY+cH) { difficulty='hard'; playTacoBell(); initGame(pendingPlayers); return; }
   }
   if (gameState !== 'playing' && gameState !== 'cutscene') return;
   const rect = canvas.getBoundingClientRect();
