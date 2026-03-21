@@ -31,8 +31,9 @@ const JUMP_FORCE     = -13;
 const MOVE_SPEED     = 4.5;
 const LEVEL_W        = 3500;
 const GROUND_Y       = 410;
-const POWERUP_FRAMES = 300; // 5s at 60fps (size)
-const SPEED_FRAMES   = 150; // 2.5s at 60fps
+const POWERUP_FRAMES      = 300; // 5s at 60fps (size)
+const SPEED_FRAMES        = 150; // 2.5s at 60fps
+const NIGHTVISION_FRAMES  = 900; // 15s at 60fps
 
 // ─── Input ───────────────────────────────────────────────────────────────────
 const keys = {};
@@ -152,6 +153,39 @@ const LEVEL_DATA = [
       { x: 1274, y: 277, w: 32, h: 28, type: 'size'  },
     ],
   },
+  // ── LEVEL 3 — MIDNIGHT ──
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      [150,355,80,12],[310,308,80,12],[500,268,80,12],[690,318,70,12],
+      [880,358,60,12],[1020,306,70,12],[1170,263,70,12],
+      [1330,296,80,12],
+      [1490,348,60,12],
+      [1640,363,60,12],[1730,328,60,12],[1820,293,60,12],[1920,253,80,12],[2020,213,80,12],
+      [2200,343,100,12],[2380,296,80,12],[2530,343,70,12],[2660,288,100,12],
+      [2830,328,56,12],[2950,273,56,12],[3070,328,56,12],[3190,263,72,12],[3310,328,90,12],
+    ],
+    rawCoins: [
+      [180,323],[250,323],[340,276],[372,276],[530,236],[562,236],[720,286],
+      [910,326],[1050,274],[1200,231],[1360,264],[1520,316],
+      [1670,331],[1760,296],[1850,261],[1950,221],[2050,181],
+      [2230,311],[2262,311],[2410,264],[2560,311],[2690,256],
+      [2860,296],[2980,241],[3100,296],[3220,231],[3340,296],
+    ],
+    enemies: [
+      mkE(480,GROUND_Y-26,300,660,2.6),   mkE(900,GROUND_Y-26,740,1060,2.6),
+      mkE(1360,GROUND_Y-26,1200,1560,2.6),mkE(1860,GROUND_Y-26,1700,2060,2.6),
+      mkE(2360,GROUND_Y-26,2200,2560,2.9),mkE(2810,GROUND_Y-26,2660,2970,2.9),
+      mkE(3260,GROUND_Y-26,3110,3460,2.9),
+      mkE(1170,263-26,1150,1240,2.0),
+      mkE(2020,213-26,2000,2100,2.0),
+      mkE(2670,288-26,2660,2760,2.1),
+    ],
+    // Night-vision chest centered on [1330,296,80,12] → x=1354, y=296-28=268
+    chests: [
+      { x: 1354, y: 268, w: 32, h: 28, type: 'nightvision' },
+    ],
+  },
 ];
 
 // ─── Mutable level state ──────────────────────────────────────────────────────
@@ -186,7 +220,7 @@ function makePlayer(startX, colors, ctrlFns) {
     vx: 0, vy: 0, onGround: false, facingRight: true,
     lives: 3, coins: 0, score: 0,
     invincible: 0, coyoteTime: 0, wobble: 0,
-    powerups: { speed: 0, size: 0 },
+    powerups: { speed: 0, size: 0, nightvision: 0 },
     colors, ctrl: ctrlFns,
   };
 }
@@ -195,10 +229,13 @@ function applyPowerup(p, type) {
   if (type === 'speed') {
     p.powerups.speed = SPEED_FRAMES;
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#FFD700', 14);
-  } else {
+  } else if (type === 'size') {
     if (p.powerups.size === 0) { p.y -= 14; p.w = 42; p.h = 42; }
     p.powerups.size = POWERUP_FRAMES;
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#E040FB', 14);
+  } else if (type === 'nightvision') {
+    p.powerups.nightvision = NIGHTVISION_FRAMES;
+    spawnParticles(p.x + p.w/2, p.y + p.h/2, '#00E5FF', 16);
   }
   playPowerupSound();
 }
@@ -231,7 +268,7 @@ function startLevel(n) {
     p.vx = 0; p.vy = 0; p.onGround = false;
     p.invincible = 0; p.coyoteTime = 0; p.wobble = 0;
     if (p.powerups.size > 0) { p.w = p.baseW; p.h = p.baseH; }
-    p.powerups = { speed: 0, size: 0 };
+    p.powerups = { speed: 0, size: 0, nightvision: 0 };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
   particles.length = 0;
@@ -261,8 +298,9 @@ function resolveY(ent) {
 function updatePlayer(p) {
   if (!p || p.lives <= 0) return;
   const wasBig = p.powerups.size > 0;
-  if (p.powerups.speed > 0) p.powerups.speed--;
-  if (p.powerups.size  > 0) p.powerups.size--;
+  if (p.powerups.speed      > 0) p.powerups.speed--;
+  if (p.powerups.size       > 0) p.powerups.size--;
+  if (p.powerups.nightvision > 0) p.powerups.nightvision--;
   if (wasBig && p.powerups.size === 0) {
     p.w = p.baseW; p.h = p.baseH;
     if (p.onGround) p.y += 14;
@@ -297,7 +335,7 @@ function update() {
   if (gameState === 'transition') {
     tick++;
     transitionTimer--;
-    if (transitionTimer <= 0) startLevel(2);
+    if (transitionTimer <= 0) startLevel(currentLevel + 2);
     return;
   }
   if (gameState !== 'playing' || gameOver || won) return;
@@ -364,7 +402,7 @@ function update() {
   const hitGoal = (p1a && player1.x + player1.w >= LEVEL_W - 60) ||
                   (p2a && player2.x + player2.w >= LEVEL_W - 60);
   if (hitGoal) {
-    if (currentLevel === 0) { gameState = 'transition'; transitionTimer = 210; }
+    if (currentLevel < LEVEL_DATA.length - 1) { gameState = 'transition'; transitionTimer = 210; }
     else won = true;
   }
   if (!p1a && (numPlayers === 1 || !p2a)) gameOver = true;
@@ -412,12 +450,51 @@ function drawMiniCube(x, y, sz, mid, dark, light) {
 // ─── Background ──────────────────────────────────────────────────────────────
 function drawBackground() {
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  if (currentLevel === 1) {
+  if (currentLevel === 2) {
+    g.addColorStop(0, '#000008'); g.addColorStop(0.6, '#00001A'); g.addColorStop(1, '#000D28');
+  } else if (currentLevel === 1) {
     g.addColorStop(0, '#1A0533'); g.addColorStop(0.5, '#6A1B4D'); g.addColorStop(1, '#FF6E40');
   } else {
     g.addColorStop(0, '#0D47A1'); g.addColorStop(0.55, '#1976D2'); g.addColorStop(1, '#42A5F5');
   }
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  if (currentLevel === 2) {
+    // Stars
+    for (let i = 0; i < 120; i++) {
+      const sx2 = ((i*197 + 43) % (LEVEL_W+W));
+      const sy  = (i*113 + 17) % (H - 80);
+      const bx  = ((sx2 - camX*0.05) % (LEVEL_W+W) + LEVEL_W+W) % (LEVEL_W+W) - 50;
+      const blink = 0.4 + Math.sin(tick*0.04 + i) * 0.4;
+      ctx.globalAlpha = blink;
+      ctx.fillStyle = i % 5 === 0 ? '#CCE5FF' : '#FFFFFF';
+      const sz = i % 7 === 0 ? 2 : 1;
+      ctx.fillRect(bx, sy, sz, sz);
+    }
+    ctx.globalAlpha = 1;
+    // Moon
+    const moonX = ((2600 - camX*0.05) % (LEVEL_W+W) + LEVEL_W+W) % (LEVEL_W+W) - 50;
+    ctx.fillStyle = '#FFFDE7';
+    ctx.beginPath(); ctx.arc(moonX, 60, 30, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#F9A825';
+    ctx.beginPath(); ctx.arc(moonX, 60, 28, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#FFFDE7';
+    ctx.beginPath(); ctx.arc(moonX, 60, 26, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,253,231,0.15)';
+    ctx.beginPath(); ctx.arc(moonX, 60, 42, 0, Math.PI*2); ctx.fill();
+    // Dark silhouette hills
+    ctx.fillStyle = '#050510';
+    for (const [hx,hy,hw] of [[0,380,200],[220,360,260],[540,375,200],[820,355,300],[1180,370,220],[1480,350,280],[1800,365,240],[2100,355,300]]) {
+      const x = ((hx - camX*0.2) % (LEVEL_W*0.8+W) + LEVEL_W+W) % (LEVEL_W*0.8+W) - 100;
+      ctx.beginPath(); ctx.ellipse(x+hw/2, hy+120, hw/2, 120, 0, 0, Math.PI); ctx.fill();
+    }
+    ctx.fillStyle = '#020208';
+    for (const [hx,hy,hw] of [[0,360,240],[280,375,200],[560,355,270],[880,370,220],[1200,360,260],[1500,375,200]]) {
+      const x = ((hx - camX*0.45) % (LEVEL_W*0.7+W) + LEVEL_W+W) % (LEVEL_W*0.7+W) - 80;
+      ctx.beginPath(); ctx.ellipse(x+hw/2, hy+100, hw/2, 100, 0, 0, Math.PI); ctx.fill();
+    }
+    return;
+  }
 
   ctx.fillStyle = currentLevel === 1 ? '#4A148C' : '#1565C0';
   for (const [hx,hy,hw] of [[0,380,200],[220,360,260],[540,375,200],[820,355,300],[1180,370,220],[1480,350,280],[1800,365,240],[2100,355,300]]) {
@@ -439,10 +516,14 @@ function drawBackground() {
 
 // ─── Platforms ───────────────────────────────────────────────────────────────
 function drawPlatforms() {
-  const [gc, gt, gl, gd] = currentLevel === 1
+  const [gc, gt, gl, gd] = currentLevel === 2
+    ? ['#0A0A14','#12122A','#1A1A35','#060610']
+    : currentLevel === 1
     ? ['#4A1942','#7B1FA2','#9C27B0','#311B3F']
     : ['#5D4037','#388E3C','#4CAF50','#4A2F20'];
-  const [bc, bl, bd] = currentLevel === 1
+  const [bc, bl, bd] = currentLevel === 2
+    ? ['#16162E','#2A2A50','#0D0D20']
+    : currentLevel === 1
     ? ['#7B1FA2','#BA68C8','#4A148C']
     : ['#D4A017','#FFD54F','#A07820'];
 
@@ -493,9 +574,9 @@ function drawChests() {
       // Powerup icon + pulsing label
       const pulse = 0.75 + Math.sin(tick * 0.1) * 0.25;
       ctx.globalAlpha = pulse;
-      ctx.fillStyle = c.type === 'speed' ? '#FFE082' : '#CE93D8';
+      ctx.fillStyle = c.type === 'speed' ? '#FFE082' : c.type === 'nightvision' ? '#00E5FF' : '#CE93D8';
       ctx.font = '13px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(c.type === 'speed' ? '⚡' : '★', x+c.w/2, c.y-4);
+      ctx.fillText(c.type === 'speed' ? '⚡' : c.type === 'nightvision' ? '👁' : '★', x+c.w/2, c.y-4);
       ctx.globalAlpha = 1; ctx.textAlign = 'left';
     } else {
       // Open body
@@ -515,11 +596,11 @@ function drawGoalFlag() {
   const gx = sx(LEVEL_W - 90); if (gx < -50 || gx > W+50) return;
   ctx.fillStyle = '#78909C'; ctx.fillRect(gx+22, 200, 6, GROUND_Y-200);
   ctx.fillStyle = '#B0BEC5'; ctx.fillRect(gx+22, 200, 3, GROUND_Y-200);
-  ctx.fillStyle = currentLevel === 1 ? '#9C27B0' : '#F44336';
+  ctx.fillStyle = currentLevel === 2 ? '#00BCD4' : currentLevel === 1 ? '#9C27B0' : '#F44336';
   ctx.fillRect(gx+28, 200, 44, 30);
   ctx.fillStyle = '#FFEB3B'; ctx.fillRect(gx+28, 200, 44, 11);
   ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(currentLevel === 1 ? 'WIN!' : 'GOAL!', gx+31, 224);
+  ctx.fillText(currentLevel === 2 ? 'WIN!' : 'GOAL!', gx+31, 224);
   ctx.fillStyle = '#FDD835'; ctx.fillRect(gx+18, 194, 14, 14);
   ctx.fillStyle = '#F57F17'; ctx.fillRect(gx+20, 196, 10, 10);
 }
@@ -575,14 +656,22 @@ function drawPlayerCube(p) {
   }
 }
 
+// ─── Night Vision Helper ──────────────────────────────────────────────────────
+function hasNightVision() {
+  return (player1 && player1.powerups.nightvision > 0) ||
+         (player2 && player2.powerups.nightvision > 0);
+}
+
 // ─── Enemies ─────────────────────────────────────────────────────────────────
 function drawEnemies() {
+  const darkMode = currentLevel === 2 && !hasNightVision();
   for (const e of enemies) {
     if (!e.alive) {
       if (e.squish > 0) { const sh = Math.max(4,10*e.squish); drawCube(e.x, e.y+e.h-sh, e.w, sh, '#E53935','#B71C1C','#EF9A9A'); }
       continue;
     }
     const ex = sx(e.x); if (ex+e.w < -10 || ex > W+10) continue;
+    if (darkMode) continue; // body hidden in darkness — drawn by drawEnemyGlowEyes instead
     const fr = e.vx > 0;
     drawCube(e.x, e.y, e.w, e.h, '#E53935','#B71C1C','#EF9A9A');
     const eyeY = e.y + Math.floor(e.h*0.30);
@@ -595,6 +684,27 @@ function drawEnemies() {
     const mb = e.y+e.h*0.65;
     if (fr) { ctx.fillRect(ex+e.w*.50,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.50,mb-3,2,4); ctx.fillRect(ex+e.w*.88-2,mb,2,4); }
     else    { ctx.fillRect(ex+e.w*.12,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.12,mb,2,4);   ctx.fillRect(ex+e.w*.50-2,mb-3,2,4); }
+  }
+}
+
+function drawEnemyGlowEyes() {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const ex = sx(e.x); if (ex+e.w < -10 || ex > W+10) continue;
+    const fr = e.vx > 0;
+    const eyeY = e.y + Math.floor(e.h*0.30);
+    const pulse = 0.8 + Math.sin(tick*0.12 + e.x*0.01) * 0.2;
+    ctx.shadowColor = '#FF0000';
+    ctx.shadowBlur  = 14 * pulse;
+    ctx.fillStyle   = `rgba(255,${Math.floor(30*pulse)},${Math.floor(30*pulse)},1)`;
+    if (fr) {
+      ctx.fillRect(ex+e.w*0.52, eyeY, 5, 5);
+      ctx.fillRect(ex+e.w*0.73, eyeY, 5, 5);
+    } else {
+      ctx.fillRect(ex+e.w*0.15, eyeY, 5, 5);
+      ctx.fillRect(ex+e.w*0.36, eyeY, 5, 5);
+    }
+    ctx.shadowBlur = 0;
   }
 }
 
@@ -635,6 +745,12 @@ function drawHUD() {
       ctx.fillStyle = '#AB47BC'; ctx.fillRect(bx, 7, 46, 14);
       ctx.fillStyle = '#000'; ctx.font = 'bold 9px monospace';
       ctx.fillText(`★ ${(p.powerups.size/60).toFixed(1)}s`, bx+2, 18);
+      bx += 50;
+    }
+    if (p.powerups.nightvision > 0) {
+      ctx.fillStyle = '#006064'; ctx.fillRect(bx, 7, 52, 14);
+      ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 9px monospace';
+      ctx.fillText(`👁 ${(p.powerups.nightvision/60).toFixed(1)}s`, bx+2, 18);
     }
   }
 
@@ -724,22 +840,30 @@ function drawTransition() {
   ctx.fillStyle = '#FFD600'; ctx.font = 'bold 52px monospace';
   ctx.shadowColor='#FFD600'; ctx.shadowBlur=30;
   ctx.fillText('LEVEL COMPLETE!', W/2, H/2-50); ctx.shadowBlur=0;
+  const nextLvl = currentLevel + 2;
   ctx.fillStyle = '#FFF'; ctx.font = '22px monospace';
-  ctx.fillText('Get ready for Level 2...', W/2, H/2+5);
+  ctx.fillText(`Get ready for Level ${nextLvl}...`, W/2, H/2+5);
   // Progress bar
   ctx.fillStyle='#333'; ctx.fillRect(W/2-150, H/2+28, 300, 10);
-  ctx.fillStyle='#29B6F6'; ctx.fillRect(W/2-150, H/2+28, 300*prog, 10);
+  ctx.fillStyle= nextLvl === 3 ? '#00BCD4' : '#29B6F6';
+  ctx.fillRect(W/2-150, H/2+28, 300*prog, 10);
   // Chest previews
-  ctx.fillStyle='#AAA'; ctx.font='13px monospace';
-  ctx.fillText('Collect chests in Level 2 for powerups!', W/2, H/2+62);
   function miniChest(cx, cy, color, label) {
     ctx.fillStyle='#795548'; ctx.fillRect(cx,cy,30,24);
     ctx.fillStyle='#FDD835'; ctx.fillRect(cx,cy+12-2,30,4); ctx.fillRect(cx+11,cy+5,8,8);
     ctx.fillStyle=color; ctx.font='bold 12px monospace';
     ctx.fillText(label, cx+15, cy+40);
   }
-  miniChest(W/2-70, H/2+72, '#FFE082', '⚡ Speed');
-  miniChest(W/2+20, H/2+72, '#CE93D8', '★ Size');
+  if (nextLvl === 2) {
+    ctx.fillStyle='#AAA'; ctx.font='13px monospace';
+    ctx.fillText('Collect chests in Level 2 for powerups!', W/2, H/2+62);
+    miniChest(W/2-70, H/2+72, '#FFE082', '⚡ Speed');
+    miniChest(W/2+20, H/2+72, '#CE93D8', '★ Size');
+  } else {
+    ctx.fillStyle='#AAA'; ctx.font='13px monospace';
+    ctx.fillText('Level 3: It\'s midnight! Find night vision!', W/2, H/2+62);
+    miniChest(W/2-15, H/2+72, '#00E5FF', '👁 NightVis');
+  }
   ctx.textAlign='left';
 }
 
@@ -757,10 +881,21 @@ function drawOverlay(title, sub, color) {
 function draw() {
   if (gameState === 'select')     { drawSelectScreen(); return; }
   if (gameState === 'transition') { drawTransition();   return; }
+  const darkMode = currentLevel === 2 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
   drawGoalFlag(); drawEnemies();
   drawPlayerCube(player1); drawPlayerCube(player2);
-  drawParticles(); drawHUD();
+  drawParticles();
+  if (darkMode) {
+    // Midnight darkness — almost everything invisible
+    ctx.fillStyle = 'rgba(0,0,6,0.92)';
+    ctx.fillRect(0, 0, W, H);
+    // Redraw player on top so they can navigate
+    drawPlayerCube(player1); drawPlayerCube(player2);
+    // Only glowing red eyes visible for enemies
+    drawEnemyGlowEyes();
+  }
+  drawHUD();
   if (gameOver) {
     const s = numPlayers===2 ? `P1: ${player1.score}  P2: ${player2.score}` : `Score: ${player1.score}`;
     drawOverlay('GAME OVER', s, '#EF5350');
