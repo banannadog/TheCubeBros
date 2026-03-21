@@ -402,8 +402,12 @@ function update() {
   const hitGoal = (p1a && player1.x + player1.w >= LEVEL_W - 60) ||
                   (p2a && player2.x + player2.w >= LEVEL_W - 60);
   if (hitGoal) {
-    if (currentLevel < LEVEL_DATA.length - 1) { gameState = 'transition'; transitionTimer = 210; }
-    else won = true;
+    if (currentLevel < LEVEL_DATA.length - 1) {
+      // Revive any dead players for the next level
+      if (player1 && player1.lives <= 0) player1.lives = 1;
+      if (player2 && player2.lives <= 0) player2.lives = 1;
+      gameState = 'transition'; transitionTimer = 210;
+    } else won = true;
   }
   if (!p1a && (numPlayers === 1 || !p2a)) gameOver = true;
 
@@ -576,7 +580,7 @@ function drawChests() {
       ctx.globalAlpha = pulse;
       ctx.fillStyle = c.type === 'speed' ? '#FFE082' : c.type === 'nightvision' ? '#00E5FF' : '#CE93D8';
       ctx.font = '13px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(c.type === 'speed' ? '⚡' : c.type === 'nightvision' ? '👁' : '★', x+c.w/2, c.y-4);
+      ctx.fillText(c.type === 'speed' ? '⚡' : c.type === 'nightvision' ? 'NV' : '★', x+c.w/2, c.y-4);
       ctx.globalAlpha = 1; ctx.textAlign = 'left';
     } else {
       // Open body
@@ -750,7 +754,7 @@ function drawHUD() {
     if (p.powerups.nightvision > 0) {
       ctx.fillStyle = '#006064'; ctx.fillRect(bx, 7, 52, 14);
       ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 9px monospace';
-      ctx.fillText(`👁 ${(p.powerups.nightvision/60).toFixed(1)}s`, bx+2, 18);
+      ctx.fillText(`NV ${(p.powerups.nightvision/60).toFixed(1)}s`, bx+2, 18);
     }
   }
 
@@ -862,7 +866,7 @@ function drawTransition() {
   } else {
     ctx.fillStyle='#AAA'; ctx.font='13px monospace';
     ctx.fillText('Level 3: It\'s midnight! Find night vision!', W/2, H/2+62);
-    miniChest(W/2-15, H/2+72, '#00E5FF', '👁 NightVis');
+    miniChest(W/2-15, H/2+72, '#00E5FF', 'NV NightVis');
   }
   ctx.textAlign='left';
 }
