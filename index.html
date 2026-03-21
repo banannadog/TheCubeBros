@@ -340,7 +340,12 @@ function update() {
     }
     for (const p of active) {
       if (p.invincible > 0 || !overlap(p.x,p.y,p.w,p.h,e.x,e.y,e.w,e.h)) continue;
-      if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
+      if (p.powerups.size > 0) {
+        // Big powerup — instant kill on any touch
+        e.alive = false; e.squish = 1;
+        p.score += 200;
+        spawnParticles(e.x+e.w/2, e.y+e.h/2, '#E040FB', 12); break;
+      } else if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
         e.alive = false; e.squish = 1;
         p.vy = -9; p.score += 200;
         spawnParticles(e.x+e.w/2, e.y+e.h/2, '#EF5350', 10); break;
