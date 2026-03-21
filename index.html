@@ -508,6 +508,7 @@ function startCutscene() {
   cutscene = {
     phase: 'walk',   // 'walk' → 'stand' → 'jump' → 'freeze'
     timer: 0,
+    fadeTimer: 0,    // 0-30: pitch black, 30-60: fade to clear
     bgOffset: 0,
     y: CSGY - 28,
     vy: 0,
@@ -520,6 +521,7 @@ function startCutscene() {
 function updateCutscene() {
   const cs = cutscene;
   cs.timer++;
+  if (cs.fadeTimer < 60) cs.fadeTimer++;
   cs.bobAngle += 0.28;
   if (cs.phase === 'walk') {
     cs.bgOffset += 2;
@@ -609,6 +611,13 @@ function drawCutscene() {
     ctx.fillStyle = '#888'; ctx.font = '11px monospace';
     ctx.fillText('Press R to return to menu', W/2, 322);
     ctx.textAlign = 'left';
+  }
+
+  // Fade-in: pitch black for 0.5s, then fade to clear over 0.5s
+  if (cs.fadeTimer < 60) {
+    const alpha = cs.fadeTimer < 30 ? 1.0 : 1.0 - (cs.fadeTimer - 30) / 30;
+    ctx.fillStyle = `rgba(0,0,0,${alpha.toFixed(3)})`;
+    ctx.fillRect(0, 0, W, H);
   }
 }
 
