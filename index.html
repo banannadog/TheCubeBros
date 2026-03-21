@@ -34,6 +34,7 @@ const GROUND_Y       = 410;
 const POWERUP_FRAMES      = 300; // 5s at 60fps (size)
 const SPEED_FRAMES        = 150; // 2.5s at 60fps
 const NIGHTVISION_FRAMES  = 900; // 15s at 60fps
+const BOSS_TIRED_FRAMES   = 600; // 10s at 60fps
 
 // ─── Input ───────────────────────────────────────────────────────────────────
 const keys = {};
@@ -186,6 +187,37 @@ const LEVEL_DATA = [
       { x: 1354, y: 268, w: 32, h: 28, type: 'nightvision' },
     ],
   },
+  // ── LEVEL 4 — CASTLE INTERIOR ──
+  {
+    levelWidth: 4800,
+    platforms: [
+      [0, GROUND_Y, 4800, 40],
+      // Room 1 (0-800)
+      [160,345,80,12],[480,298,80,12],
+      // Room 2 (800-1600)
+      [960,352,80,12],[1300,305,80,12],
+      // Room 3 (1600-2400)
+      [1760,338,80,12],[2080,288,80,12],
+      // Room 4 (2400-3200)
+      [2560,348,80,12],[2880,298,80,12],
+      // Room 5 (3200-4000)
+      [3360,325,80,12],[3680,275,80,12],
+      // Boss room — flat floor only
+    ],
+    rawCoins: [
+      [200,313],[520,266],[1000,320],[1340,273],
+      [1800,306],[2120,256],[2600,316],[2920,266],
+      [3400,293],[3720,243],
+    ],
+    enemies: [
+      mkE(280,GROUND_Y-26,50,750,2.2),  mkE(600,GROUND_Y-26,50,750,2.2),
+      mkE(1060,GROUND_Y-26,850,1550,2.2),mkE(1400,GROUND_Y-26,850,1550,2.2),
+      mkE(1860,GROUND_Y-26,1650,2350,2.2),mkE(2180,GROUND_Y-26,1650,2350,2.2),
+      mkE(2660,GROUND_Y-26,2450,3150,2.2),mkE(3000,GROUND_Y-26,2450,3150,2.2),
+      mkE(3560,GROUND_Y-26,3250,3950,2.2),mkE(3850,GROUND_Y-26,3250,3950,2.2),
+    ],
+    chests: [],
+  },
 ];
 
 // ─── Mutable level state ──────────────────────────────────────────────────────
@@ -209,6 +241,12 @@ let currentLevel = 0;       // 0-indexed
 let transitionTimer = 0;
 let player1, player2;
 let camX, tick, gameOver, won;
+let levelW = LEVEL_W;          // dynamic per-level width
+let boss = null;               // boss entity
+let bossKey = null;            // gold key pickup
+let ironDoor = null;           // iron door state
+let playerHasSword = false;    // true after picking up boss's dropped sword
+let bossHitCooldown = 0;       // prevents rapid multi-hits
 
 const P1 = { mid: '#29B6F6', dark: '#0277BD', light: '#81D4FA', leg: '#0277BD' };
 const P2 = { mid: '#66BB6A', dark: '#2E7D32', light: '#A5D6A7', leg: '#2E7D32' };
@@ -222,6 +260,7 @@ function makePlayer(startX, colors, ctrlFns) {
     invincible: 0, coyoteTime: 0, wobble: 0,
     powerups: { speed: 0, size: 0, nightvision: 0 },
     colors, ctrl: ctrlFns,
+    attackPressed: false, justAttacked: false,
   };
 }
 
@@ -245,12 +284,14 @@ function initGame(n) {
   player1 = makePlayer(60, P1, {
     left:  () => keys['KeyA'],
     right: () => keys['KeyD'],
-    jump:  () => keys['KeyW'] || keys['Space'],
+    jump:   () => keys['KeyW'] || keys['Space'],
+    attack: () => keys['KeyF'],
   });
   player2 = n === 2 ? makePlayer(100, P2, {
-    left:  () => keys['ArrowLeft'],
-    right: () => keys['ArrowRight'],
-    jump:  () => keys['ArrowUp'] || keys['Enter'],
+    left:   () => keys['ArrowLeft'],
+    right:  () => keys['ArrowRight'],
+    jump:   () => keys['ArrowUp'] || keys['Enter'],
+    attack: () => keys['Slash'],
   }) : null;
   startLevel(1);
 }
@@ -258,7 +299,8 @@ function initGame(n) {
 function startLevel(n) {
   currentLevel = n - 1;
   const d = LEVEL_DATA[currentLevel];
-  platforms = d.platforms;
+  levelW = d.levelWidth || LEVEL_W;
+  platforms = [...d.platforms]; // mutable copy so we can push/splice door
   coins   = d.rawCoins.map(([x,y]) => ({ x, y, collected: false, bob: Math.random()*Math.PI*2 }));
   enemies = d.enemies.map(e => ({ ...e, alive: true, squish: 0, vx: -Math.abs(e.vx) }));
   chests  = d.chests.map(c => ({ ...c, opened: false }));
@@ -269,6 +311,23 @@ function startLevel(n) {
     p.invincible = 0; p.coyoteTime = 0; p.wobble = 0;
     if (p.powerups.size > 0) { p.w = p.baseW; p.h = p.baseH; }
     p.powerups = { speed: 0, size: 0, nightvision: 0 };
+    p.attackPressed = false; p.justAttacked = false;
+  }
+  // Reset Level 4 state
+  boss = null; bossKey = null; ironDoor = null;
+  playerHasSword = false; bossHitCooldown = 0;
+  if (currentLevel === 3) {
+    const keyRoom = Math.floor(Math.random() * 5); // 0-4
+    const keyX = [400, 1200, 2000, 2800, 3600][keyRoom];
+    bossKey = { x: keyX, y: GROUND_Y - 22, w: 20, h: 20, collected: false };
+    ironDoor = { x: 4000, y: GROUND_Y - 300, w: 18, h: 300, locked: true };
+    platforms.push([ironDoor.x, ironDoor.y, ironDoor.w, ironDoor.h]);
+    boss = {
+      x: 4250, y: GROUND_Y - 64,
+      w: 44, h: 64, vx: 0, vy: 0, onGround: false,
+      lives: 3, state: 'idle', stateTimer: 0,
+      facingRight: false, invincible: 0, droppedSword: null,
+    };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
   particles.length = 0;
@@ -328,6 +387,89 @@ function updatePlayer(p) {
     p.vx = 0; p.vy = 0; p.invincible = 80;
   }
   if (p.invincible > 0) p.invincible--;
+  // Attack edge detection (one-shot per press)
+  const atk = p.ctrl.attack && p.ctrl.attack();
+  p.justAttacked = atk && !p.attackPressed;
+  p.attackPressed = atk;
+}
+
+// ─── Boss Update ─────────────────────────────────────────────────────────────
+function updateBoss(active) {
+  if (!boss || boss.lives <= 0 || active.length === 0) return;
+  boss.stateTimer++;
+  if (boss.invincible > 0) boss.invincible--;
+  if (bossHitCooldown > 0) bossHitCooldown--;
+
+  // Boss gravity
+  boss.vy = Math.min(boss.vy + GRAVITY, MAX_FALL);
+  boss.onGround = false;
+  boss.y += boss.vy;
+  resolveY(boss);
+  boss.x += boss.vx;
+  boss.x = Math.max(4015, Math.min(boss.x, 4800 - boss.w - 10));
+
+  const nearest = active.reduce((a,b) => Math.abs(b.x-boss.x)<Math.abs(a.x-boss.x)?b:a, active[0]);
+
+  if (boss.state === 'idle') {
+    const dir = nearest.x > boss.x ? 1 : -1;
+    boss.vx = dir * 1.4;
+    boss.facingRight = dir > 0;
+    if (boss.stateTimer >= 90) {
+      boss.state = 'swinging'; boss.stateTimer = 0; boss.vx = 0;
+    }
+  } else if (boss.state === 'swinging') {
+    boss.vx = 0;
+    const swingFrame = boss.stateTimer % 40;
+    boss.facingRight = nearest.x > boss.x;
+    // Active hitbox: frames 8-28 of each 40-frame swing
+    if (swingFrame >= 8 && swingFrame <= 28) {
+      const swordX = boss.facingRight ? boss.x + boss.w : boss.x - 38;
+      for (const p of active) {
+        if (p.invincible > 0) continue;
+        if (overlap(swordX, boss.y+18, 38, 14, p.x, p.y, p.w, p.h)) {
+          p.lives--; p.invincible = 100; p.vy = -7;
+          p.vx = p.x < boss.x + boss.w/2 ? -5 : 5;
+          spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF4444', 10);
+        }
+      }
+    }
+    if (boss.stateTimer >= 120) {
+      boss.state = 'tired'; boss.stateTimer = 0;
+      const sx2 = boss.facingRight ? boss.x + boss.w + 6 : boss.x - 38;
+      boss.droppedSword = { x: sx2, y: GROUND_Y - 14, w: 34, h: 10, pickedUp: false };
+    }
+  } else if (boss.state === 'tired') {
+    boss.vx = 0;
+    // Sword pickup
+    if (boss.droppedSword && !boss.droppedSword.pickedUp) {
+      for (const p of active) {
+        if (overlap(p.x,p.y,p.w,p.h, boss.droppedSword.x,boss.droppedSword.y,boss.droppedSword.w,boss.droppedSword.h)) {
+          boss.droppedSword.pickedUp = true;
+          playerHasSword = true;
+          playPowerupSound();
+        }
+      }
+    }
+    // Player sword attack (press F when close)
+    if (playerHasSword && bossHitCooldown <= 0) {
+      for (const p of active) {
+        if (!p.justAttacked) continue;
+        const dist = Math.abs((p.x+p.w/2) - (boss.x+boss.w/2));
+        if (dist <= 60) {
+          boss.lives--;
+          bossHitCooldown = 50;
+          playerHasSword = false;
+          spawnParticles(boss.x+boss.w/2, boss.y+boss.h/2, '#FFD700', 18);
+          if (boss.lives <= 0) { won = true; return; }
+          boss.state = 'idle'; boss.stateTimer = 0; boss.droppedSword = null;
+        }
+      }
+    }
+    if (boss.stateTimer >= BOSS_TIRED_FRAMES) {
+      boss.state = 'idle'; boss.stateTimer = 0; boss.droppedSword = null;
+      playerHasSword = false;
+    }
+  }
 }
 
 // ─── Main Update ─────────────────────────────────────────────────────────────
@@ -399,15 +541,32 @@ function update() {
   // Win / Game Over
   const p1a = player1.lives > 0;
   const p2a = player2 && player2.lives > 0;
-  const hitGoal = (p1a && player1.x + player1.w >= LEVEL_W - 60) ||
-                  (p2a && player2.x + player2.w >= LEVEL_W - 60);
-  if (hitGoal) {
-    if (currentLevel < LEVEL_DATA.length - 1) {
-      // Award a life to alive players; revive dead players
-      if (player1) { if (player1.lives > 0) player1.lives++; else player1.lives = 1; }
-      if (player2) { if (player2.lives > 0) player2.lives++; else player2.lives = 1; }
-      gameState = 'transition'; transitionTimer = 210;
-    } else won = true;
+  if (currentLevel < 3) {
+    const hitGoal = (p1a && player1.x + player1.w >= levelW - 60) ||
+                    (p2a && player2.x + player2.w >= levelW - 60);
+    if (hitGoal) {
+      if (currentLevel < LEVEL_DATA.length - 1) {
+        if (player1) { if (player1.lives > 0) player1.lives++; else player1.lives = 1; }
+        if (player2) { if (player2.lives > 0) player2.lives++; else player2.lives = 1; }
+        gameState = 'transition'; transitionTimer = 210;
+      } else won = true;
+    }
+  }
+  // Level 4: key collection + boss
+  if (currentLevel === 3) {
+    if (bossKey && !bossKey.collected) {
+      for (const p of active) {
+        if (overlap(p.x,p.y,p.w,p.h, bossKey.x,bossKey.y,bossKey.w,bossKey.h)) {
+          bossKey.collected = true;
+          ironDoor.locked = false;
+          const di = platforms.findIndex(pl => pl[0]===ironDoor.x && pl[1]===ironDoor.y);
+          if (di !== -1) platforms.splice(di, 1);
+          spawnParticles(bossKey.x+10, bossKey.y+10, '#FFD700', 14);
+          playPowerupSound(); break;
+        }
+      }
+    }
+    updateBoss(active);
   }
   if (!p1a && (numPlayers === 1 || !p2a)) gameOver = true;
 
@@ -429,7 +588,7 @@ function update() {
     if (lm - targetCam < 20) targetCam = lm - 20;
   }
   camX += (targetCam - camX) * 0.1;
-  camX  = Math.max(0, Math.min(camX, LEVEL_W - W));
+  camX  = Math.max(0, Math.min(camX, levelW - W));
 }
 
 // ─── Draw Helpers ────────────────────────────────────────────────────────────
@@ -451,8 +610,61 @@ function drawMiniCube(x, y, sz, mid, dark, light) {
   ctx.fillRect(x+Math.round(sz*0.73), y+Math.round(sz*0.28), Math.round(sz*0.16), Math.round(sz*0.16));
 }
 
+// ─── Castle Interior Background (Level 4) ────────────────────────────────────
+function drawCastleBackground() {
+  // Dark stone ceiling and walls
+  ctx.fillStyle = '#1C1C1C'; ctx.fillRect(0, 0, W, H);
+  // Brick tiling
+  const bW = 64, bH = 32, offX = Math.floor(camX) % bW;
+  for (let row = 0; row * bH < H - 40; row++) {
+    const shift = (row % 2) * (bW / 2);
+    for (let col = -1; col * bW < W + bW; col++) {
+      const bx = col * bW - offX + shift, by = row * bH;
+      ctx.fillStyle = (row + col) % 3 === 0 ? '#2E2E2E' : '#262626';
+      ctx.fillRect(bx, by, bW - 2, bH - 2);
+      ctx.fillStyle = '#191919';
+      ctx.fillRect(bx + bW - 2, by, 2, bH);
+      ctx.fillRect(bx, by + bH - 2, bW, 2);
+    }
+  }
+  // Floor border highlight
+  ctx.fillStyle = '#444'; ctx.fillRect(0, GROUND_Y - 4, W, 4);
+  // Room arch pillars at room boundaries (visual only, no physics)
+  for (const rx of [800, 1600, 2400, 3200]) {
+    const ax = sx(rx);
+    if (ax < -40 || ax > W + 40) continue;
+    ctx.fillStyle = '#383838';
+    ctx.fillRect(ax - 16, 0, 16, GROUND_Y - 4); // left pillar
+    ctx.fillRect(ax, 0, 16, GROUND_Y - 4);       // right pillar
+    ctx.fillStyle = '#444';
+    ctx.fillRect(ax - 15, 0, 3, GROUND_Y - 4);   // highlight
+    ctx.fillRect(ax + 1, 0, 3, GROUND_Y - 4);
+    ctx.fillStyle = '#4A4A4A';
+    ctx.fillRect(ax - 16, GROUND_Y - 200, 32, 20); // arch lintel
+    // Torch flicker
+    const fl = 0.6 + Math.sin(tick * 0.13 + rx) * 0.4;
+    ctx.globalAlpha = fl;
+    ctx.fillStyle = '#FF8C00';
+    ctx.beginPath(); ctx.arc(ax, GROUND_Y - 190, 8, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = fl * 0.25;
+    ctx.beginPath(); ctx.arc(ax, GROUND_Y - 190, 20, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // Boss room entrance visual at x=4000
+  const bx4 = sx(4000);
+  if (bx4 > -60 && bx4 < W + 60) {
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fillRect(bx4 - 16, 0, 16, GROUND_Y - 4);
+    ctx.fillRect(bx4, 0, 16, GROUND_Y - 4);
+    ctx.fillStyle = '#333'; ctx.fillRect(bx4 - 16, GROUND_Y - 220, 32, 24);
+    ctx.fillStyle = '#8B0000'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('BOSS', bx4, GROUND_Y - 226); ctx.textAlign = 'left';
+  }
+}
+
 // ─── Background ──────────────────────────────────────────────────────────────
 function drawBackground() {
+  if (currentLevel === 3) { drawCastleBackground(); return; }
   const g = ctx.createLinearGradient(0, 0, 0, H);
   if (currentLevel === 2) {
     g.addColorStop(0, '#000008'); g.addColorStop(0.6, '#00001A'); g.addColorStop(1, '#000D28');
@@ -520,12 +732,16 @@ function drawBackground() {
 
 // ─── Platforms ───────────────────────────────────────────────────────────────
 function drawPlatforms() {
-  const [gc, gt, gl, gd] = currentLevel === 2
+  const [gc, gt, gl, gd] = currentLevel === 3
+    ? ['#2E2E2E','#3A3A3A','#4A4A4A','#1A1A1A']
+    : currentLevel === 2
     ? ['#0A0A14','#12122A','#1A1A35','#060610']
     : currentLevel === 1
     ? ['#4A1942','#7B1FA2','#9C27B0','#311B3F']
     : ['#5D4037','#388E3C','#4CAF50','#4A2F20'];
-  const [bc, bl, bd] = currentLevel === 2
+  const [bc, bl, bd] = currentLevel === 3
+    ? ['#383838','#555555','#222222']
+    : currentLevel === 2
     ? ['#16162E','#2A2A50','#0D0D20']
     : currentLevel === 1
     ? ['#7B1FA2','#BA68C8','#4A148C']
@@ -802,7 +1018,7 @@ function drawHUD() {
     playerHUD(player1, 'P1', 8);
     const bx=W-215, by=12, bw=200, bh=10;
     ctx.fillStyle='#222'; ctx.fillRect(bx,by,bw,bh);
-    const prog = Math.min(1, player1.x/(LEVEL_W-100));
+    const prog = Math.min(1, player1.x/(levelW-100));
     ctx.fillStyle='#29B6F6'; ctx.fillRect(bx,by,bw*prog,bh);
     ctx.fillStyle='#64B5F6'; ctx.fillRect(bx,by,bw*prog,3);
     ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
@@ -892,9 +1108,9 @@ function drawTransition() {
   ctx.globalAlpha = 1;
   // Progress bar
   ctx.fillStyle='#333'; ctx.fillRect(W/2-150, H/2+28, 300, 10);
-  ctx.fillStyle= nextLvl === 3 ? '#00BCD4' : '#29B6F6';
+  ctx.fillStyle= nextLvl===4 ? '#B71C1C' : nextLvl===3 ? '#00BCD4' : '#29B6F6';
   ctx.fillRect(W/2-150, H/2+28, 300*prog, 10);
-  // Chest previews
+  // Chest previews / hints
   function miniChest(cx, cy, color, label) {
     ctx.fillStyle='#795548'; ctx.fillRect(cx,cy,30,24);
     ctx.fillStyle='#FDD835'; ctx.fillRect(cx,cy+12-2,30,4); ctx.fillRect(cx+11,cy+5,8,8);
@@ -906,10 +1122,15 @@ function drawTransition() {
     ctx.fillText('Collect chests in Level 2 for powerups!', W/2, H/2+62);
     miniChest(W/2-70, H/2+72, '#FFE082', '⚡ Speed');
     miniChest(W/2+20, H/2+72, '#CE93D8', '★ Size');
-  } else {
+  } else if (nextLvl === 3) {
     ctx.fillStyle='#AAA'; ctx.font='13px monospace';
     ctx.fillText('Level 3: It\'s midnight! Find night vision!', W/2, H/2+62);
     miniChest(W/2-15, H/2+72, '#00E5FF', 'NV NightVis');
+  } else {
+    ctx.fillStyle='#EF9A9A'; ctx.font='13px monospace';
+    ctx.fillText('Level 4: The Castle! Find the KEY, defeat the KING!', W/2, H/2+62);
+    ctx.fillStyle='#FFD700'; ctx.font='bold 13px monospace';
+    ctx.fillText('Dodge 3 sword swings — pick up his sword — slash him!', W/2, H/2+82);
   }
   ctx.textAlign='left';
 }
@@ -924,14 +1145,159 @@ function drawOverlay(title, sub, color) {
   ctx.textAlign='left';
 }
 
+// ─── Level 4 Draw Helpers ────────────────────────────────────────────────────
+function drawBossKey() {
+  if (!bossKey || bossKey.collected) return;
+  const kx = sx(bossKey.x); if (kx < -30 || kx > W+30) return;
+  const bob = Math.sin(tick * 0.08) * 3;
+  const ky = bossKey.y + bob;
+  // Key bow (ring)
+  ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(kx + 14, ky + 7, 6, 0, Math.PI*2); ctx.stroke();
+  // Key blade
+  ctx.fillStyle = '#FFD700'; ctx.fillRect(kx, ky + 4, 10, 6);
+  ctx.fillRect(kx + 2, ky + 10, 3, 4); ctx.fillRect(kx + 6, ky + 10, 3, 5);
+  // Glow
+  ctx.globalAlpha = 0.25 + Math.sin(tick*0.1)*0.15;
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath(); ctx.arc(kx+9, ky+7, 16, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 9px monospace'; ctx.textAlign='center';
+  ctx.fillText('KEY', kx+9, ky-5); ctx.textAlign='left';
+}
+
+function drawIronDoor() {
+  if (!ironDoor || !ironDoor.locked) return;
+  const dx = sx(ironDoor.x); if (dx+ironDoor.w < -20 || dx > W+20) return;
+  ctx.fillStyle = '#546E7A'; ctx.fillRect(dx, ironDoor.y, ironDoor.w, ironDoor.h);
+  ctx.fillStyle = '#37474F';
+  for (let r = 0; r < ironDoor.h; r += 18) ctx.fillRect(dx, ironDoor.y+r, ironDoor.w, 2);
+  ctx.fillStyle = '#78909C'; ctx.fillRect(dx+2, ironDoor.y+2, 3, ironDoor.h-4);
+  // Lock
+  ctx.fillStyle = '#FDD835'; ctx.fillRect(dx+4, ironDoor.y+ironDoor.h/2-8, 10, 10);
+  ctx.fillStyle = '#F57F17'; ctx.fillRect(dx+7, ironDoor.y+ironDoor.h/2-4, 4, 6);
+}
+
+function drawBoss() {
+  if (!boss || boss.lives <= 0) return;
+  const bx = sx(boss.x); if (bx+boss.w < -80 || bx > W+80) return;
+  const by = boss.y;
+  const fr = boss.facingRight;
+  // Flash when invincible
+  if (boss.invincible > 0 && Math.floor(boss.invincible/5)%2 === 1) return;
+
+  // Cape (behind body)
+  ctx.fillStyle = '#B71C1C';
+  ctx.fillRect(bx+(fr?-14:boss.w), by+8, 16, boss.h-8);
+  ctx.fillStyle = '#C62828';
+  ctx.fillRect(bx+(fr?-13:boss.w+1), by+8, 4, boss.h-8);
+
+  // Robe (lower body)
+  ctx.fillStyle = '#4A148C'; ctx.fillRect(bx, by+24, boss.w, boss.h-24);
+  ctx.fillStyle = '#6A1B9A'; ctx.fillRect(bx, by+24, boss.w, 4);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(bx+4, by+24, boss.w-8, 3); // gold belt
+  ctx.fillStyle = '#38006B'; ctx.fillRect(bx+boss.w-4, by+24, 4, boss.h-24);
+
+  // Shirt (upper body)
+  ctx.fillStyle = '#1565C0'; ctx.fillRect(bx+4, by+14, boss.w-8, 14);
+  ctx.fillStyle = '#1976D2'; ctx.fillRect(bx+4, by+14, 4, 14);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(bx+boss.w/2-2, by+14, 4, 14); // shirt center stripe
+
+  // Head
+  ctx.fillStyle = '#FFCC80'; ctx.fillRect(bx+8, by+2, boss.w-16, 14);
+  ctx.fillStyle = '#FFB74D'; ctx.fillRect(bx+8+boss.w-24, by+2, 4, 14);
+
+  // Crown
+  ctx.fillStyle = '#FFD700'; ctx.fillRect(bx+6, by-6, boss.w-12, 10);
+  for (let i=0;i<3;i++) { ctx.fillRect(bx+8+i*10, by-13, 6, 9); }
+  ctx.fillStyle='#E53935'; ctx.fillRect(bx+9,by-10,4,4);
+  ctx.fillStyle='#1565C0'; ctx.fillRect(bx+19,by-10,4,4);
+  ctx.fillStyle='#2E7D32'; ctx.fillRect(bx+29,by-10,4,4);
+
+  // Eyes
+  ctx.fillStyle = '#1A1A1A';
+  const eY = by + 6;
+  if (fr) { ctx.fillRect(bx+boss.w-16,eY,4,4); ctx.fillRect(bx+boss.w-9,eY,4,4); }
+  else    { ctx.fillRect(bx+9,eY,4,4); ctx.fillRect(bx+16,eY,4,4); }
+
+  // Sword during attack swing
+  if (boss.state === 'swinging') {
+    const sf = boss.stateTimer % 40;
+    const angle = ((sf / 40) - 0.5) * Math.PI * 1.4;
+    ctx.save();
+    ctx.translate(bx + (fr ? boss.w : 2), by + 20);
+    ctx.rotate(angle * (fr ? 1 : -1));
+    ctx.fillStyle = '#B0BEC5'; ctx.fillRect(fr ? 0 : -34, -3, 34, 7);
+    ctx.fillStyle = '#CFD8DC'; ctx.fillRect(fr ? 0 : -34, -1, 34, 2);
+    ctx.fillStyle = '#8D6E63'; ctx.fillRect(fr ? -8 : 0, -5, 8, 11); // hilt
+    ctx.fillStyle = '#FFD700'; ctx.fillRect(fr ? -6 : -1, -7, 12, 4); // crossguard
+    ctx.restore();
+  }
+
+  // Dropped sword on floor
+  if (boss.droppedSword && !boss.droppedSword.pickedUp) {
+    const dsx = sx(boss.droppedSword.x);
+    ctx.fillStyle = '#8D6E63'; ctx.fillRect(dsx-8, boss.droppedSword.y, 8, 10);
+    ctx.fillStyle = '#FFD700'; ctx.fillRect(dsx-4, boss.droppedSword.y-5, 16, 4);
+    ctx.fillStyle = '#B0BEC5'; ctx.fillRect(dsx, boss.droppedSword.y, boss.droppedSword.w, boss.droppedSword.h);
+    ctx.fillStyle = '#CFD8DC'; ctx.fillRect(dsx, boss.droppedSword.y+1, boss.droppedSword.w, 3);
+    const pg = 0.35 + Math.sin(tick*0.14)*0.25;
+    ctx.globalAlpha = pg;
+    ctx.fillStyle = '#E0F7FA';
+    ctx.fillRect(dsx-2, boss.droppedSword.y-2, boss.droppedSword.w+4, boss.droppedSword.h+4);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#80DEEA'; ctx.font = 'bold 9px monospace'; ctx.textAlign='center';
+    ctx.fillText('PICK UP [F]', dsx+boss.droppedSword.w/2, boss.droppedSword.y-8);
+    ctx.textAlign='left';
+  }
+
+  // Health bar
+  const hbW=120, hbX=bx+boss.w/2-60, hbY=by-28;
+  ctx.fillStyle='#333'; ctx.fillRect(hbX,hbY,hbW,8);
+  ctx.fillStyle = boss.lives===3?'#4CAF50':boss.lives===2?'#FF9800':'#F44336';
+  ctx.fillRect(hbX,hbY,hbW*(boss.lives/3),8);
+  ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(hbX,hbY,hbW,8);
+  ctx.fillStyle='#FFD700'; ctx.font='bold 9px monospace'; ctx.textAlign='center';
+  ctx.fillText('KING', bx+boss.w/2, hbY-3); ctx.textAlign='left';
+
+  // Tired label
+  if (boss.state === 'tired') {
+    const tp = 0.6+Math.sin(tick*0.09)*0.4;
+    ctx.globalAlpha=tp; ctx.fillStyle='#FFD700'; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+    ctx.fillText('TIRED! Press F near him!', bx+boss.w/2, hbY-16);
+    ctx.globalAlpha=1; ctx.textAlign='left';
+  }
+}
+
+function drawPlayerSword() {
+  if (!playerHasSword) return;
+  const holder = [player1,player2].find(p=>p&&p.lives>0&&p.hasSword===undefined); // any active player
+  // Draw sword on whichever player collected it (just on player1/2 whoever has it)
+  for (const p of [player1,player2]) {
+    if (!p || p.lives <= 0) continue;
+    const px = sx(p.x);
+    const dir = p.facingRight ? 1 : -1;
+    const swx = px + (p.facingRight ? p.w+2 : -28);
+    ctx.fillStyle='#8D6E63'; ctx.fillRect(px+(p.facingRight?p.w-3:0), p.y+8, 6, 10);
+    ctx.fillStyle='#FFD700'; ctx.fillRect(px+(p.facingRight?p.w-5:-4), p.y+5, 12, 4);
+    ctx.fillStyle='#B0BEC5'; ctx.fillRect(swx, p.y+12, 26*dir, 6);
+    break; // only draw on first active player as proxy
+  }
+}
+
 // ─── Main Draw ───────────────────────────────────────────────────────────────
 function draw() {
   if (gameState === 'select')     { drawSelectScreen(); return; }
   if (gameState === 'transition') { drawTransition();   return; }
   const darkMode = currentLevel === 2 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
-  drawGoalFlag(); drawEnemies();
+  if (currentLevel < 3) drawGoalFlag();
+  drawEnemies();
+  if (currentLevel === 3) { drawBossKey(); drawIronDoor(); drawBoss(); }
   drawPlayerCube(player1); drawPlayerCube(player2);
+  if (currentLevel === 3) drawPlayerSword();
   drawParticles();
   if (darkMode) {
     // Midnight darkness — almost everything invisible
