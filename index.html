@@ -261,15 +261,20 @@ let victoryDoor = null;        // door that appears when boss is beaten
 let cutscene = null;           // cutscene state after victory
 let badges = new Set();        // earned badge IDs (persists across levels)
 let badgesPanelOpen = false;   // pauses game when true
+let skinsPanelOpen  = false;   // pauses game when true
+let equippedSkin    = null;    // currently equipped skin ID
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
 
 const P1 = { mid: '#29B6F6', dark: '#0277BD', light: '#81D4FA', leg: '#0277BD' };
 const P2 = { mid: '#66BB6A', dark: '#2E7D32', light: '#A5D6A7', leg: '#2E7D32' };
 
-// ─── Badge Definitions ────────────────────────────────────────────────────────
+// ─── Badge & Skin Definitions ─────────────────────────────────────────────────
 const BADGE_DEFS = [
   { id: 'billionaire', name: 'Billionaire', desc: 'Collect every coin in the game', color: '#FFD700', icon: '$' },
+];
+const SKIN_DEFS = [
+  { id: 'tycoon', name: 'Tycoon', badge: 'billionaire', desc: 'Golden top hat & business suit' },
 ];
 // Computed after LEVEL_DATA is defined (see bottom of script init)
 let TOTAL_COINS_IN_GAME = 0;
@@ -640,7 +645,7 @@ function update() {
     if (transitionTimer <= 0) startLevel(currentLevel + 2);
     return;
   }
-  if (badgesPanelOpen) return;
+  if (badgesPanelOpen || skinsPanelOpen) return;
   if (gameState !== 'playing' || gameOver || won) return;
   tick++;
   updatePlayer(player1);
@@ -1148,6 +1153,39 @@ function drawPlayerCube(p) {
       ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx+dir, ly); ctx.stroke();
     }
   }
+
+  // Tycoon skin: golden top hat + business suit
+  if (equippedSkin === 'tycoon') {
+    const crownH = Math.floor(ph * 0.55), crownW = Math.floor(pw * 0.65);
+    const crownX = ex + Math.floor((pw - crownW) / 2);
+    // Crown
+    ctx.fillStyle = '#FFD700'; ctx.fillRect(crownX, py - crownH, crownW, crownH);
+    ctx.fillStyle = '#FFE55C'; ctx.fillRect(crownX, py - crownH, 2, crownH);
+    ctx.fillStyle = '#B8860B'; ctx.fillRect(crownX + crownW - 3, py - crownH, 3, crownH);
+    ctx.fillStyle = '#B8860B'; ctx.fillRect(crownX, py - crownH, crownW, 2); // top
+    // Hat band
+    ctx.fillStyle = '#7A5C00'; ctx.fillRect(crownX, py - Math.floor(ph * 0.14), crownW, 3);
+    // Brim
+    ctx.fillStyle = '#FFD700'; ctx.fillRect(ex - 4, py - 3, pw + 8, 4);
+    ctx.fillStyle = '#B8860B'; ctx.fillRect(ex - 4, py - 3 + 3, pw + 8, 1);
+
+    // Suit (lower ~58% of cube)
+    const lapelY = Math.round(py + ph * 0.42);
+    const lapelH = Math.round(py + ph) - lapelY;
+    ctx.fillStyle = '#B8860B'; ctx.fillRect(ex, lapelY, pw, lapelH);
+    ctx.fillStyle = '#FFD700'; ctx.fillRect(ex, lapelY, pw, 2); // top edge
+    // Lapels
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(ex + 1, lapelY, Math.floor(pw * 0.26), Math.floor(lapelH * 0.6));
+    ctx.fillRect(ex + pw - 1 - Math.floor(pw * 0.26), lapelY, Math.floor(pw * 0.26), Math.floor(lapelH * 0.6));
+    // Shirt / tie strip
+    ctx.fillStyle = '#7A5C00';
+    ctx.fillRect(ex + Math.floor(pw * 0.38), lapelY, Math.floor(pw * 0.24), lapelH);
+    ctx.fillStyle = '#FFE55C';
+    ctx.fillRect(ex + Math.floor(pw * 0.44), lapelY + 2, 2, Math.floor(lapelH * 0.65));
+    // Bottom shadow
+    ctx.fillStyle = '#7A5C00'; ctx.fillRect(ex, py + ph - 2, pw, 2);
+  }
 }
 
 // ─── Night Vision Helper ──────────────────────────────────────────────────────
@@ -1277,6 +1315,79 @@ function drawBadgesPanel() {
   // Close hint
   ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
   ctx.fillText('click BADGES to close', W / 2, py + ph - 5);
+  ctx.textAlign = 'left';
+}
+
+const SKINS_BTN = { x: W - 73, y: H - 22, w: 68, h: 16 };
+
+function drawSkinsPanel() {
+  // Always draw SKINS button in bottom-right
+  const btn = SKINS_BTN;
+  ctx.fillStyle = skinsPanelOpen ? '#004D40' : 'rgba(0,0,0,0.7)';
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.strokeStyle = '#00E5FF'; ctx.lineWidth = 1;
+  ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.w - 1, btn.h - 1);
+  ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('SKINS', btn.x + btn.w / 2, btn.y + 11);
+  ctx.textAlign = 'left';
+
+  if (!skinsPanelOpen) return;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, W, H);
+
+  const pw = 300, ph = 44 + SKIN_DEFS.length * 56 + 16;
+  const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
+  ctx.fillStyle = '#111'; ctx.fillRect(px, py, pw, ph);
+  ctx.strokeStyle = '#00E5FF'; ctx.lineWidth = 2;
+  ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+
+  ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('SKINS', W / 2, py + 22);
+
+  SKIN_DEFS.forEach((skin, i) => {
+    const unlocked = badges.has(skin.badge);
+    const equipped  = equippedSkin === skin.id;
+    const ry = py + 38 + i * 56;
+    ctx.fillStyle = equipped ? 'rgba(0,229,255,0.1)' : unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.2)';
+    ctx.fillRect(px + 8, ry, pw - 16, 50);
+
+    // Preview: mini cube with hat
+    ctx.globalAlpha = unlocked ? 1 : 0.3;
+    const previewSz = 22;
+    drawMiniCube(px + 18, ry + 14, previewSz, P1.mid, P1.dark, P1.light);
+    if (unlocked && skin.id === 'tycoon') {
+      // mini hat preview
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 20, ry + 8, 18, 6);
+      ctx.fillRect(px + 23, ry + 3, 12, 7);
+      ctx.fillStyle = '#B8860B'; ctx.fillRect(px + 20, ry + 13, 18, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // Name + desc
+    ctx.fillStyle = unlocked ? '#FFF' : '#555';
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(skin.name, px + 48, ry + 18);
+    ctx.fillStyle = unlocked ? '#999' : '#444';
+    ctx.font = '8px monospace';
+    ctx.fillText(unlocked ? skin.desc : `Locked — earn "${skin.badge}" badge`, px + 48, ry + 30);
+
+    // Equip / Unequip button
+    if (unlocked) {
+      const bx = px + pw - 66, by = ry + 14, bw = 58, bh = 18;
+      ctx.fillStyle = equipped ? '#00796B' : '#1A4A3A';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = '#00E5FF'; ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+      ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(equipped ? 'UNEQUIP' : 'EQUIP', bx + bw / 2, by + 12);
+      // Store button bounds for click detection (reuse last frame bounds is fine)
+      skin._btn = { x: bx, y: by, w: bw, h: bh };
+    }
+  });
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('click SKINS to close', W / 2, py + ph - 5);
   ctx.textAlign = 'left';
 }
 
@@ -1647,6 +1758,7 @@ function draw() {
   }
   drawHUD();
   drawBadgesPanel();
+  drawSkinsPanel();
   if (gameOver) {
     const s = numPlayers===2 ? `P1: ${player1.score}  P2: ${player2.score}` : `Score: ${player1.score}`;
     drawOverlay('GAME OVER', s, '#EF5350');
@@ -1679,9 +1791,21 @@ canvas.addEventListener('click', e => {
   const scaleX = W / rect.width, scaleY = H / rect.height;
   const mx = (e.clientX - rect.left) * scaleX;
   const my = (e.clientY - rect.top)  * scaleY;
-  const b = BADGE_BTN;
-  if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-    badgesPanelOpen = !badgesPanelOpen;
+
+  const inBtn = (btn) => mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
+
+  // BADGES button
+  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; skinsPanelOpen = false; return; }
+  // SKINS button
+  if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; badgesPanelOpen = false; return; }
+  // Skin equip/unequip buttons (only when panel open)
+  if (skinsPanelOpen) {
+    for (const skin of SKIN_DEFS) {
+      if (skin._btn && inBtn(skin._btn)) {
+        equippedSkin = equippedSkin === skin.id ? null : skin.id;
+        return;
+      }
+    }
   }
 });
 
