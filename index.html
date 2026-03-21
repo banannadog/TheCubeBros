@@ -256,6 +256,7 @@ let levelW = LEVEL_W;          // dynamic per-level width
 let boss = null;               // boss entity
 let bossKey = null;            // gold key pickup
 let doorsWithoutKey = 0;      // rooms entered before finding the key (level 4)
+let enemyKillCount = parseInt(localStorage.getItem('cb_kills') || '0'); // persists across sessions
 let ironDoor = null;           // iron door state
 let castleDoors = null;        // lobby doors + room exit doors (level 4)
 let victoryDoor = null;        // door that appears when boss is beaten
@@ -277,6 +278,7 @@ const BADGE_DEFS = [
   { id: 'swordfighter', name: 'Swordfighter', desc: 'Defeat the King',               color: '#B0BEC5', icon: '⚔' },
   { id: 'adventurer',   name: 'Adventurer',   desc: 'Beat all four levels',           color: '#66BB6A', icon: '🗺' },
   { id: 'unlucky',      name: 'Unlucky',      desc: 'Search 4 empty rooms before the key', color: '#9C27B0', icon: '🔑' },
+  { id: 'murderer',     name: 'Murderer',     desc: 'Kill 10 enemies',                     color: '#F44336', icon: '💀' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -722,11 +724,15 @@ function update() {
         // Big powerup — instant kill on any touch
         e.alive = false; e.squish = 1;
         p.score += 200;
-        spawnParticles(e.x+e.w/2, e.y+e.h/2, '#E040FB', 12); break;
+        spawnParticles(e.x+e.w/2, e.y+e.h/2, '#E040FB', 12);
+        enemyKillCount++; checkMurdererBadge();
+        break;
       } else if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
         e.alive = false; e.squish = 1;
         p.vy = -9; p.score += 200;
-        spawnParticles(e.x+e.w/2, e.y+e.h/2, '#EF5350', 10); break;
+        spawnParticles(e.x+e.w/2, e.y+e.h/2, '#EF5350', 10);
+        enemyKillCount++; checkMurdererBadge();
+        break;
       } else {
         p.lives--; p.invincible = 100; p.vy = -7;
         p.vx = p.x < e.x+e.w/2 ? -5 : 5;
@@ -1244,6 +1250,15 @@ function drawPlayerCube(p) {
 }
 
 // ─── Night Vision Helper ──────────────────────────────────────────────────────
+function checkMurdererBadge() {
+  localStorage.setItem('cb_kills', enemyKillCount);
+  if (enemyKillCount >= 10 && !badges.has('murderer')) {
+    badges.add('murderer');
+    localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Murderer', timer: 240 };
+  }
+}
+
 function hasNightVision() {
   return (player1 && player1.powerups.nightvision > 0) ||
          (player2 && player2.powerups.nightvision > 0);
