@@ -5,31 +5,17 @@
   <title>Cubie Bros</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
-      background: #000;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Courier New', monospace;
-    }
-    canvas {
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      display: block;
-    }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; }
+    canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
   </style>
 </head>
 <body>
   <canvas id="game" width="800" height="450"></canvas>
-
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const W = 800, H = 450;
 
-// ─── Fullscreen scaling ───────────────────────────────────────────────────────
 function resizeCanvas() {
   const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
   canvas.style.width  = Math.floor(W * scale) + 'px';
@@ -39,12 +25,13 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const GRAVITY    = 0.55;
-const MAX_FALL   = 14;
-const JUMP_FORCE = -13;
-const MOVE_SPEED = 4.5;
-const LEVEL_W    = 3500;
-const GROUND_Y   = 410;
+const GRAVITY        = 0.55;
+const MAX_FALL       = 14;
+const JUMP_FORCE     = -13;
+const MOVE_SPEED     = 4.5;
+const LEVEL_W        = 3500;
+const GROUND_Y       = 410;
+const POWERUP_FRAMES = 300; // 5s at 60fps
 
 // ─── Input ───────────────────────────────────────────────────────────────────
 const keys = {};
@@ -54,96 +41,165 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 
-// ─── Level ───────────────────────────────────────────────────────────────────
-const platforms = [
-  [0, GROUND_Y, LEVEL_W, 40],
-  [180, 340, 80, 12],  [320, 300, 96, 12],  [480, 260, 80, 12],  [620, 300, 100, 12],
-  [820, 340, 80, 12],  [970, 295, 96, 12],  [1120, 255, 80, 12], [1260, 295, 88, 12], [1400, 340, 96, 12],
-  [1560, 365, 64, 12], [1650, 335, 64, 12], [1740, 305, 64, 12], [1830, 275, 64, 12], [1920, 245, 96, 12],
-  [2100, 330, 128, 12],[2290, 295, 96, 12], [2450, 335, 80, 12], [2560, 290, 112, 12],
-  [2730, 320, 64, 12], [2850, 280, 64, 12], [2970, 320, 64, 12], [3090, 275, 80, 12],  [3210, 335, 96, 12],
-];
-
-const RAW_COINS = [
-  [210,310],[242,310],[274,310],[350,270],[382,270],[510,228],[542,228],[650,268],[682,268],
-  [848,308],[880,308],[998,263],[1030,263],[1148,223],[1180,223],[1288,263],[1320,263],
-  [1588,333],[1678,303],[1768,273],[1858,243],[1948,213],[1980,213],[2012,213],
-  [2130,298],[2162,298],[2194,298],[2318,263],[2350,263],[2478,303],[2590,258],
-  [2758,288],[2878,248],[2998,288],[3118,243],
-];
-const coins = RAW_COINS.map(([x,y]) => ({ x, y, collected: false, bob: Math.random()*Math.PI*2 }));
-
-function mkEnemy(x, y, patrolStart, patrolEnd, speed = 1.6) {
-  return { x, y, w: 26, h: 26, vx: -speed, alive: true, squish: 0, patrolStart, patrolEnd };
-}
-const ENEMIES_INIT = [
-  mkEnemy(350, GROUND_Y-26, 200,  520),   mkEnemy(720,  GROUND_Y-26, 580,  830),
-  mkEnemy(1060,GROUND_Y-26, 850, 1150),   mkEnemy(1480, GROUND_Y-26, 1300,1620),
-  mkEnemy(2020,GROUND_Y-26, 1900,2200),   mkEnemy(2530, GROUND_Y-26, 2380,2660),
-  mkEnemy(2910,GROUND_Y-26, 2740,3120),   mkEnemy(3250, GROUND_Y-26, 3080,3450),
-  mkEnemy(510,  260-26, 480, 560,  1.3),  mkEnemy(1148, 255-26, 1120,1200, 1.2),
-  mkEnemy(1960, 245-26, 1920,2016, 1.2),  mkEnemy(2318, 295-26, 2290,2386, 1.3),
-];
-let enemies = ENEMIES_INIT.map(e => ({ ...e }));
-
 // ─── Audio ───────────────────────────────────────────────────────────────────
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-document.addEventListener('keydown', () => {
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-});
+document.addEventListener('keydown', () => { if (audioCtx.state === 'suspended') audioCtx.resume(); });
 
 function playCoinSound() {
   const play = () => {
     const t = audioCtx.currentTime;
     for (const [freq, start, dur] of [[988, 0, 0.07], [1319, 0.06, 0.28]]) {
-      const osc  = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
       osc.type = 'square';
       osc.frequency.setValueAtTime(freq, t + start);
       gain.gain.setValueAtTime(0.4, t + start);
       gain.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
-      osc.start(t + start);
-      osc.stop(t + start + dur + 0.01);
+      osc.start(t + start); osc.stop(t + start + dur + 0.01);
     }
   };
-  if (audioCtx.state === 'suspended') audioCtx.resume().then(play);
-  else play();
+  if (audioCtx.state === 'suspended') audioCtx.resume().then(play); else play();
 }
+
+function playPowerupSound() {
+  const play = () => {
+    const t = audioCtx.currentTime;
+    for (const [freq, start] of [[523,0],[659,0.08],[784,0.16],[1047,0.24]]) {
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + start);
+      gain.gain.setValueAtTime(0.35, t + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + start + 0.18);
+      osc.start(t + start); osc.stop(t + start + 0.2);
+    }
+  };
+  if (audioCtx.state === 'suspended') audioCtx.resume().then(play); else play();
+}
+
+// ─── Level Data ──────────────────────────────────────────────────────────────
+function mkE(x, y, ps, pe, spd = 1.6) {
+  return { x, y, w: 26, h: 26, vx: -spd, alive: true, squish: 0, patrolStart: ps, patrolEnd: pe };
+}
+
+const LEVEL_DATA = [
+  // ── LEVEL 1 ──
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      [180,340,80,12],[320,300,96,12],[480,260,80,12],[620,300,100,12],
+      [820,340,80,12],[970,295,96,12],[1120,255,80,12],[1260,295,88,12],[1400,340,96,12],
+      [1560,365,64,12],[1650,335,64,12],[1740,305,64,12],[1830,275,64,12],[1920,245,96,12],
+      [2100,330,128,12],[2290,295,96,12],[2450,335,80,12],[2560,290,112,12],
+      [2730,320,64,12],[2850,280,64,12],[2970,320,64,12],[3090,275,80,12],[3210,335,96,12],
+    ],
+    rawCoins: [
+      [210,310],[242,310],[274,310],[350,270],[382,270],[510,228],[542,228],[650,268],[682,268],
+      [848,308],[880,308],[998,263],[1030,263],[1148,223],[1180,223],[1288,263],[1320,263],
+      [1588,333],[1678,303],[1768,273],[1858,243],[1948,213],[1980,213],[2012,213],
+      [2130,298],[2162,298],[2194,298],[2318,263],[2350,263],[2478,303],[2590,258],
+      [2758,288],[2878,248],[2998,288],[3118,243],
+    ],
+    enemies: [
+      mkE(350,GROUND_Y-26,200,520),   mkE(720,GROUND_Y-26,580,830),
+      mkE(1060,GROUND_Y-26,850,1150), mkE(1480,GROUND_Y-26,1300,1620),
+      mkE(2020,GROUND_Y-26,1900,2200),mkE(2530,GROUND_Y-26,2380,2660),
+      mkE(2910,GROUND_Y-26,2740,3120),mkE(3250,GROUND_Y-26,3080,3450),
+      mkE(510,260-26,480,560,1.3),    mkE(1148,255-26,1120,1200,1.2),
+      mkE(1960,245-26,1920,2016,1.2), mkE(2318,295-26,2290,2386,1.3),
+    ],
+    chests: [],
+  },
+  // ── LEVEL 2 ──
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      // Opening — speed chest on [320,310]
+      [180,350,70,12],[320,310,80,12],[460,275,80,12],[640,318,70,12],
+      // Gap section
+      [820,352,60,12],[955,302,70,12],[1100,258,70,12],
+      // Size chest on [1250,305]
+      [1250,305,80,12],[1400,352,60,12],
+      // Staircase
+      [1560,368,60,12],[1650,338,60,12],[1740,303,60,12],
+      [1830,268,60,12],[1930,228,80,12],[2030,193,80,12],
+      // Long run
+      [2200,338,100,12],[2370,293,80,12],[2510,338,70,12],[2640,283,100,12],
+      // Final
+      [2810,323,56,12],[2930,273,56,12],[3050,323,56,12],[3170,263,72,12],[3290,328,90,12],
+    ],
+    rawCoins: [
+      [210,318],[282,318],[352,278],[350,260],[490,243],[670,286],
+      [850,320],[985,270],[1130,226],[1280,273],[1430,320],
+      [1590,336],[1680,306],[1770,271],[1860,236],[1960,196],[2060,161],
+      [2230,306],[2262,306],[2400,261],[2540,306],[2670,251],
+      [2840,291],[2960,241],[3080,291],[3200,231],[3320,296],
+    ],
+    enemies: [
+      mkE(450,GROUND_Y-26,300,620,2.2),  mkE(850,GROUND_Y-26,700,1000,2.2),
+      mkE(1300,GROUND_Y-26,1150,1500,2.2),mkE(1800,GROUND_Y-26,1650,1980,2.2),
+      mkE(2300,GROUND_Y-26,2150,2500,2.4),mkE(2750,GROUND_Y-26,2600,2900,2.4),
+      mkE(3200,GROUND_Y-26,3050,3400,2.4),
+      mkE(1120,258-26,1100,1170,1.5),
+      mkE(1950,228-26,1930,2010,1.5),
+      mkE(2660,283-26,2640,2740,1.6),
+    ],
+    // Speed chest centered on [320,310,80,12] → x=344, y=310-28=282
+    // Size  chest centered on [1250,305,80,12] → x=1274, y=305-28=277
+    chests: [
+      { x: 344, y: 282, w: 32, h: 28, type: 'speed' },
+      { x: 1274, y: 277, w: 32, h: 28, type: 'size'  },
+    ],
+  },
+];
+
+// ─── Mutable level state ──────────────────────────────────────────────────────
+let platforms, coins, enemies, chests;
 
 // ─── Particles ───────────────────────────────────────────────────────────────
 const particles = [];
 function spawnParticles(x, y, color, n = 8) {
   for (let i = 0; i < n; i++) {
-    const a = (Math.PI*2/n)*i + Math.random()*0.6;
-    const s = 2 + Math.random()*4;
+    const a = (Math.PI*2/n)*i + Math.random()*0.6, s = 2 + Math.random()*4;
     particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s-1.5,
                      life: 1, decay: 0.03+Math.random()*0.025, size: 4+Math.random()*5, color });
   }
 }
 
 // ─── Game State ──────────────────────────────────────────────────────────────
-let gameState   = 'select';  // 'select' | 'playing'
-let menuSel     = 0;         // 0=1P, 1=2P
-let numPlayers  = 1;
+let gameState  = 'select';  // 'select' | 'playing' | 'transition'
+let menuSel    = 0;
+let numPlayers = 1;
+let currentLevel = 0;       // 0-indexed
+let transitionTimer = 0;
 let player1, player2;
 let camX, tick, gameOver, won;
 
-// Player colors
 const P1 = { mid: '#29B6F6', dark: '#0277BD', light: '#81D4FA', leg: '#0277BD' };
 const P2 = { mid: '#66BB6A', dark: '#2E7D32', light: '#A5D6A7', leg: '#2E7D32' };
 
 function makePlayer(startX, colors, ctrlFns) {
   return {
     x: startX, y: GROUND_Y - 28,
-    w: 28, h: 28,
-    vx: 0, vy: 0,
-    onGround: false, facingRight: true,
+    baseW: 28, baseH: 28, w: 28, h: 28,
+    vx: 0, vy: 0, onGround: false, facingRight: true,
     lives: 3, coins: 0, score: 0,
     invincible: 0, coyoteTime: 0, wobble: 0,
+    powerups: { speed: 0, size: 0 },
     colors, ctrl: ctrlFns,
   };
+}
+
+function applyPowerup(p, type) {
+  if (type === 'speed') {
+    p.powerups.speed = POWERUP_FRAMES;
+    spawnParticles(p.x + p.w/2, p.y + p.h/2, '#FFD700', 14);
+  } else {
+    if (p.powerups.size === 0) { p.y -= 14; p.w = 42; p.h = 42; }
+    p.powerups.size = POWERUP_FRAMES;
+    spawnParticles(p.x + p.w/2, p.y + p.h/2, '#E040FB', 14);
+  }
+  playPowerupSound();
 }
 
 function initGame(n) {
@@ -158,31 +214,43 @@ function initGame(n) {
     right: () => keys['ArrowRight'],
     jump:  () => keys['ArrowUp'] || keys['Enter'],
   }) : null;
-  camX     = 0;
-  tick     = 0;
-  gameOver = false;
-  won      = false;
-  coins.forEach(c => { c.collected = false; c.bob = Math.random()*Math.PI*2; });
-  enemies = ENEMIES_INIT.map(e => ({ ...e, alive: true, squish: 0 }));
+  startLevel(1);
+}
+
+function startLevel(n) {
+  currentLevel = n - 1;
+  const d = LEVEL_DATA[currentLevel];
+  platforms = d.platforms;
+  coins   = d.rawCoins.map(([x,y]) => ({ x, y, collected: false, bob: Math.random()*Math.PI*2 }));
+  enemies = d.enemies.map(e => ({ ...e, alive: true, squish: 0, vx: -Math.abs(e.vx) }));
+  chests  = d.chests.map(c => ({ ...c, opened: false }));
+  for (const p of [player1, player2]) {
+    if (!p) continue;
+    p.x = 60; p.y = GROUND_Y - p.baseH;
+    p.vx = 0; p.vy = 0; p.onGround = false;
+    p.invincible = 0; p.coyoteTime = 0; p.wobble = 0;
+    if (p.powerups.size > 0) { p.w = p.baseW; p.h = p.baseH; }
+    p.powerups = { speed: 0, size: 0 };
+  }
+  camX = 0; tick = 0; gameOver = false; won = false;
   particles.length = 0;
   gameState = 'playing';
 }
 
-// ─── Collision Helpers ───────────────────────────────────────────────────────
-function overlap(ax, ay, aw, ah, bx, by, bw, bh) {
-  return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+// ─── Collision ───────────────────────────────────────────────────────────────
+function overlap(ax,ay,aw,ah,bx,by,bw,bh) {
+  return ax<bx+bw && ax+aw>bx && ay<by+bh && ay+ah>by;
 }
 function resolveX(ent) {
-  for (const [px, py, pw, ph] of platforms) {
-    if (!overlap(ent.x, ent.y, ent.w, ent.h, px, py, pw, ph)) continue;
-    if (ent.vx > 0) ent.x = px - ent.w;
-    else             ent.x = px + pw;
+  for (const [px,py,pw,ph] of platforms) {
+    if (!overlap(ent.x,ent.y,ent.w,ent.h,px,py,pw,ph)) continue;
+    if (ent.vx > 0) ent.x = px - ent.w; else ent.x = px + pw;
     ent.vx = 0;
   }
 }
 function resolveY(ent) {
-  for (const [px, py, pw, ph] of platforms) {
-    if (!overlap(ent.x, ent.y, ent.w, ent.h, px, py, pw, ph)) continue;
+  for (const [px,py,pw,ph] of platforms) {
+    if (!overlap(ent.x,ent.y,ent.w,ent.h,px,py,pw,ph)) continue;
     if (ent.vy >= 0) { ent.y = py - ent.h; ent.vy = 0; ent.onGround = true; }
     else             { ent.y = py + ph;     ent.vy = 0; }
   }
@@ -191,68 +259,73 @@ function resolveY(ent) {
 // ─── Player Update ───────────────────────────────────────────────────────────
 function updatePlayer(p) {
   if (!p || p.lives <= 0) return;
-
-  const left  = p.ctrl.left();
-  const right = p.ctrl.right();
-  const jump  = p.ctrl.jump();
-
-  if (left)       { p.vx = -MOVE_SPEED; p.facingRight = false; }
-  else if (right) { p.vx =  MOVE_SPEED; p.facingRight = true;  }
-  else            { p.vx *= 0.78; if (Math.abs(p.vx) < 0.2) p.vx = 0; }
-
+  const wasBig = p.powerups.size > 0;
+  if (p.powerups.speed > 0) p.powerups.speed--;
+  if (p.powerups.size  > 0) p.powerups.size--;
+  if (wasBig && p.powerups.size === 0) {
+    p.w = p.baseW; p.h = p.baseH;
+    if (p.onGround) p.y += 14;
+  }
+  const spd = MOVE_SPEED * (p.powerups.speed > 0 ? 2.0 : 1.0);
+  if (p.ctrl.left())       { p.vx = -spd; p.facingRight = false; }
+  else if (p.ctrl.right()) { p.vx =  spd; p.facingRight = true;  }
+  else                     { p.vx *= 0.78; if (Math.abs(p.vx) < 0.2) p.vx = 0; }
   if (p.onGround) p.coyoteTime = 8;
   else if (p.coyoteTime > 0) p.coyoteTime--;
-
-  if (jump && p.coyoteTime > 0) {
-    p.vy = JUMP_FORCE;
-    p.coyoteTime = 0;
-    p.wobble = 7;
-  }
-
+  if (p.ctrl.jump() && p.coyoteTime > 0) { p.vy = JUMP_FORCE; p.coyoteTime = 0; p.wobble = 7; }
   p.vy = Math.min(p.vy + GRAVITY, MAX_FALL);
   p.onGround = false;
   if (p.wobble > 0) p.wobble--;
-
   p.x += p.vx;
   if (p.x < 0) { p.x = 0; p.vx = 0; }
   resolveX(p);
-
   p.y += p.vy;
   resolveY(p);
-
   if (p.y > H + 100) {
     p.lives--;
     if (p.lives <= 0) return;
     p.x = Math.max(60, camX + 40);
     p.y = GROUND_Y - p.h - 10;
-    p.vx = 0; p.vy = 0;
-    p.invincible = 80;
+    p.vx = 0; p.vy = 0; p.invincible = 80;
   }
-
   if (p.invincible > 0) p.invincible--;
 }
 
-// ─── Update ──────────────────────────────────────────────────────────────────
+// ─── Main Update ─────────────────────────────────────────────────────────────
 function update() {
+  if (gameState === 'transition') {
+    tick++;
+    transitionTimer--;
+    if (transitionTimer <= 0) startLevel(2);
+    return;
+  }
   if (gameState !== 'playing' || gameOver || won) return;
   tick++;
-
   updatePlayer(player1);
   updatePlayer(player2);
 
-  // Coins — first player to touch collects
-  const activePlayers = [player1, player2].filter(p => p && p.lives > 0);
+  const active = [player1, player2].filter(p => p && p.lives > 0);
+
+  // Coins
   for (const c of coins) {
     if (c.collected) continue;
-    c.bob = (c.bob + 0.08) % (Math.PI * 2);
-    for (const p of activePlayers) {
-      if (overlap(p.x, p.y, p.w, p.h, c.x, c.y, 16, 16)) {
-        c.collected = true;
-        p.coins++;
-        p.score += 100;
-        spawnParticles(c.x + 8, c.y + 8, '#FDD835', 6);
-        playCoinSound();
-        break;
+    c.bob = (c.bob + 0.08) % (Math.PI*2);
+    for (const p of active) {
+      if (overlap(p.x,p.y,p.w,p.h, c.x,c.y,16,16)) {
+        c.collected = true; p.coins++; p.score += 100;
+        spawnParticles(c.x+8, c.y+8, '#FDD835', 6);
+        playCoinSound(); break;
+      }
+    }
+  }
+
+  // Chests
+  for (const c of chests) {
+    if (c.opened) continue;
+    for (const p of active) {
+      if (overlap(p.x,p.y,p.w,p.h, c.x,c.y,c.w,c.h)) {
+        c.opened = true;
+        applyPowerup(p, c.type); break;
       }
     }
   }
@@ -265,107 +338,122 @@ function update() {
       e.vx *= -1;
       e.x = Math.max(e.patrolStart, Math.min(e.x, e.patrolEnd - e.w));
     }
-    for (const p of activePlayers) {
-      if (p.invincible > 0) continue;
-      if (!overlap(p.x, p.y, p.w, p.h, e.x, e.y, e.w, e.h)) continue;
-      const stomping = p.vy > 0 && (p.y + p.h) < (e.y + e.h * 0.55 + p.vy + 2);
-      if (stomping) {
+    for (const p of active) {
+      if (p.invincible > 0 || !overlap(p.x,p.y,p.w,p.h,e.x,e.y,e.w,e.h)) continue;
+      if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
         e.alive = false; e.squish = 1;
         p.vy = -9; p.score += 200;
-        spawnParticles(e.x + e.w/2, e.y + e.h/2, '#EF5350', 10);
-        break;
+        spawnParticles(e.x+e.w/2, e.y+e.h/2, '#EF5350', 10); break;
       } else {
-        p.lives--;
-        p.invincible = 100;
-        p.vy = -7;
-        p.vx = p.x < e.x + e.w/2 ? -5 : 5;
-        spawnParticles(p.x + p.w/2, p.y + p.h/2, '#FF7043', 8);
+        p.lives--; p.invincible = 100; p.vy = -7;
+        p.vx = p.x < e.x+e.w/2 ? -5 : 5;
+        spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF7043', 8);
       }
     }
   }
 
   // Win / Game Over
-  const p1alive = player1.lives > 0;
-  const p2alive = player2 && player2.lives > 0;
-  if (p1alive && player1.x + player1.w >= LEVEL_W - 60) won = true;
-  if (p2alive && player2.x + player2.w >= LEVEL_W - 60) won = true;
-  if (!p1alive && (numPlayers === 1 || !p2alive)) gameOver = true;
+  const p1a = player1.lives > 0;
+  const p2a = player2 && player2.lives > 0;
+  const hitGoal = (p1a && player1.x + player1.w >= LEVEL_W - 60) ||
+                  (p2a && player2.x + player2.w >= LEVEL_W - 60);
+  if (hitGoal) {
+    if (currentLevel === 0) { gameState = 'transition'; transitionTimer = 210; }
+    else won = true;
+  }
+  if (!p1a && (numPlayers === 1 || !p2a)) gameOver = true;
 
   // Particles
-  for (let i = particles.length - 1; i >= 0; i--) {
+  for (let i = particles.length-1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx; p.y += p.vy; p.vy += 0.22;
-    p.life -= p.decay;
+    p.x += p.vx; p.y += p.vy; p.vy += 0.22; p.life -= p.decay;
     if (p.life <= 0) particles.splice(i, 1);
   }
 
-  // Camera — follow lead player (or midpoint in 2P)
+  // Camera
   let targetCam;
-  if (numPlayers === 1 || !p2alive) {
-    targetCam = (p1alive ? player1.x : camX) - W * 0.33;
-  } else if (!p1alive) {
-    targetCam = player2.x - W * 0.33;
-  } else {
+  if (numPlayers === 1 || !p2a)      targetCam = (p1a ? player1.x : camX) - W*0.33;
+  else if (!p1a)                     targetCam = player2.x - W*0.33;
+  else {
     const mid = (player1.x + player2.x) / 2;
-    targetCam = mid - W * 0.5;
-    // Don't let either player go off left edge
-    const leftmost = Math.min(player1.x, player2.x);
-    if (leftmost - targetCam < 20) targetCam = leftmost - 20;
+    targetCam = mid - W*0.5;
+    const lm = Math.min(player1.x, player2.x);
+    if (lm - targetCam < 20) targetCam = lm - 20;
   }
   camX += (targetCam - camX) * 0.1;
   camX  = Math.max(0, Math.min(camX, LEVEL_W - W));
 }
 
-// ─── Drawing Helpers ─────────────────────────────────────────────────────────
+// ─── Draw Helpers ────────────────────────────────────────────────────────────
 function sx(worldX) { return worldX - camX; }
 
-function drawCube(worldX, worldY, w, h, mid, dark, light) {
-  const x = sx(worldX);
-  ctx.fillStyle = mid;   ctx.fillRect(x, worldY, w, h);
-  ctx.fillStyle = dark;  ctx.fillRect(x+w-4, worldY+4, 4, h-4); ctx.fillRect(x+4, worldY+h-4, w-4, 4);
-  ctx.fillStyle = light; ctx.fillRect(x+1, worldY+1, w-5, 3);    ctx.fillRect(x+1, worldY+1, 3, h-5);
+function drawCube(wx, wy, w, h, mid, dark, light) {
+  const x = sx(wx);
+  ctx.fillStyle = mid;   ctx.fillRect(x, wy, w, h);
+  ctx.fillStyle = dark;  ctx.fillRect(x+w-4, wy+4, 4, h-4); ctx.fillRect(x+4, wy+h-4, w-4, 4);
+  ctx.fillStyle = light; ctx.fillRect(x+1, wy+1, w-5, 3);    ctx.fillRect(x+1, wy+1, 3, h-5);
+}
+
+function drawMiniCube(x, y, sz, mid, dark, light) {
+  ctx.fillStyle = mid;   ctx.fillRect(x, y, sz, sz);
+  ctx.fillStyle = dark;  ctx.fillRect(x+sz-3, y+3, 3, sz-3); ctx.fillRect(x+3, y+sz-3, sz-3, 3);
+  ctx.fillStyle = light; ctx.fillRect(x+1, y+1, sz-4, 2);     ctx.fillRect(x+1, y+1, 2, sz-4);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x+Math.round(sz*0.52), y+Math.round(sz*0.28), Math.round(sz*0.16), Math.round(sz*0.16));
+  ctx.fillRect(x+Math.round(sz*0.73), y+Math.round(sz*0.28), Math.round(sz*0.16), Math.round(sz*0.16));
 }
 
 // ─── Background ──────────────────────────────────────────────────────────────
 function drawBackground() {
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#0D47A1'); g.addColorStop(0.55, '#1976D2'); g.addColorStop(1, '#42A5F5');
+  if (currentLevel === 1) {
+    g.addColorStop(0, '#1A0533'); g.addColorStop(0.5, '#6A1B4D'); g.addColorStop(1, '#FF6E40');
+  } else {
+    g.addColorStop(0, '#0D47A1'); g.addColorStop(0.55, '#1976D2'); g.addColorStop(1, '#42A5F5');
+  }
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-  ctx.fillStyle = '#1565C0';
-  for (const [hx, hy, hw] of [[0,380,200],[220,360,260],[540,375,200],[820,355,300],[1180,370,220],[1480,350,280],[1800,365,240],[2100,355,300]]) {
+  ctx.fillStyle = currentLevel === 1 ? '#4A148C' : '#1565C0';
+  for (const [hx,hy,hw] of [[0,380,200],[220,360,260],[540,375,200],[820,355,300],[1180,370,220],[1480,350,280],[1800,365,240],[2100,355,300]]) {
     const x = ((hx - camX*0.2) % (LEVEL_W*0.8+W) + LEVEL_W+W) % (LEVEL_W*0.8+W) - 100;
     ctx.beginPath(); ctx.ellipse(x+hw/2, hy+120, hw/2, 120, 0, 0, Math.PI); ctx.fill();
   }
-  ctx.fillStyle = '#1B5E20';
-  for (const [hx, hy, hw] of [[0,360,240],[280,375,200],[560,355,270],[880,370,220],[1200,360,260],[1500,375,200]]) {
+  ctx.fillStyle = currentLevel === 1 ? '#880E4F' : '#1B5E20';
+  for (const [hx,hy,hw] of [[0,360,240],[280,375,200],[560,355,270],[880,370,220],[1200,360,260],[1500,375,200]]) {
     const x = ((hx - camX*0.45) % (LEVEL_W*0.7+W) + LEVEL_W+W) % (LEVEL_W*0.7+W) - 80;
     ctx.beginPath(); ctx.ellipse(x+hw/2, hy+100, hw/2, 100, 0, 0, Math.PI); ctx.fill();
   }
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  for (const [wx, wy, sc] of [[80,55,1.2],[360,72,0.9],[680,48,1.3],[1020,65,1.0],[1340,52,1.1],[1680,70,0.95],[2020,55,1.2],[2340,68,1.0],[2680,50,1.3],[3020,72,0.9]]) {
+  ctx.fillStyle = currentLevel === 1 ? 'rgba(255,150,100,0.65)' : 'rgba(255,255,255,0.85)';
+  for (const [wx,wy,sc] of [[80,55,1.2],[360,72,0.9],[680,48,1.3],[1020,65,1.0],[1340,52,1.1],[1680,70,0.95],[2020,55,1.2],[2340,68,1.0],[2680,50,1.3],[3020,72,0.9]]) {
     const cw=72*sc, ch=28*sc;
     const x = ((wx - camX*0.18) % (LEVEL_W*1.1+W) + LEVEL_W+W) % (LEVEL_W*1.1+W) - 100;
-    ctx.fillRect(x, wy, cw, ch); ctx.fillRect(x+cw*0.12, wy-ch*0.4, cw*0.6, ch*0.6); ctx.fillRect(x+cw*0.35, wy-ch*0.65, cw*0.32, ch*0.5);
+    ctx.fillRect(x,wy,cw,ch); ctx.fillRect(x+cw*0.12,wy-ch*0.4,cw*0.6,ch*0.6); ctx.fillRect(x+cw*0.35,wy-ch*0.65,cw*0.32,ch*0.5);
   }
 }
 
 // ─── Platforms ───────────────────────────────────────────────────────────────
 function drawPlatforms() {
-  for (const [px, py, pw, ph] of platforms) {
-    const x = sx(px);
-    if (x+pw < 0 || x > W) continue;
+  const [gc, gt, gl, gd] = currentLevel === 1
+    ? ['#4A1942','#7B1FA2','#9C27B0','#311B3F']
+    : ['#5D4037','#388E3C','#4CAF50','#4A2F20'];
+  const [bc, bl, bd] = currentLevel === 1
+    ? ['#7B1FA2','#BA68C8','#4A148C']
+    : ['#D4A017','#FFD54F','#A07820'];
+
+  for (const [px,py,pw,ph] of platforms) {
+    const x = sx(px); if (x+pw < 0 || x > W) continue;
     if (py >= GROUND_Y) {
-      ctx.fillStyle = '#5D4037'; ctx.fillRect(x, py, pw, ph);
-      ctx.fillStyle = '#388E3C'; ctx.fillRect(x, py, pw, 8);
-      ctx.fillStyle = '#4CAF50'; ctx.fillRect(x, py+1, pw, 3);
-      ctx.fillStyle = '#4A2F20';
+      ctx.fillStyle = gc; ctx.fillRect(x, py, pw, ph);
+      ctx.fillStyle = gt; ctx.fillRect(x, py, pw, 8);
+      ctx.fillStyle = gl; ctx.fillRect(x, py+1, pw, 3);
+      ctx.fillStyle = gd;
       for (let gx = 0; gx < pw; gx += 32) ctx.fillRect(x+gx, py+10, 2, ph-10);
     } else {
-      ctx.fillStyle = '#D4A017'; ctx.fillRect(x, py, pw, ph);
-      ctx.fillStyle = '#FFD54F'; ctx.fillRect(x, py, pw, 3);
-      ctx.fillStyle = '#A07820'; ctx.fillRect(x, py+ph-3, pw, 3); ctx.fillRect(x, py+ph/2-1, pw, 2);
-      for (let bx = 0; bx < pw; bx += 20) ctx.fillRect(x+bx, py, 2, ph/2);
+      ctx.fillStyle = bc; ctx.fillRect(x, py, pw, ph);
+      ctx.fillStyle = bl; ctx.fillRect(x, py, pw, 3);
+      ctx.fillStyle = bd;
+      ctx.fillRect(x, py+ph-3, pw, 3); ctx.fillRect(x, py+ph/2-1, pw, 2);
+      for (let bx = 0;  bx < pw; bx += 20) ctx.fillRect(x+bx, py, 2, ph/2);
       for (let bx = 10; bx < pw; bx += 20) ctx.fillRect(x+bx, py+ph/2, 2, ph/2);
     }
   }
@@ -379,8 +467,40 @@ function drawCoins() {
     const y = c.y + Math.sin(c.bob)*3;
     ctx.fillStyle = '#FDD835'; ctx.fillRect(x, y, 16, 16);
     ctx.fillStyle = '#FFF9C4'; ctx.fillRect(x+2, y+2, 6, 5);
-    ctx.strokeStyle = '#F57F17'; ctx.lineWidth = 1.5; ctx.strokeRect(x+0.75, y+0.75, 14.5, 14.5);
+    ctx.strokeStyle = '#F57F17'; ctx.lineWidth = 1.5; ctx.strokeRect(x+.75, y+.75, 14.5, 14.5);
     ctx.fillStyle = '#E65100'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left'; ctx.fillText('$', x+4, y+12);
+  }
+}
+
+// ─── Chests ──────────────────────────────────────────────────────────────────
+function drawChests() {
+  for (const c of chests) {
+    const x = sx(c.x); if (x+c.w < -10 || x > W+10) continue;
+    if (!c.opened) {
+      ctx.fillStyle = '#5D4037'; ctx.fillRect(x, c.y+c.h/2, c.w, c.h/2);
+      ctx.fillStyle = '#795548'; ctx.fillRect(x, c.y, c.w, c.h/2);
+      ctx.fillStyle = '#FDD835'; ctx.fillRect(x, c.y+c.h/2-2, c.w, 4);
+      ctx.fillStyle = '#FDD835'; ctx.fillRect(x+c.w/2-4, c.y+c.h/2-7, 8, 8);
+      ctx.fillStyle = '#E65100'; ctx.fillRect(x+c.w/2-2, c.y+c.h/2-4, 4, 5);
+      ctx.fillStyle = '#A1887F'; ctx.fillRect(x+1, c.y+1, c.w-2, 2); ctx.fillRect(x+1, c.y+1, 2, c.h/2-2);
+      ctx.fillStyle = '#3E2723'; ctx.fillRect(x+c.w-3, c.y+3, 3, c.h-3); ctx.fillRect(x+3, c.y+c.h-3, c.w-3, 3);
+      // Powerup icon + pulsing label
+      const pulse = 0.75 + Math.sin(tick * 0.1) * 0.25;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = c.type === 'speed' ? '#FFE082' : '#CE93D8';
+      ctx.font = '13px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(c.type === 'speed' ? '⚡' : '★', x+c.w/2, c.y-4);
+      ctx.globalAlpha = 1; ctx.textAlign = 'left';
+    } else {
+      // Open body
+      ctx.fillStyle = '#5D4037'; ctx.fillRect(x, c.y+c.h/2, c.w, c.h/2);
+      ctx.fillStyle = '#1A0A00'; ctx.fillRect(x+3, c.y+c.h/2, c.w-6, 6);
+      ctx.fillStyle = '#FDD835'; ctx.fillRect(x, c.y+c.h/2-2, c.w, 4);
+      // Lid flipped open
+      ctx.fillStyle = '#795548'; ctx.fillRect(x-4, c.y-10, c.w, c.h/2-2);
+      ctx.fillStyle = '#A1887F'; ctx.fillRect(x-3, c.y-9, c.w-2, 2);
+      ctx.fillStyle = '#FDD835'; ctx.fillRect(x-4, c.y-10+c.h/2-4, c.w, 3);
+    }
   }
 }
 
@@ -389,9 +509,11 @@ function drawGoalFlag() {
   const gx = sx(LEVEL_W - 90); if (gx < -50 || gx > W+50) return;
   ctx.fillStyle = '#78909C'; ctx.fillRect(gx+22, 200, 6, GROUND_Y-200);
   ctx.fillStyle = '#B0BEC5'; ctx.fillRect(gx+22, 200, 3, GROUND_Y-200);
-  ctx.fillStyle = '#F44336'; ctx.fillRect(gx+28, 200, 44, 30);
+  ctx.fillStyle = currentLevel === 1 ? '#9C27B0' : '#F44336';
+  ctx.fillRect(gx+28, 200, 44, 30);
   ctx.fillStyle = '#FFEB3B'; ctx.fillRect(gx+28, 200, 44, 11);
-  ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left'; ctx.fillText('GOAL!', gx+31, 224);
+  ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(currentLevel === 1 ? 'WIN!' : 'GOAL!', gx+31, 224);
   ctx.fillStyle = '#FDD835'; ctx.fillRect(gx+18, 194, 14, 14);
   ctx.fillStyle = '#F57F17'; ctx.fillRect(gx+20, 196, 10, 10);
 }
@@ -400,23 +522,26 @@ function drawGoalFlag() {
 function drawPlayerCube(p) {
   if (!p || p.lives <= 0) return;
   if (p.invincible > 0 && Math.floor(p.invincible/5)%2 === 1) return;
+  const moving = Math.abs(p.vx) > 0.5;
+  const sqX    = p.onGround && moving ? 2 : 0;
+  const strY   = p.vy < -4 ? -3 : (p.vy > 3 ? 2 : 0);
+  const pw = p.w + sqX, ph = p.h - sqX + strY;
+  const px = p.x - sqX*0.5, py = p.y + sqX - strY;
 
-  const moving   = Math.abs(p.vx) > 0.5;
-  const sqX      = p.onGround && moving ? 2 : 0;
-  const stretchY = p.vy < -4 ? -3 : (p.vy > 3 ? 2 : 0);
-  const pw = p.w + sqX, ph = p.h - sqX + stretchY;
-  const px = p.x - sqX*0.5, py = p.y + sqX - stretchY;
-
+  if (p.powerups.speed > 0) { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 12; }
+  if (p.powerups.size  > 0) { ctx.shadowColor = '#E040FB'; ctx.shadowBlur = 14; }
   drawCube(px, py, pw, ph, p.colors.mid, p.colors.dark, p.colors.light);
+  ctx.shadowBlur = 0;
 
-  const ex = sx(px), eyeSize = 5, eyeY = py + Math.floor(ph*0.28);
+  const ex = sx(px), eSize = Math.max(4, Math.round(pw*0.18));
+  const eyeY = py + Math.floor(ph*0.28);
   ctx.fillStyle = '#000';
   if (p.facingRight) {
-    ctx.fillRect(ex+pw*0.52, eyeY, eyeSize, eyeSize); ctx.fillRect(ex+pw*0.73, eyeY, eyeSize, eyeSize);
+    ctx.fillRect(ex+pw*0.52, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.73, eyeY, eSize, eSize);
     ctx.fillStyle = '#FFF';
     ctx.fillRect(ex+pw*0.52+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.73+1, eyeY+1, 2, 2);
   } else {
-    ctx.fillRect(ex+pw*0.15, eyeY, eyeSize, eyeSize); ctx.fillRect(ex+pw*0.36, eyeY, eyeSize, eyeSize);
+    ctx.fillRect(ex+pw*0.15, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.36, eyeY, eSize, eSize);
     ctx.fillStyle = '#FFF';
     ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
   }
@@ -427,35 +552,43 @@ function drawPlayerCube(p) {
     const mx = ex+pw*0.28, my = py+ph*0.64;
     ctx.fillRect(mx, my, pw*0.43, 2); ctx.fillRect(mx, my-2, 2, 3); ctx.fillRect(mx+pw*0.43-2, my-2, 2, 3);
   }
+  // Speed lines
+  if (p.powerups.speed > 0 && Math.abs(p.vx) > 2) {
+    ctx.strokeStyle = 'rgba(255,215,0,0.55)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const lx = p.facingRight ? ex - 5 - i*8 : ex + pw + 5 + i*8;
+      const ly = py + ph * (0.2 + i*0.25);
+      const dir = p.facingRight ? 10+i*4 : -(10+i*4);
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx+dir, ly); ctx.stroke();
+    }
+  }
+  // Legs
   if (p.onGround && Math.abs(p.vx) > 1) {
     const lx = ex + (Math.floor(tick/5)%2 === 0 ? 4 : pw-10);
     ctx.fillStyle = p.colors.leg; ctx.fillRect(lx, py+ph, 6, 5);
   }
 }
 
-// ─── Enemy Cubes ─────────────────────────────────────────────────────────────
+// ─── Enemies ─────────────────────────────────────────────────────────────────
 function drawEnemies() {
   for (const e of enemies) {
     if (!e.alive) {
-      if (e.squish > 0) {
-        const sh = Math.max(4, 10*e.squish);
-        drawCube(e.x, e.y+e.h-sh, e.w, sh, '#E53935', '#B71C1C', '#EF9A9A');
-      }
+      if (e.squish > 0) { const sh = Math.max(4,10*e.squish); drawCube(e.x, e.y+e.h-sh, e.w, sh, '#E53935','#B71C1C','#EF9A9A'); }
       continue;
     }
     const ex = sx(e.x); if (ex+e.w < -10 || ex > W+10) continue;
     const fr = e.vx > 0;
-    drawCube(e.x, e.y, e.w, e.h, '#E53935', '#B71C1C', '#EF9A9A');
+    drawCube(e.x, e.y, e.w, e.h, '#E53935','#B71C1C','#EF9A9A');
     const eyeY = e.y + Math.floor(e.h*0.30);
     ctx.fillStyle = '#000';
     if (fr) { ctx.fillRect(ex+e.w*0.52, eyeY, 4, 4); ctx.fillRect(ex+e.w*0.73, eyeY, 4, 4); }
     else    { ctx.fillRect(ex+e.w*0.15, eyeY, 4, 4); ctx.fillRect(ex+e.w*0.36, eyeY, 4, 4); }
     ctx.fillStyle = '#7F0000';
-    if (fr) { ctx.fillRect(ex+e.w*0.50, eyeY-5, e.w*0.20, 2); ctx.fillRect(ex+e.w*0.71, eyeY-4, e.w*0.21, 2); }
-    else    { ctx.fillRect(ex+e.w*0.08, eyeY-4, e.w*0.21, 2); ctx.fillRect(ex+e.w*0.30, eyeY-5, e.w*0.20, 2); }
+    if (fr) { ctx.fillRect(ex+e.w*.50, eyeY-5, e.w*.20, 2); ctx.fillRect(ex+e.w*.71, eyeY-4, e.w*.21, 2); }
+    else    { ctx.fillRect(ex+e.w*.08, eyeY-4, e.w*.21, 2); ctx.fillRect(ex+e.w*.30, eyeY-5, e.w*.20, 2); }
     const mb = e.y+e.h*0.65;
-    if (fr) { ctx.fillRect(ex+e.w*0.50, mb, e.w*0.38, 2); ctx.fillRect(ex+e.w*0.50, mb-3, 2, 4); ctx.fillRect(ex+e.w*0.88-2, mb, 2, 4); }
-    else    { ctx.fillRect(ex+e.w*0.12, mb, e.w*0.38, 2); ctx.fillRect(ex+e.w*0.12, mb,   2, 4); ctx.fillRect(ex+e.w*0.50-2, mb-3, 2, 4); }
+    if (fr) { ctx.fillRect(ex+e.w*.50,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.50,mb-3,2,4); ctx.fillRect(ex+e.w*.88-2,mb,2,4); }
+    else    { ctx.fillRect(ex+e.w*.12,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.12,mb,2,4);   ctx.fillRect(ex+e.w*.50-2,mb-3,2,4); }
   }
 }
 
@@ -463,239 +596,192 @@ function drawEnemies() {
 function drawParticles() {
   for (const p of particles) {
     ctx.globalAlpha = Math.max(0, p.life);
-    ctx.fillStyle = p.color;
     const s = p.size * p.life;
-    ctx.fillRect(sx(p.x)-s/2, p.y-s/2, s, s);
+    ctx.fillStyle = p.color; ctx.fillRect(sx(p.x)-s/2, p.y-s/2, s, s);
   }
   ctx.globalAlpha = 1;
-}
-
-// ─── Mini Cube (for HUD/Select) ──────────────────────────────────────────────
-function drawMiniCube(x, y, sz, mid, dark, light) {
-  ctx.fillStyle = mid;   ctx.fillRect(x, y, sz, sz);
-  ctx.fillStyle = dark;  ctx.fillRect(x+sz-3, y+3, 3, sz-3); ctx.fillRect(x+3, y+sz-3, sz-3, 3);
-  ctx.fillStyle = light; ctx.fillRect(x+1, y+1, sz-4, 2); ctx.fillRect(x+1, y+1, 2, sz-4);
-  ctx.fillStyle = '#000';
-  ctx.fillRect(x+Math.round(sz*0.52), y+Math.round(sz*0.28), Math.round(sz*0.16), Math.round(sz*0.16));
-  ctx.fillRect(x+Math.round(sz*0.73), y+Math.round(sz*0.28), Math.round(sz*0.16), Math.round(sz*0.16));
 }
 
 // ─── HUD ─────────────────────────────────────────────────────────────────────
 function drawHUD() {
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, 0, W, 40);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, 40);
 
-  function drawPlayerHUD(p, label, xOff) {
+  function playerHUD(p, label, xOff) {
     if (!p) return;
     drawMiniCube(xOff, 10, 18, p.colors.mid, p.colors.dark, p.colors.light);
     ctx.fillStyle = p.lives > 0 ? '#FFF' : '#666';
     ctx.font = 'bold 13px monospace'; ctx.textAlign = 'left';
-    ctx.fillText(`${label} ×${p.lives}`, xOff + 22, 23);
-    ctx.fillStyle = '#FDD835'; ctx.fillRect(xOff + 80, 12, 12, 12);
+    ctx.fillText(`${label} ×${p.lives}`, xOff+22, 23);
+    ctx.fillStyle = '#FDD835'; ctx.fillRect(xOff+80, 12, 12, 12);
     ctx.strokeStyle = '#F57F17'; ctx.lineWidth = 1; ctx.strokeRect(xOff+80.5, 12.5, 11, 11);
     ctx.fillStyle = p.lives > 0 ? '#FFF' : '#666';
-    ctx.fillText(`×${p.coins}`, xOff + 96, 23);
-    ctx.fillText(`${String(p.score).padStart(6,'0')}`, xOff + 148, 23);
+    ctx.fillText(`×${p.coins}`, xOff+96, 23);
+    ctx.fillText(String(p.score).padStart(6,'0'), xOff+148, 23);
+    // Powerup badges
+    let bx = xOff + 220;
+    if (p.powerups.speed > 0) {
+      ctx.fillStyle = '#F57F00'; ctx.fillRect(bx, 7, 46, 14);
+      ctx.fillStyle = '#000'; ctx.font = 'bold 9px monospace';
+      ctx.fillText(`⚡ ${(p.powerups.speed/60).toFixed(1)}s`, bx+2, 18);
+      bx += 50;
+    }
+    if (p.powerups.size > 0) {
+      ctx.fillStyle = '#AB47BC'; ctx.fillRect(bx, 7, 46, 14);
+      ctx.fillStyle = '#000'; ctx.font = 'bold 9px monospace';
+      ctx.fillText(`★ ${(p.powerups.size/60).toFixed(1)}s`, bx+2, 18);
+    }
   }
+
+  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center'; ctx.fillText(`LEVEL ${currentLevel+1}`, W/2, 25); ctx.textAlign = 'left';
 
   if (numPlayers === 1) {
-    drawPlayerHUD(player1, 'P1', 10);
-    // Progress bar right side
-    const bx = W-215, by = 12, bw = 200, bh = 10;
-    ctx.fillStyle = '#222'; ctx.fillRect(bx, by, bw, bh);
-    const prog = Math.min(1, player1.x / (LEVEL_W-100));
-    ctx.fillStyle = '#29B6F6'; ctx.fillRect(bx, by, bw*prog, bh);
-    ctx.fillStyle = '#64B5F6'; ctx.fillRect(bx, by, bw*prog, 3);
-    ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, bh);
-    ctx.fillStyle = '#666'; ctx.font = '9px monospace'; ctx.fillText('PROGRESS', bx, by+bh+10);
+    playerHUD(player1, 'P1', 8);
+    const bx=W-215, by=12, bw=200, bh=10;
+    ctx.fillStyle='#222'; ctx.fillRect(bx,by,bw,bh);
+    const prog = Math.min(1, player1.x/(LEVEL_W-100));
+    ctx.fillStyle='#29B6F6'; ctx.fillRect(bx,by,bw*prog,bh);
+    ctx.fillStyle='#64B5F6'; ctx.fillRect(bx,by,bw*prog,3);
+    ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
   } else {
-    drawPlayerHUD(player1, 'P1', 8);
-    drawPlayerHUD(player2, 'P2', 410);
-    // Center divider
-    ctx.fillStyle = '#444'; ctx.fillRect(W/2-1, 4, 2, 32);
+    playerHUD(player1, 'P1', 8);
+    playerHUD(player2, 'P2', 410);
+    ctx.fillStyle='#444'; ctx.fillRect(W/2-1, 4, 2, 32);
   }
-}
-
-// ─── Overlays ────────────────────────────────────────────────────────────────
-function drawOverlay(title, line2, titleColor) {
-  ctx.fillStyle = 'rgba(0,0,0,0.68)'; ctx.fillRect(0, 0, W, H);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = titleColor; ctx.font = 'bold 54px monospace'; ctx.fillText(title, W/2, H/2-30);
-  ctx.fillStyle = '#EEE'; ctx.font = '18px monospace'; ctx.fillText(line2, W/2, H/2+16);
-  ctx.fillStyle = '#666'; ctx.font = '14px monospace'; ctx.fillText('Press  R  to return to menu', W/2, H/2+50);
-  ctx.textAlign = 'left';
 }
 
 // ─── Select Screen ───────────────────────────────────────────────────────────
 function drawSelectScreen() {
-  // Background
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#0a0a1a'); g.addColorStop(1, '#0d1a2e');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-
-  // Stars
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0a0a1a'); g.addColorStop(1,'#0d1a2e');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
   for (let i = 0; i < 60; i++) {
-    const sx2 = (i * 137 + 50) % W;
-    const sy  = (i * 97  + 30) % (H - 80);
-    const ss  = (i % 3 === 0) ? 2 : 1;
-    const blink = Math.sin(tick * 0.03 + i) * 0.4 + 0.6;
-    ctx.globalAlpha = blink;
-    ctx.fillRect(sx2, sy, ss, ss);
+    const blink = Math.sin(tick*.03+i)*.4+.6;
+    ctx.globalAlpha = blink; ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillRect((i*137+50)%W, (i*97+30)%(H-80), i%3===0?2:1, i%3===0?2:1);
   }
   ctx.globalAlpha = 1;
-
-  // Title
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#29B6F6';
-  ctx.font = 'bold 42px monospace';
+  ctx.fillStyle = '#29B6F6'; ctx.font = 'bold 42px monospace';
   ctx.shadowColor = '#29B6F6'; ctx.shadowBlur = 20;
-  ctx.fillText('★ CUBIE BROS ★', W/2, 90);
-  ctx.shadowBlur = 0;
+  ctx.fillText('★ CUBIE BROS ★', W/2, 90); ctx.shadowBlur = 0;
   ctx.fillStyle = '#546E7A'; ctx.font = '14px monospace';
   ctx.fillText('SELECT NUMBER OF PLAYERS', W/2, 118);
 
-  // Option cards
-  const cardW = 220, cardH = 200, cardY = 148;
-  const card1X = W/2 - cardW - 20;
-  const card2X = W/2 + 20;
-
-  function drawCard(cx, label, sel, cubeDrawFn) {
-    const glow = sel ? 'rgba(41,182,246,0.25)' : 'rgba(255,255,255,0.04)';
-    const border = sel ? '#29B6F6' : '#334';
-    const borderW = sel ? 3 : 1.5;
-
-    ctx.fillStyle = glow; ctx.fillRect(cx, cardY, cardW, cardH);
-    ctx.strokeStyle = border; ctx.lineWidth = borderW;
-    ctx.strokeRect(cx, cardY, cardW, cardH);
-
-    // Glow pulse on selected
+  const cW=220, cH=200, cY=148, c1X=W/2-cW-20, c2X=W/2+20;
+  function card(cx, label, sel, fn) {
+    ctx.fillStyle = sel ? 'rgba(41,182,246,0.25)' : 'rgba(255,255,255,0.04)';
+    ctx.fillRect(cx,cY,cW,cH);
+    ctx.strokeStyle = sel ? '#29B6F6' : '#334'; ctx.lineWidth = sel ? 3 : 1.5;
+    ctx.strokeRect(cx,cY,cW,cH);
     if (sel) {
-      ctx.strokeStyle = `rgba(41,182,246,${0.3 + Math.sin(tick*0.08)*0.2})`;
-      ctx.lineWidth = 6;
-      ctx.strokeRect(cx-1, cardY-1, cardW+2, cardH+2);
+      ctx.strokeStyle = `rgba(41,182,246,${.3+Math.sin(tick*.08)*.2})`;
+      ctx.lineWidth = 6; ctx.strokeRect(cx-1,cY-1,cW+2,cH+2);
     }
-
-    cubeDrawFn(cx, cardY);
-
-    ctx.fillStyle = sel ? '#FFF' : '#889';
-    ctx.font = `bold 18px monospace`;
-    ctx.textAlign = 'center';
-    ctx.fillText(label, cx + cardW/2, cardY + cardH - 22);
-
-    if (sel) {
-      ctx.fillStyle = '#29B6F6';
-      ctx.font = '12px monospace';
-      ctx.fillText('▶ ENTER to start ◀', cx + cardW/2, cardY + cardH - 6);
-    }
+    fn(cx, cY);
+    ctx.fillStyle = sel ? '#FFF' : '#889'; ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center'; ctx.fillText(label, cx+cW/2, cY+cH-22);
+    if (sel) { ctx.fillStyle='#29B6F6'; ctx.font='12px monospace'; ctx.fillText('▶ ENTER to start ◀', cx+cW/2, cY+cH-6); }
   }
-
-  // 1P card — one bouncing blue cube
-  drawCard(card1X, '1  PLAYER', menuSel === 0, (cx, cy) => {
-    const bob = Math.sin(tick * 0.06) * 10;
-    const sz = 54;
-    drawMiniCube(cx + cardW/2 - sz/2, cy + 55 + bob, sz, P1.mid, P1.dark, P1.light);
-    // Eyes on big cube
-    const ex2 = cx + cardW/2 - sz/2;
-    const ey2 = cy + 55 + bob;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(ex2+sz*0.52, ey2+sz*0.28, sz*0.14, sz*0.14);
-    ctx.fillRect(ex2+sz*0.73, ey2+sz*0.28, sz*0.14, sz*0.14);
+  card(c1X,'1  PLAYER', menuSel===0, (cx,cy) => {
+    const bob=Math.sin(tick*.06)*10, sz=54;
+    drawMiniCube(cx+cW/2-sz/2, cy+55+bob, sz, P1.mid,P1.dark,P1.light);
+    ctx.fillStyle='#000'; const ex2=cx+cW/2-sz/2;
+    ctx.fillRect(ex2+sz*.52,cy+55+bob+sz*.28,sz*.14,sz*.14);
+    ctx.fillRect(ex2+sz*.73,cy+55+bob+sz*.28,sz*.14,sz*.14);
   });
-
-  // 2P card — two cubes side by side
-  drawCard(card2X, '2  PLAYERS', menuSel === 1, (cx, cy) => {
-    const bob1 = Math.sin(tick * 0.06) * 10;
-    const bob2 = Math.sin(tick * 0.06 + 1.2) * 10;
-    const sz = 46;
-    const lx = cx + cardW/2 - sz - 8;
-    const rx = cx + cardW/2 + 8;
-
-    drawMiniCube(lx, cy + 60 + bob1, sz, P1.mid, P1.dark, P1.light);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(lx+sz*0.52, cy+60+bob1+sz*0.28, sz*0.14, sz*0.14);
-    ctx.fillRect(lx+sz*0.73, cy+60+bob1+sz*0.28, sz*0.14, sz*0.14);
-
-    drawMiniCube(rx, cy + 60 + bob2, sz, P2.mid, P2.dark, P2.light);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(rx+sz*0.52, cy+60+bob2+sz*0.28, sz*0.14, sz*0.14);
-    ctx.fillRect(rx+sz*0.73, cy+60+bob2+sz*0.28, sz*0.14, sz*0.14);
+  card(c2X,'2  PLAYERS', menuSel===1, (cx,cy) => {
+    const b1=Math.sin(tick*.06)*10, b2=Math.sin(tick*.06+1.2)*10, sz=46;
+    const lx=cx+cW/2-sz-8, rx=cx+cW/2+8;
+    drawMiniCube(lx,cy+60+b1,sz,P1.mid,P1.dark,P1.light);
+    ctx.fillStyle='#000'; ctx.fillRect(lx+sz*.52,cy+60+b1+sz*.28,sz*.14,sz*.14); ctx.fillRect(lx+sz*.73,cy+60+b1+sz*.28,sz*.14,sz*.14);
+    drawMiniCube(rx,cy+60+b2,sz,P2.mid,P2.dark,P2.light);
+    ctx.fillStyle='#000'; ctx.fillRect(rx+sz*.52,cy+60+b2+sz*.28,sz*.14,sz*.14); ctx.fillRect(rx+sz*.73,cy+60+b2+sz*.28,sz*.14,sz*.14);
   });
-
-  // Arrow selector
-  const arrowX = menuSel === 0 ? card1X - 24 : card2X - 24;
-  const arrowY = cardY + cardH/2;
-  ctx.fillStyle = `rgba(41,182,246,${0.7 + Math.sin(tick*0.1)*0.3})`;
-  ctx.font = 'bold 22px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText('▶', arrowX, arrowY + 8);
-
-  // Controls legend
-  ctx.fillStyle = '#445';
-  ctx.font = '12px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('← → to choose   |   1 / 2 to pick directly', W/2, 390);
-  if (menuSel === 0) {
-    ctx.fillText('P1: WASD / Space to jump', W/2, 410);
-  } else {
-    ctx.fillText('P1: WASD + Space    P2: Arrow Keys + Enter', W/2, 410);
-  }
-  ctx.fillStyle = '#334';
-  ctx.font = '11px monospace';
+  ctx.fillStyle=`rgba(41,182,246,${.7+Math.sin(tick*.1)*.3})`;
+  ctx.font='bold 22px monospace'; ctx.textAlign='left';
+  ctx.fillText('▶', (menuSel===0?c1X:c2X)-24, cY+cH/2+8);
+  ctx.fillStyle='#445'; ctx.font='12px monospace'; ctx.textAlign='center';
+  ctx.fillText('← → to choose  |  1 / 2 to pick directly', W/2, 390);
+  ctx.fillText(menuSel===0 ? 'P1: WASD + Space' : 'P1: WASD + Space    P2: Arrow Keys + Enter', W/2, 410);
+  ctx.fillStyle='#334'; ctx.font='11px monospace';
   ctx.fillText('R = return to menu during play', W/2, 432);
+  ctx.textAlign='left';
+}
 
-  ctx.textAlign = 'left';
+// ─── Level Transition Screen ──────────────────────────────────────────────────
+function drawTransition() {
+  drawBackground(); drawPlatforms();
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0,0,W,H);
+  const prog = 1 - transitionTimer/210;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#FFD600'; ctx.font = 'bold 52px monospace';
+  ctx.shadowColor='#FFD600'; ctx.shadowBlur=30;
+  ctx.fillText('LEVEL COMPLETE!', W/2, H/2-50); ctx.shadowBlur=0;
+  ctx.fillStyle = '#FFF'; ctx.font = '22px monospace';
+  ctx.fillText('Get ready for Level 2...', W/2, H/2+5);
+  // Progress bar
+  ctx.fillStyle='#333'; ctx.fillRect(W/2-150, H/2+28, 300, 10);
+  ctx.fillStyle='#29B6F6'; ctx.fillRect(W/2-150, H/2+28, 300*prog, 10);
+  // Chest previews
+  ctx.fillStyle='#AAA'; ctx.font='13px monospace';
+  ctx.fillText('Collect chests in Level 2 for powerups!', W/2, H/2+62);
+  function miniChest(cx, cy, color, label) {
+    ctx.fillStyle='#795548'; ctx.fillRect(cx,cy,30,24);
+    ctx.fillStyle='#FDD835'; ctx.fillRect(cx,cy+12-2,30,4); ctx.fillRect(cx+11,cy+5,8,8);
+    ctx.fillStyle=color; ctx.font='bold 12px monospace';
+    ctx.fillText(label, cx+15, cy+40);
+  }
+  miniChest(W/2-70, H/2+72, '#FFE082', '⚡ Speed');
+  miniChest(W/2+20, H/2+72, '#CE93D8', '★ Size');
+  ctx.textAlign='left';
+}
+
+// ─── Overlays ────────────────────────────────────────────────────────────────
+function drawOverlay(title, sub, color) {
+  ctx.fillStyle='rgba(0,0,0,0.68)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.fillStyle=color; ctx.font='bold 54px monospace'; ctx.fillText(title, W/2, H/2-30);
+  ctx.fillStyle='#EEE'; ctx.font='18px monospace'; ctx.fillText(sub, W/2, H/2+16);
+  ctx.fillStyle='#666'; ctx.font='14px monospace'; ctx.fillText('Press  R  to return to menu', W/2, H/2+50);
+  ctx.textAlign='left';
 }
 
 // ─── Main Draw ───────────────────────────────────────────────────────────────
 function draw() {
-  if (gameState === 'select') {
-    drawSelectScreen();
-    return;
-  }
-  drawBackground();
-  drawPlatforms();
-  drawCoins();
-  drawGoalFlag();
-  drawEnemies();
-  drawPlayerCube(player1);
-  drawPlayerCube(player2);
-  drawParticles();
-  drawHUD();
+  if (gameState === 'select')     { drawSelectScreen(); return; }
+  if (gameState === 'transition') { drawTransition();   return; }
+  drawBackground(); drawPlatforms(); drawCoins(); drawChests();
+  drawGoalFlag(); drawEnemies();
+  drawPlayerCube(player1); drawPlayerCube(player2);
+  drawParticles(); drawHUD();
   if (gameOver) {
-    const scores = numPlayers === 2
-      ? `P1: ${player1.score}  P2: ${player2.score}`
-      : `Score: ${player1.score}`;
-    drawOverlay('GAME OVER', scores, '#EF5350');
+    const s = numPlayers===2 ? `P1: ${player1.score}  P2: ${player2.score}` : `Score: ${player1.score}`;
+    drawOverlay('GAME OVER', s, '#EF5350');
   }
   if (won) {
-    const scores = numPlayers === 2
-      ? `P1: ${player1.score} (${player1.coins}$)   P2: ${player2.score} (${player2.coins}$)`
+    const s = numPlayers===2
+      ? `P1: ${player1.score} (${player1.coins}$)  P2: ${player2.score} (${player2.coins}$)`
       : `Score: ${player1.score}   Coins: ${player1.coins}`;
-    drawOverlay('YOU WIN! ★', scores, '#FFD600');
+    drawOverlay('YOU WIN! ★', s, '#FFD600');
   }
 }
 
-// ─── Input Handling ──────────────────────────────────────────────────────────
+// ─── Input ───────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (gameState === 'select') {
-    if (e.code === 'Digit1') { menuSel = 0; initGame(1); }
-    else if (e.code === 'Digit2') { menuSel = 1; initGame(2); }
-    else if (e.code === 'ArrowLeft'  || e.code === 'KeyA') menuSel = 0;
-    else if (e.code === 'ArrowRight' || e.code === 'KeyD') menuSel = 1;
-    else if (e.code === 'Enter' || e.code === 'Space') initGame(menuSel + 1);
+    if (e.code==='Digit1')                               { menuSel=0; initGame(1); }
+    else if (e.code==='Digit2')                          { menuSel=1; initGame(2); }
+    else if (e.code==='ArrowLeft'  || e.code==='KeyA')   menuSel=0;
+    else if (e.code==='ArrowRight' || e.code==='KeyD')   menuSel=1;
+    else if (e.code==='Enter' || e.code==='Space')       initGame(menuSel+1);
   } else {
-    if (e.code === 'KeyR') { gameState = 'select'; }
+    if (e.code==='KeyR') gameState='select';
   }
 });
 
-// ─── Main Loop ───────────────────────────────────────────────────────────────
-function loop() {
-  tick++;
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
+// ─── Loop ────────────────────────────────────────────────────────────────────
+function loop() { tick++; update(); draw(); requestAnimationFrame(loop); }
 loop();
 </script>
 </body>
