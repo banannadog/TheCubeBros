@@ -1169,7 +1169,7 @@ function drawPlayerCube(p) {
   const pw = p.w + sqX, ph = p.h - sqX + strY;
   const px = p.x - sqX*0.5, py = p.y + sqX - strY;
 
-  if (p.powerups.speed > 0) { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 12; }
+  if (p.powerups.speed > 0) { ctx.shadowColor = equippedSkin === 'murderer' ? '#FF6D00' : '#FFD700'; ctx.shadowBlur = 12; }
   if (p.powerups.size  > 0) { ctx.shadowColor = '#E040FB'; ctx.shadowBlur = 14; }
   drawCube(px, py, pw, ph, p.colors.mid, p.colors.dark, p.colors.light);
   ctx.shadowBlur = 0;
@@ -1255,30 +1255,76 @@ function drawPlayerCube(p) {
     ctx.fillStyle = '#111'; ctx.fillRect(ex, py, pw, 2); // subtle top highlight
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(ex, py + ph - 2, pw, 2);
 
+    const fireMode = p.powerups.speed > 0;
+
+    // FIRE JASON — animated pixel flames around cube
+    if (fireMode) {
+      const ft = Date.now() / 80;
+      const flameData = [
+        { rx: 0.05, rh: 0.7, ph: 0.4 }, { rx: 0.2,  rh: 0.9, ph: 1.3 },
+        { rx: 0.35, rh: 0.75, ph: 0.7 }, { rx: 0.5, rh: 1.0, ph: 2.1 },
+        { rx: 0.65, rh: 0.8, ph: 0.3 }, { rx: 0.8,  rh: 0.85, ph: 1.7 },
+        { rx: 0.92, rh: 0.65, ph: 0.9 },
+      ];
+      const fw = Math.max(3, Math.floor(pw * 0.16));
+      for (const f of flameData) {
+        const flicker = 0.75 + Math.sin(ft + f.ph) * 0.25;
+        const fh = Math.floor(ph * f.rh * flicker);
+        const fx = ex + Math.floor(pw * f.rx) - Math.floor(fw / 2);
+        const fy = py - fh;
+        ctx.fillStyle = '#7B1800'; ctx.fillRect(fx - 1, fy + Math.floor(fh * 0.4), fw + 2, Math.floor(fh * 0.6));
+        ctx.fillStyle = '#FF3D00'; ctx.fillRect(fx, fy + Math.floor(fh * 0.2), fw, Math.floor(fh * 0.6));
+        ctx.fillStyle = '#FF6D00'; ctx.fillRect(fx, fy + Math.floor(fh * 0.05), fw - 1, Math.floor(fh * 0.5));
+        ctx.fillStyle = '#FF9800'; ctx.fillRect(fx + 1, fy, fw - 2, Math.floor(fh * 0.4));
+        ctx.fillStyle = '#FFCC00'; ctx.fillRect(fx + 1, fy, fw - 2, 2);
+      }
+      // Side flame wisps
+      for (let side = 0; side < 2; side++) {
+        const sx2 = side === 0 ? ex - fw : ex + pw;
+        for (let i = 0; i < 3; i++) {
+          const flicker = 0.6 + Math.sin(ft * 1.3 + i + side * 2) * 0.4;
+          const fh = Math.floor(ph * 0.45 * flicker);
+          const fy = py + Math.floor(ph * (0.1 + i * 0.25));
+          ctx.fillStyle = '#FF3D00'; ctx.fillRect(sx2, fy, fw - 1, fh);
+          ctx.fillStyle = '#FF6D00'; ctx.fillRect(sx2 + (side === 0 ? 1 : 0), fy, fw - 2, Math.floor(fh * 0.6));
+        }
+      }
+      // Orange glow pulse on the cube itself
+      ctx.globalAlpha = 0.18 + Math.sin(ft * 0.7) * 0.07;
+      ctx.fillStyle = '#FF6D00'; ctx.fillRect(ex, py, pw, ph);
+      ctx.globalAlpha = 1;
+    }
+
     // Jason Voorhees hockey mask
     const mw = Math.floor(pw * 0.78), mh = Math.floor(ph * 0.78);
     const mx = ex + Math.floor((pw - mw) / 2);
     const my = py + Math.floor(ph * 0.08);
-    // White mask base
-    ctx.fillStyle = '#E8E4DC'; ctx.fillRect(mx, my, mw, mh);
-    ctx.fillStyle = '#C8C4BC'; ctx.fillRect(mx, my, 2, mh);          // left edge shadow
-    ctx.fillStyle = '#F0EDE8'; ctx.fillRect(mx + mw - 2, my, 2, mh); // right edge highlight
-    // Round eye holes
+    // Mask base — scorched orange-white in fire mode, normal white otherwise
+    ctx.fillStyle = fireMode ? '#C84800' : '#E8E4DC'; ctx.fillRect(mx, my, mw, mh);
+    ctx.fillStyle = fireMode ? '#8B2500' : '#C8C4BC'; ctx.fillRect(mx, my, 2, mh);
+    ctx.fillStyle = fireMode ? '#FF6D00' : '#F0EDE8'; ctx.fillRect(mx + mw - 2, my, 2, mh);
+    // Round eye holes — glowing orange in fire mode
     const eHsz = Math.max(3, Math.floor(mw * 0.2));
     const eHy  = my + Math.floor(mh * 0.22);
-    ctx.fillStyle = '#111';
-    ctx.fillRect(mx + Math.floor(mw * 0.08), eHy, eHsz, eHsz);          // left eye
-    ctx.fillRect(mx + mw - Math.floor(mw * 0.08) - eHsz, eHy, eHsz, eHsz); // right eye
+    ctx.fillStyle = fireMode ? '#FF9800' : '#111';
+    ctx.fillRect(mx + Math.floor(mw * 0.08), eHy, eHsz, eHsz);
+    ctx.fillRect(mx + mw - Math.floor(mw * 0.08) - eHsz, eHy, eHsz, eHsz);
+    if (fireMode) {
+      // Bright eye glow centers
+      ctx.fillStyle = '#FFEB3B';
+      ctx.fillRect(mx + Math.floor(mw * 0.08) + 1, eHy + 1, eHsz - 2, eHsz - 2);
+      ctx.fillRect(mx + mw - Math.floor(mw * 0.08) - eHsz + 1, eHy + 1, eHsz - 2, eHsz - 2);
+    }
     // Nose holes
-    ctx.fillStyle = '#111';
+    ctx.fillStyle = fireMode ? '#FF6D00' : '#111';
     ctx.fillRect(mx + Math.floor(mw * 0.38), my + Math.floor(mh * 0.52), 2, 2);
     ctx.fillRect(mx + Math.floor(mw * 0.55), my + Math.floor(mh * 0.52), 2, 2);
-    // Mouth grill (3 horizontal slots)
-    ctx.fillStyle = '#888';
+    // Mouth grill
+    ctx.fillStyle = fireMode ? '#FF3D00' : '#888';
     for (let s = 0; s < 3; s++)
       ctx.fillRect(mx + Math.floor(mw * 0.18), my + Math.floor(mh * 0.70) + s * 3, Math.floor(mw * 0.64), 2);
-    // RED CHEVRON MARKS — Jason's signature (three downward-pointing triangles)
-    ctx.fillStyle = '#CC1111';
+    // RED CHEVRON MARKS — orange/yellow in fire mode
+    ctx.fillStyle = fireMode ? '#FFCC00' : '#CC1111';
     // Forehead chevron (large, centered at top)
     const cvW = Math.floor(mw * 0.52), cvH = Math.floor(mh * 0.26);
     const cvX = mx + Math.floor((mw - cvW) / 2), cvY = my + 1;
