@@ -276,7 +276,8 @@ const BADGE_DEFS = [
   { id: 'swordfighter', name: 'Swordfighter', desc: 'Defeat the King',               color: '#B0BEC5', icon: '⚔' },
 ];
 const SKIN_DEFS = [
-  { id: 'tycoon', name: 'Rich', badge: 'billionaire', desc: 'Golden top hat & business suit' },
+  { id: 'tycoon',  name: 'Rich',   badge: 'billionaire',  desc: 'Golden top hat & business suit' },
+  { id: 'knight',  name: 'Knight', badge: 'swordfighter', desc: 'Steel helmet & silver armour' },
 ];
 // Computed after LEVEL_DATA is defined (see bottom of script init)
 let TOTAL_COINS_IN_GAME = 0;
@@ -1201,6 +1202,33 @@ function drawPlayerCube(p) {
     // Bottom shadow
     ctx.fillStyle = '#7A5C00'; ctx.fillRect(ex, py + ph - 2, pw, 2);
   }
+
+  // Knight skin: steel helmet + silver armour
+  if (equippedSkin === 'knight') {
+    // Helmet dome (covers top ~60% of cube)
+    const helmH = Math.floor(ph * 0.6);
+    ctx.fillStyle = '#90A4AE'; ctx.fillRect(ex, py - helmH + 4, pw, helmH);
+    ctx.fillStyle = '#B0BEC5'; ctx.fillRect(ex, py - helmH + 4, pw, 3); // highlight
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(ex, py - helmH + 4, 2, helmH); // left shadow
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(ex + pw - 2, py - helmH + 4, 2, helmH); // right shadow
+    // Visor slit
+    const visY = py - helmH + 4 + Math.floor(helmH * 0.45);
+    ctx.fillStyle = '#263238'; ctx.fillRect(ex + 3, visY, pw - 6, 4);
+    ctx.fillStyle = '#37474F'; ctx.fillRect(ex + 3, visY, pw - 6, 1);
+    // Helmet rim
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(ex - 2, py - 4, pw + 4, 5);
+    ctx.fillStyle = '#B0BEC5'; ctx.fillRect(ex - 2, py - 4, pw + 4, 1);
+    // Armour plate (lower ~55% of cube)
+    const armY = Math.round(py + ph * 0.45);
+    const armH = Math.round(py + ph) - armY;
+    ctx.fillStyle = '#78909C'; ctx.fillRect(ex, armY, pw, armH);
+    // Armour chest line
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(ex + Math.floor(pw * 0.45), armY, 2, armH);
+    // Armour highlight
+    ctx.fillStyle = '#B0BEC5'; ctx.fillRect(ex, armY, pw, 1);
+    // Bottom trim
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(ex, py + ph - 2, pw, 2);
+  }
 }
 
 // ─── Night Vision Helper ──────────────────────────────────────────────────────
@@ -1393,6 +1421,12 @@ function drawSkinsPanel() {
       ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 20, ry + 8, 18, 6);
       ctx.fillRect(px + 23, ry + 3, 12, 7);
       ctx.fillStyle = '#B8860B'; ctx.fillRect(px + 20, ry + 13, 18, 1);
+    }
+    if (unlocked && skin.id === 'knight') {
+      // mini helmet preview
+      ctx.fillStyle = '#90A4AE'; ctx.fillRect(px + 20, ry + 6, 18, 10);
+      ctx.fillStyle = '#263238'; ctx.fillRect(px + 22, ry + 11, 14, 3);
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(px + 18, ry + 15, 22, 3);
     }
     ctx.globalAlpha = 1;
 
