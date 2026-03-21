@@ -653,11 +653,6 @@ function drawPlayerCube(p) {
       ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx+dir, ly); ctx.stroke();
     }
   }
-  // Legs
-  if (p.onGround && Math.abs(p.vx) > 1) {
-    const lx = ex + (Math.floor(tick/5)%2 === 0 ? 4 : pw-10);
-    ctx.fillStyle = p.colors.leg; ctx.fillRect(lx, py+ph, 6, 5);
-  }
 }
 
 // ─── Night Vision Helper ──────────────────────────────────────────────────────
