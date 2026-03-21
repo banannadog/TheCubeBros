@@ -257,6 +257,8 @@ let boss = null;               // boss entity
 let bossKey = null;            // gold key pickup
 let ironDoor = null;           // iron door state
 let castleDoors = null;        // lobby doors + room exit doors (level 4)
+let victoryDoor = null;        // door that appears when boss is beaten
+let cutscene = null;           // cutscene state after victory
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
 
@@ -326,7 +328,7 @@ function startLevel(n) {
     p.attackPressed = false; p.justAttacked = false;
   }
   // Reset Level 4 state
-  boss = null; bossKey = null; ironDoor = null; castleDoors = null;
+  boss = null; bossKey = null; ironDoor = null; castleDoors = null; victoryDoor = null; cutscene = null;
   playerHasSword = false; bossHitCooldown = 0;
   if (currentLevel === 3) {
     const keyRoom = Math.floor(Math.random() * 5);
@@ -488,7 +490,7 @@ function updateBoss(active) {
           bossHitCooldown = 50;
           playerHasSword = false;
           spawnParticles(boss.x+boss.w/2, boss.y+boss.h/2, '#FFD700', 18);
-          if (boss.lives <= 0) { won = true; return; }
+          if (boss.lives <= 0) { victoryDoor = { x: boss.x - 60, y: GROUND_Y - 50, w: 28, h: 50 }; return; }
           boss.state = 'idle'; boss.stateTimer = 0; boss.droppedSword = null;
         }
       }
@@ -500,8 +502,119 @@ function updateBoss(active) {
   }
 }
 
+// ─── Victory Cutscene ─────────────────────────────────────────────────────────
+function startCutscene() {
+  const CSGY = 330;
+  cutscene = {
+    phase: 'walk',   // 'walk' → 'stand' → 'jump' → 'freeze'
+    timer: 0,
+    bgOffset: 0,
+    y: CSGY - 28,
+    vy: 0,
+    bobAngle: 0,
+    groundY: CSGY,
+  };
+  gameState = 'cutscene';
+}
+
+function updateCutscene() {
+  const cs = cutscene;
+  cs.timer++;
+  cs.bobAngle += 0.28;
+  if (cs.phase === 'walk') {
+    cs.bgOffset += 2;
+    if (cs.timer >= 120) { cs.phase = 'stand'; cs.timer = 0; }
+  } else if (cs.phase === 'stand') {
+    if (cs.timer >= 90) { cs.phase = 'jump'; cs.timer = 0; cs.vy = -13; }
+  } else if (cs.phase === 'jump') {
+    cs.vy += 0.5;
+    cs.y += cs.vy;
+    if (cs.timer >= 14) { cs.phase = 'freeze'; cs.timer = 0; }
+  }
+  // 'freeze': nothing updates — score stays on screen
+}
+
+function drawCutscene() {
+  const cs = cutscene;
+  const CSGY = cs.groundY;
+
+  // Sky gradient
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0D47A1'); g.addColorStop(0.6, '#1976D2'); g.addColorStop(1, '#64B5F6');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // Scrolling clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  for (const [cx2, cy2, sc] of [[80,50,1.2],[320,68,0.9],[580,44,1.1],[820,60,1.0],[1060,52,1.15]]) {
+    const cw = 72*sc, ch = 28*sc;
+    const x = ((cx2 - cs.bgOffset * 0.35) % (W*2.5) + W*2.5) % (W*2.5) - 100;
+    ctx.fillRect(x,cy2,cw,ch);
+    ctx.fillRect(x+cw*0.12,cy2-ch*0.4,cw*0.6,ch*0.6);
+    ctx.fillRect(x+cw*0.35,cy2-ch*0.65,cw*0.32,ch*0.5);
+  }
+
+  // Scrolling hills
+  ctx.fillStyle = '#2E7D32';
+  for (const [hx2, hw] of [[0,220],[200,270],[460,210],[700,300],[960,230],[1200,260]]) {
+    const x = ((hx2 - cs.bgOffset * 0.6) % (W*2.5) + W*2.5) % (W*2.5) - 100;
+    ctx.beginPath(); ctx.ellipse(x+hw/2, CSGY+60, hw/2, 90, 0, 0, Math.PI); ctx.fill();
+  }
+
+  // Ground
+  ctx.fillStyle = '#1B5E20'; ctx.fillRect(0, CSGY, W, H - CSGY);
+  ctx.fillStyle = '#4CAF50'; ctx.fillRect(0, CSGY, W, 8);
+  ctx.fillStyle = '#388E3C'; ctx.fillRect(0, CSGY+8, W, 6);
+
+  // Cube positions (centered, side by side for 2P)
+  const sz = 28;
+  const bobY = cs.phase === 'walk' ? Math.sin(cs.bobAngle) * 3 : 0;
+  const cx1 = numPlayers === 2 ? W/2 - sz - 8 : W/2 - sz/2;
+  const cx2 = cx1 + sz + 16;
+  const cubeY = cs.y + bobY;
+
+  drawMiniCube(cx1, cubeY, sz, P1.mid, P1.dark, P1.light);
+  if (numPlayers === 2) drawMiniCube(cx2, cubeY, sz, P2.mid, P2.dark, P2.light);
+
+  // Score overlay when frozen
+  if (cs.phase === 'freeze') {
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    ctx.fillRect(0, 0, W, H);
+    // Redraw cubes on top of overlay
+    drawMiniCube(cx1, cs.y, sz, P1.mid, P1.dark, P1.light);
+    if (numPlayers === 2) drawMiniCube(cx2, cs.y, sz, P2.mid, P2.dark, P2.light);
+
+    ctx.textAlign = 'center';
+    // YOU WIN
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 38px monospace';
+    ctx.fillText('YOU WIN!', W/2, 110);
+    // Stars
+    ctx.font = '22px monospace';
+    ctx.fillText('★  ★  ★', W/2, 142);
+
+    if (numPlayers === 2) {
+      const total = player1.score + player2.score;
+      ctx.fillStyle = P1.mid; ctx.font = 'bold 16px monospace';
+      ctx.fillText(`P1 Score:  ${String(player1.score).padStart(6,'0')}`, W/2, 190);
+      ctx.fillStyle = P2.mid;
+      ctx.fillText(`P2 Score:  ${String(player2.score).padStart(6,'0')}`, W/2, 215);
+      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 18px monospace';
+      ctx.fillText(`TOTAL:  ${String(total).padStart(6,'0')}`, W/2, 248);
+    } else {
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px monospace';
+      ctx.fillText(`Score:  ${String(player1.score).padStart(6,'0')}`, W/2, 210);
+    }
+
+    ctx.fillStyle = '#AAAAAA'; ctx.font = '13px monospace';
+    ctx.fillText('Thanks for playing Cubie Bros!', W/2, 300);
+    ctx.fillStyle = '#888'; ctx.font = '11px monospace';
+    ctx.fillText('Press R to return to menu', W/2, 322);
+    ctx.textAlign = 'left';
+  }
+}
+
 // ─── Main Update ─────────────────────────────────────────────────────────────
 function update() {
+  if (gameState === 'cutscene') { updateCutscene(); return; }
   if (gameState === 'transition') {
     tick++;
     transitionTimer--;
@@ -611,6 +724,14 @@ function update() {
       }
     }
     updateBoss(active);
+    // Victory door check
+    if (victoryDoor) {
+      for (const p of active) {
+        if (overlap(p.x-4, p.y, p.w+8, p.h, victoryDoor.x, victoryDoor.y, victoryDoor.w, victoryDoor.h)) {
+          startCutscene(); break;
+        }
+      }
+    }
   }
   if (!p1a && (numPlayers === 1 || !p2a)) gameOver = true;
 
@@ -1236,6 +1357,33 @@ function drawOverlay(title, sub, color) {
 }
 
 // ─── Level 4 Draw Helpers ────────────────────────────────────────────────────
+function drawVictoryDoor() {
+  if (!victoryDoor) return;
+  const dx = sx(victoryDoor.x), dy = victoryDoor.y, dw = victoryDoor.w, dh = victoryDoor.h;
+  if (dx + dw < -10 || dx > W + 10) return;
+  // Golden glowing door
+  const pulse = 0.7 + Math.sin(tick * 0.12) * 0.3;
+  ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 18 * pulse;
+  ctx.fillStyle = '#7B5C00'; ctx.fillRect(dx, dy, dw, dh);
+  ctx.fillStyle = '#FFD700'; ctx.fillRect(dx+3, dy+4, dw-6, Math.floor(dh/2)-6);
+  ctx.fillRect(dx+3, dy+Math.floor(dh/2)+2, dw-6, Math.floor(dh/2)-6);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(dx-2, dy-2, dw+4, 3); ctx.fillRect(dx-2, dy-2, 3, dh+5);
+  ctx.fillRect(dx+dw-1, dy-2, 3, dh+5); ctx.fillRect(dx-2, dy+dh, dw+4, 4);
+  ctx.fillStyle = '#FFD700'; ctx.fillRect(dx+dw-8, dy+Math.floor(dh/2)-3, 5, 5);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('EXIT', dx + dw/2, dy - 5);
+  const near = [player1, player2].some(p =>
+    p && p.lives > 0 && Math.abs((p.x+p.w/2)-(victoryDoor.x+dw/2)) < 55
+  );
+  if (near) {
+    ctx.fillStyle = '#FFF'; ctx.font = 'bold 8px monospace';
+    ctx.fillText('[WALK IN]', dx + dw/2, dy - 16);
+  }
+  ctx.textAlign = 'left';
+}
+
 function drawBossKey() {
   if (!bossKey || bossKey.collected) return;
   const kx = sx(bossKey.x); if (kx < -30 || kx > W+30) return;
@@ -1381,11 +1529,12 @@ function drawPlayerSword() {
 function draw() {
   if (gameState === 'select')     { drawSelectScreen(); return; }
   if (gameState === 'transition') { drawTransition();   return; }
+  if (gameState === 'cutscene')   { drawCutscene();     return; }
   const darkMode = currentLevel === 2 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
   if (currentLevel < 3) drawGoalFlag();
   drawEnemies();
-  if (currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); }
+  if (currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); }
   drawPlayerCube(player1); drawPlayerCube(player2);
   if (currentLevel === 3) drawPlayerSword();
   drawParticles();
