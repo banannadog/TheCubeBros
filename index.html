@@ -79,7 +79,7 @@ canvas.addEventListener('touchmove',  updateTouchState, { passive: false });
 canvas.addEventListener('touchend',   updateTouchState, { passive: false });
 
 function drawTouchControls() {
-  if (gameState !== 'playing' && gameState !== 'cutscene') return;
+  if (!isMobile || (gameState !== 'playing' && gameState !== 'cutscene')) return;
   for (const [key, btn] of Object.entries(TOUCH_BTNS)) {
     const active = touch[key];
     ctx.globalAlpha = active ? 0.75 : 0.35;
