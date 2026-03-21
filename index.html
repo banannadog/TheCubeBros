@@ -1392,6 +1392,16 @@ function drawPlayerCube(p) {
       ctx.fillStyle = '#FFF';
       ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
     }
+    // Smile — only on bare cube (no skin equipped)
+    if (!equippedSkin) {
+      const mouthY = py + Math.floor(ph * 0.62);
+      const mouthW = Math.floor(pw * 0.42);
+      const mouthX = p.facingRight ? ex + Math.floor(pw * 0.38) : ex + Math.floor(pw * 0.2);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(mouthX, mouthY, mouthW, 2);
+      ctx.fillRect(mouthX, mouthY, 2, 3);
+      ctx.fillRect(mouthX + mouthW - 2, mouthY, 2, 3);
+    }
   }
 }
 
