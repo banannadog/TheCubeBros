@@ -262,6 +262,7 @@ let cutscene = null;           // cutscene state after victory
 let badges = new Set();        // earned badge IDs (persists across levels)
 let badgesPanelOpen = false;   // pauses game when true
 let skinsPanelOpen  = false;   // pauses game when true
+let badgeNotif = null;         // { name, timer } — popup above BADGES button
 let equippedSkin    = null;    // currently equipped skin ID
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
@@ -645,6 +646,7 @@ function update() {
     if (transitionTimer <= 0) startLevel(currentLevel + 2);
     return;
   }
+  if (badgeNotif) { badgeNotif.timer--; if (badgeNotif.timer <= 0) badgeNotif = null; }
   if (badgesPanelOpen || skinsPanelOpen) return;
   if (gameState !== 'playing' || gameOver || won) return;
   tick++;
@@ -665,7 +667,10 @@ function update() {
         // Billionaire badge: all coins collected across all players
         if (!badges.has('billionaire')) {
           const totalCollected = (player1 ? player1.coins : 0) + (player2 ? player2.coins : 0);
-          if (totalCollected >= TOTAL_COINS_IN_GAME) badges.add('billionaire');
+          if (totalCollected >= TOTAL_COINS_IN_GAME) {
+            badges.add('billionaire');
+            badgeNotif = { name: 'Billionaire', timer: 240 };
+          }
         }
         break;
       }
@@ -1255,6 +1260,24 @@ function drawParticles() {
 const BADGE_BTN = { x: 5, y: H - 22, w: 68, h: 16 };
 
 function drawBadgesPanel() {
+  // Badge earned popup above BADGES button
+  if (badgeNotif) {
+    const t = badgeNotif.timer;
+    // Slide up during first 20 frames (t 240→220), stay, fade out last 40 frames
+    const slideY = (t > 220 && t <= 240) ? (t - 220) * 2 : 0;
+    const alpha  = t < 40 ? t / 40 : 1;
+    const bx = BADGE_BTN.x, by = BADGE_BTN.y - 28 + slideY;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(bx - 2, by, 120, 22);
+    ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 1;
+    ctx.strokeRect(bx - 1.5, by + 0.5, 120, 21);
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('🏅 Badge: ' + badgeNotif.name, bx + 4, by + 14);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'left';
+  }
+
   // Always draw the BADGES button in bottom-left
   const btn = BADGE_BTN;
   ctx.fillStyle = badgesPanelOpen ? '#7B5C00' : 'rgba(0,0,0,0.7)';
