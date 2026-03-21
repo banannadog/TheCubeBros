@@ -394,6 +394,7 @@ let victoryDoor = null;        // door that appears when boss is beaten
 let cutscene = null;           // cutscene state after victory
 let badges = new Set(JSON.parse(localStorage.getItem('cb_badges') || '[]'));
 let badgesPanelOpen = false;   // pauses game when true
+let badgeScrollY    = 0;       // scroll offset in px for badges panel
 let skinsPanelOpen  = false;   // pauses game when true
 let trailsPanelOpen = false;   // pauses game when true
 let badgeNotif = null;         // { name, timer } — popup above BADGES button
@@ -1717,11 +1718,17 @@ function drawBadgesPanel() {
   ctx.fillStyle = 'rgba(0,0,0,0.65)';
   ctx.fillRect(0, 0, W, H);
 
-  // Overlay panel
-  const pw = 280, ph = 40 + BADGE_DEFS.length * 48 + 16;
+  // Fixed-height scrollable panel
+  const pw = 290, ph = 310;
   const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
-  ctx.fillStyle = '#111';
-  ctx.fillRect(px, py, pw, ph);
+  const headerH = 38, footerH = 18;
+  const contentH = ph - headerH - footerH;
+  const rowH = 48, totalRows = BADGE_DEFS.length;
+  const totalContentH = totalRows * rowH;
+  const maxScroll = Math.max(0, totalContentH - contentH);
+  badgeScrollY = Math.max(0, Math.min(badgeScrollY, maxScroll));
+
+  ctx.fillStyle = '#111'; ctx.fillRect(px, py, pw, ph);
   ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
   ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
 
@@ -1729,38 +1736,58 @@ function drawBadgesPanel() {
   ctx.fillStyle = '#FFD700'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
   ctx.fillText('BADGES', W / 2, py + 22);
 
-  // Badge rows
+  // Separator line under title
+  ctx.fillStyle = '#333'; ctx.fillRect(px + 8, py + headerH - 2, pw - 16, 1);
+
+  // Clip to content area and draw rows
+  ctx.save();
+  ctx.beginPath(); ctx.rect(px, py + headerH, pw - 10, contentH); ctx.clip();
+
   BADGE_DEFS.forEach((b, i) => {
     const earned = badges.has(b.id);
-    const ry = py + 38 + i * 48;
-    // Row background
+    const ry = py + headerH + i * rowH - badgeScrollY;
+    if (ry + rowH < py + headerH || ry > py + headerH + contentH) return;
     ctx.fillStyle = earned ? 'rgba(255,215,0,0.08)' : 'rgba(255,255,255,0.04)';
-    ctx.fillRect(px + 8, ry, pw - 16, 42);
-    // Icon circle
+    ctx.fillRect(px + 8, ry + 2, pw - 26, rowH - 6);
     ctx.globalAlpha = earned ? 1 : 0.35;
     ctx.fillStyle = b.color;
-    ctx.beginPath(); ctx.arc(px + 26, ry + 21, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + 26, ry + rowH / 2, 13, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#000'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(b.icon, px + 26, ry + 25);
+    ctx.fillText(b.icon, px + 26, ry + rowH / 2 + 4);
     ctx.globalAlpha = 1;
-    // Name + desc
     ctx.fillStyle = earned ? '#FFD700' : '#666';
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText(b.name, px + 46, ry + 16);
+    ctx.fillText(b.name, px + 46, ry + 18);
     ctx.fillStyle = earned ? '#CCC' : '#444';
     ctx.font = '8px monospace';
     ctx.fillText(b.desc, px + 46, ry + 30);
-    // EARNED tag
     if (earned) {
       ctx.fillStyle = '#4CAF50'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'right';
-      ctx.fillText('EARNED', px + pw - 12, ry + 16);
+      ctx.fillText('EARNED', px + pw - 18, ry + 18);
     }
   });
 
+  ctx.restore();
+
+  // Separator above footer
+  ctx.fillStyle = '#333'; ctx.fillRect(px + 8, py + headerH + contentH, pw - 16, 1);
+
+  // Scrollbar track
+  if (maxScroll > 0) {
+    const sbX = px + pw - 9, sbY = py + headerH, sbH = contentH;
+    ctx.fillStyle = '#222'; ctx.fillRect(sbX, sbY, 6, sbH);
+    const thumbH = Math.max(20, sbH * (contentH / totalContentH));
+    const thumbY = sbY + (badgeScrollY / maxScroll) * (sbH - thumbH);
+    ctx.fillStyle = '#FFD700'; ctx.fillRect(sbX + 1, thumbY, 4, thumbH);
+    // Scroll hint arrows
+    ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+    if (badgeScrollY > 0)        ctx.fillText('▲', px + pw - 6, py + headerH + 10);
+    if (badgeScrollY < maxScroll) ctx.fillText('▼', px + pw - 6, py + headerH + contentH - 2);
+  }
+
   ctx.textAlign = 'left';
-  // Close hint
   ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('click BADGES to close', W / 2, py + ph - 5);
+  ctx.fillText('click BADGES to close' + (maxScroll > 0 ? '  •  scroll to see all' : ''), W / 2, py + ph - 5);
   ctx.textAlign = 'left';
 }
 
@@ -2613,7 +2640,7 @@ canvas.addEventListener('click', e => {
   const inBtn = (btn) => mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
 
   // BADGES button
-  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; skinsPanelOpen = false; trailsPanelOpen = false; return; }
+  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; if (!badgesPanelOpen) badgeScrollY = 0; skinsPanelOpen = false; trailsPanelOpen = false; return; }
   // SKINS button
   if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; badgesPanelOpen = false; trailsPanelOpen = false; return; }
   // TRAILS button
@@ -2686,6 +2713,11 @@ canvas.addEventListener('click', e => {
   canvas.addEventListener('mousemove', e => { if (_cpDragging) { const [mx,my]=cpCoords(e); applyDrag(mx,my); } });
   canvas.addEventListener('mouseup',   () => { _cpDragging = null; });
 })();
+
+// Badges panel scroll via mouse wheel
+canvas.addEventListener('wheel', e => {
+  if (badgesPanelOpen) { badgeScrollY += e.deltaY * 0.5; e.preventDefault(); }
+}, { passive: false });
 
 // ─── Loop ────────────────────────────────────────────────────────────────────
 TOTAL_COINS_IN_GAME = LEVEL_DATA.reduce((s, d) => s + d.rawCoins.length, 0);
