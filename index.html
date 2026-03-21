@@ -255,6 +255,7 @@ let camX, tick, gameOver, won;
 let levelW = LEVEL_W;          // dynamic per-level width
 let boss = null;               // boss entity
 let bossKey = null;            // gold key pickup
+let doorsWithoutKey = 0;      // rooms entered before finding the key (level 4)
 let ironDoor = null;           // iron door state
 let castleDoors = null;        // lobby doors + room exit doors (level 4)
 let victoryDoor = null;        // door that appears when boss is beaten
@@ -275,6 +276,7 @@ const BADGE_DEFS = [
   { id: 'billionaire',  name: 'Billionaire',  desc: 'Collect every coin in the game', color: '#FFD700', icon: '$' },
   { id: 'swordfighter', name: 'Swordfighter', desc: 'Defeat the King',               color: '#B0BEC5', icon: '⚔' },
   { id: 'adventurer',   name: 'Adventurer',   desc: 'Beat all four levels',           color: '#66BB6A', icon: '🗺' },
+  { id: 'unlucky',      name: 'Unlucky',      desc: 'Search 4 empty rooms before the key', color: '#9C27B0', icon: '🔑' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -348,7 +350,7 @@ function startLevel(n) {
   }
   // Reset Level 4 state
   boss = null; bossKey = null; ironDoor = null; castleDoors = null; victoryDoor = null; cutscene = null;
-  playerHasSword = false; bossHitCooldown = 0;
+  playerHasSword = false; bossHitCooldown = 0; doorsWithoutKey = 0;
   if (currentLevel === 3) {
     const keyRoom = Math.floor(Math.random() * 5);
     bossKey = {
@@ -760,6 +762,7 @@ function update() {
         for (const ap of active) { ap.x = door.destX; ap.y = destY; ap.vx = 0; ap.vy = 0; }
         camX = Math.max(0, Math.min(door.destX - W * 0.33, levelW - W));
         if (door.bossEntry) boss.active = true;
+        if (!door.isExit && !door.bossEntry && bossKey && !bossKey.collected) doorsWithoutKey++;
         doorTaken = true;
         break;
       }
@@ -772,7 +775,13 @@ function update() {
           const bossDoor = castleDoors.find(d => d.bossEntry);
           if (bossDoor) bossDoor.locked = false;
           spawnParticles(bossKey.x+10, bossKey.y+10, '#FFD700', 14);
-          playPowerupSound(); break;
+          playPowerupSound();
+          if (doorsWithoutKey >= 4 && !badges.has('unlucky')) {
+            badges.add('unlucky');
+            localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+            badgeNotif = { name: 'Unlucky', timer: 240 };
+          }
+          break;
         }
       }
     }
