@@ -1398,9 +1398,9 @@ function drawPlayerCube(p) {
       const mouthW = Math.floor(pw * 0.42);
       const mouthX = p.facingRight ? ex + Math.floor(pw * 0.38) : ex + Math.floor(pw * 0.2);
       ctx.fillStyle = '#000';
-      ctx.fillRect(mouthX, mouthY, mouthW, 2);
-      ctx.fillRect(mouthX, mouthY, 2, 3);
-      ctx.fillRect(mouthX + mouthW - 2, mouthY, 2, 3);
+      ctx.fillRect(mouthX, mouthY, mouthW, 2);          // bottom bar
+      ctx.fillRect(mouthX, mouthY - 3, 2, 3);           // left corner curves up
+      ctx.fillRect(mouthX + mouthW - 2, mouthY - 3, 2, 3); // right corner curves up
     }
   }
 }
