@@ -895,6 +895,11 @@ function draw() {
     // Only glowing red eyes visible for enemies
     drawEnemyGlowEyes();
   }
+  // Night vision green tint
+  if (currentLevel === 2 && hasNightVision()) {
+    ctx.fillStyle = 'rgba(0,255,80,0.13)';
+    ctx.fillRect(0, 0, W, H);
+  }
   drawHUD();
   if (gameOver) {
     const s = numPlayers===2 ? `P1: ${player1.score}  P2: ${player2.score}` : `Score: ${player1.score}`;
