@@ -303,13 +303,24 @@ function spawnParticles(x, y, color, n = 8) {
 
 const moneyTrail = [];
 const heartTrail = [];
+const basicTrail = [];
 function updateMoneyTrail() {
   // Spawn — money trail via equipped trail OR tycoon+speed legacy
-  const wantMoney = equippedTrail === 'money';
+  const wantMoney  = equippedTrail === 'money';
   const wantHearts = equippedTrail === 'hearts';
+  const wantBasic  = equippedTrail === 'basic';
   const active = [player1, player2].filter(p => p && p.lives > 0);
   for (const p of active) {
     const tycoonBoost = equippedSkin === 'tycoon' && p.powerups.speed > 0;
+    if (wantBasic && tick % 2 === 0) {
+      basicTrail.push({
+        x: p.x + p.w * 0.5 + (Math.random() - 0.5) * p.w * 0.4,
+        y: p.y + p.h * 0.5 + (Math.random() - 0.5) * p.h * 0.4,
+        size: 3 + Math.random() * 3,
+        life: 1,
+        decay: 0.04 + Math.random() * 0.02,
+      });
+    }
     if (tick % 3 !== 0) continue;
     if (wantMoney || tycoonBoost) {
       moneyTrail.push({
@@ -347,6 +358,12 @@ function updateMoneyTrail() {
     h.x += h.vx; h.y += h.vy; h.vy += 0.04;
     h.life -= h.decay;
     if (h.life <= 0) heartTrail.splice(i, 1);
+  }
+  // Update basic
+  for (let i = basicTrail.length - 1; i >= 0; i--) {
+    const b = basicTrail[i];
+    b.life -= b.decay;
+    if (b.life <= 0) basicTrail.splice(i, 1);
   }
 }
 
@@ -399,6 +416,7 @@ const SKIN_DEFS = [
   { id: 'murderer',  name: 'Murderer', badge: 'murderer',    desc: 'Ki Ki Ki Ma Ma Ma' },
 ];
 const TRAIL_DEFS = [
+  { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
   { id: 'money',  name: 'Money',  badge: 'trillionaire', desc: '"HERE COMES THE MONEY"',       color: '#FFD700', icon: '$' },
   { id: 'hearts', name: 'Hearts', badge: 'reallylike',   desc: 'You really do love this game', color: '#FF4081', icon: '♥' },
 ];
@@ -503,7 +521,7 @@ function startLevel(n) {
     };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
-  particles.length = 0; moneyTrail.length = 0; heartTrail.length = 0;
+  particles.length = 0; moneyTrail.length = 0; heartTrail.length = 0; basicTrail.length = 0;
   gameState = 'playing';
 }
 
@@ -1612,6 +1630,13 @@ function drawParticles() {
     ctx.textAlign = 'center';
     ctx.fillText('♥', sx(h.x), h.y);
   }
+  // Basic trail
+  for (const b of basicTrail) {
+    ctx.globalAlpha = Math.max(0, b.life * 0.8);
+    const sz = b.size * b.life;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(sx(b.x) - sz / 2, b.y - sz / 2, sz, sz);
+  }
   ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 
@@ -1888,7 +1913,7 @@ function drawTrailsPanel() {
   ctx.fillText('TRAILS', W / 2, py + 22);
 
   TRAIL_DEFS.forEach((trail, i) => {
-    const unlocked = badges.has(trail.badge);
+    const unlocked = trail.badge === null || badges.has(trail.badge);
     const equipped  = equippedTrail === trail.id;
     const ry = py + 38 + i * 56;
     ctx.fillStyle = equipped ? 'rgba(234,128,252,0.12)' : unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.2)';
