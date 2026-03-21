@@ -188,33 +188,37 @@ const LEVEL_DATA = [
     ],
   },
   // ── LEVEL 4 — CASTLE INTERIOR ──
+  // Lobby (x=0-490) has 5 numbered doors + 1 locked BOSS door.
+  // Each door teleports to an isolated room island.  Key is hidden in a random room.
   {
-    levelWidth: 4800,
+    levelWidth: 5400,
     platforms: [
-      [0, GROUND_Y, 4800, 40],
-      // Room 1 (0-800)
-      [160,345,80,12],[480,298,80,12],
-      // Room 2 (800-1600)
-      [960,352,80,12],[1300,305,80,12],
-      // Room 3 (1600-2400)
-      [1760,338,80,12],[2080,288,80,12],
-      // Room 4 (2400-3200)
-      [2560,348,80,12],[2880,298,80,12],
-      // Room 5 (3200-4000)
-      [3360,325,80,12],[3680,275,80,12],
-      // Boss room — flat floor only
+      [0,    GROUND_Y, 490, 40], // Lobby
+      [560,  GROUND_Y, 640, 40], // Room 1
+      [700,355,80,12],[900,310,80,12],
+      [1360, GROUND_Y, 640, 40], // Room 2
+      [1500,355,80,12],[1700,310,80,12],
+      [2160, GROUND_Y, 640, 40], // Room 3
+      [2300,355,80,12],[2500,310,80,12],
+      [2960, GROUND_Y, 640, 40], // Room 4
+      [3100,355,80,12],[3300,310,80,12],
+      [3760, GROUND_Y, 640, 40], // Room 5
+      [3900,355,80,12],[4100,310,80,12],
+      [4560, GROUND_Y, 840, 40], // Boss area
     ],
     rawCoins: [
-      [200,313],[520,266],[1000,320],[1340,273],
-      [1800,306],[2120,256],[2600,316],[2920,266],
-      [3400,293],[3720,243],
+      [740,323],[840,323],[960,278],
+      [1540,323],[1640,323],[1760,278],
+      [2340,323],[2440,323],[2560,278],
+      [3140,323],[3240,323],[3360,278],
+      [3940,323],[4040,323],[4160,278],
     ],
     enemies: [
-      mkE(280,GROUND_Y-26,50,750,2.2),  mkE(600,GROUND_Y-26,50,750,2.2),
-      mkE(1060,GROUND_Y-26,850,1550,2.2),mkE(1400,GROUND_Y-26,850,1550,2.2),
-      mkE(1860,GROUND_Y-26,1650,2350,2.2),mkE(2180,GROUND_Y-26,1650,2350,2.2),
-      mkE(2660,GROUND_Y-26,2450,3150,2.2),mkE(3000,GROUND_Y-26,2450,3150,2.2),
-      mkE(3560,GROUND_Y-26,3250,3950,2.2),mkE(3850,GROUND_Y-26,3250,3950,2.2),
+      mkE(700, GROUND_Y-26,580,1160,2.2), mkE(880, GROUND_Y-26,580,1160,2.2),
+      mkE(1500,GROUND_Y-26,1380,1960,2.2),mkE(1680,GROUND_Y-26,1380,1960,2.2),
+      mkE(2300,GROUND_Y-26,2180,2760,2.2),mkE(2480,GROUND_Y-26,2180,2760,2.2),
+      mkE(3100,GROUND_Y-26,2980,3560,2.2),mkE(3280,GROUND_Y-26,2980,3560,2.2),
+      mkE(3900,GROUND_Y-26,3780,4360,2.2),mkE(4080,GROUND_Y-26,3780,4360,2.2),
     ],
     chests: [],
   },
@@ -245,6 +249,7 @@ let levelW = LEVEL_W;          // dynamic per-level width
 let boss = null;               // boss entity
 let bossKey = null;            // gold key pickup
 let ironDoor = null;           // iron door state
+let castleDoors = null;        // lobby doors + room exit doors (level 4)
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
 
@@ -314,19 +319,35 @@ function startLevel(n) {
     p.attackPressed = false; p.justAttacked = false;
   }
   // Reset Level 4 state
-  boss = null; bossKey = null; ironDoor = null;
+  boss = null; bossKey = null; ironDoor = null; castleDoors = null;
   playerHasSword = false; bossHitCooldown = 0;
   if (currentLevel === 3) {
-    const keyRoom = Math.floor(Math.random() * 5); // 0-4
-    const keyX = [400, 1200, 2000, 2800, 3600][keyRoom];
-    bossKey = { x: keyX, y: GROUND_Y - 22, w: 20, h: 20, collected: false };
-    ironDoor = { x: 4000, y: GROUND_Y - 300, w: 18, h: 300, locked: true };
-    platforms.push([ironDoor.x, ironDoor.y, ironDoor.w, ironDoor.h]);
+    const keyRoom = Math.floor(Math.random() * 5);
+    bossKey = {
+      x: [820, 1620, 2420, 3220, 4020][keyRoom],
+      y: GROUND_Y - 22, w: 20, h: 20, collected: false,
+    };
+    // Lobby entry doors (F to teleport into room)
+    castleDoors = [
+      { x: 50,  y: GROUND_Y-50, w: 28, h: 50, label: '1',    destX: 620,  isExit: false, bossEntry: false, locked: false },
+      { x: 120, y: GROUND_Y-50, w: 28, h: 50, label: '2',    destX: 1420, isExit: false, bossEntry: false, locked: false },
+      { x: 190, y: GROUND_Y-50, w: 28, h: 50, label: '3',    destX: 2220, isExit: false, bossEntry: false, locked: false },
+      { x: 260, y: GROUND_Y-50, w: 28, h: 50, label: '4',    destX: 3020, isExit: false, bossEntry: false, locked: false },
+      { x: 330, y: GROUND_Y-50, w: 28, h: 50, label: '5',    destX: 3820, isExit: false, bossEntry: false, locked: false },
+      { x: 420, y: GROUND_Y-50, w: 28, h: 50, label: 'BOSS', destX: 4620, isExit: false, bossEntry: true,  locked: true  },
+      // Room exit doors (F to return to lobby)
+      { x: 1148, y: GROUND_Y-50, w: 28, h: 50, label: '<', destX: 64,  isExit: true, bossEntry: false, locked: false },
+      { x: 1948, y: GROUND_Y-50, w: 28, h: 50, label: '<', destX: 134, isExit: true, bossEntry: false, locked: false },
+      { x: 2748, y: GROUND_Y-50, w: 28, h: 50, label: '<', destX: 204, isExit: true, bossEntry: false, locked: false },
+      { x: 3548, y: GROUND_Y-50, w: 28, h: 50, label: '<', destX: 274, isExit: true, bossEntry: false, locked: false },
+      { x: 4348, y: GROUND_Y-50, w: 28, h: 50, label: '<', destX: 344, isExit: true, bossEntry: false, locked: false },
+    ];
     boss = {
-      x: 4250, y: GROUND_Y - 64,
+      x: 4750, y: GROUND_Y - 64,
       w: 44, h: 64, vx: 0, vy: 0, onGround: false,
       lives: 3, state: 'idle', stateTimer: 0,
       facingRight: false, invincible: 0, droppedSword: null,
+      active: false, // stays put until player enters via boss door
     };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
@@ -395,7 +416,7 @@ function updatePlayer(p) {
 
 // ─── Boss Update ─────────────────────────────────────────────────────────────
 function updateBoss(active) {
-  if (!boss || boss.lives <= 0 || active.length === 0) return;
+  if (!boss || boss.lives <= 0 || !boss.active || active.length === 0) return;
   boss.stateTimer++;
   if (boss.invincible > 0) boss.invincible--;
   if (bossHitCooldown > 0) bossHitCooldown--;
@@ -406,7 +427,7 @@ function updateBoss(active) {
   boss.y += boss.vy;
   resolveY(boss);
   boss.x += boss.vx;
-  boss.x = Math.max(4015, Math.min(boss.x, 4800 - boss.w - 10));
+  boss.x = Math.max(4575, Math.min(boss.x, 5400 - boss.w - 10));
 
   const nearest = active.reduce((a,b) => Math.abs(b.x-boss.x)<Math.abs(a.x-boss.x)?b:a, active[0]);
 
@@ -553,15 +574,30 @@ function update() {
       } else won = true;
     }
   }
-  // Level 4: key collection + boss
+  // Level 4: door interaction, key collection, boss
   if (currentLevel === 3) {
+    // Castle door — press F near any door
+    let doorTaken = false;
+    for (const p of active) {
+      if (doorTaken || !p.justAttacked) continue;
+      for (const door of castleDoors) {
+        if (door.locked) continue;
+        if (!overlap(p.x-8, p.y, p.w+16, p.h, door.x, door.y, door.w, door.h)) continue;
+        const destY = GROUND_Y - p.baseH;
+        for (const ap of active) { ap.x = door.destX; ap.y = destY; ap.vx = 0; ap.vy = 0; }
+        camX = Math.max(0, Math.min(door.destX - W * 0.33, levelW - W));
+        if (door.bossEntry) boss.active = true;
+        doorTaken = true;
+        break;
+      }
+    }
+    // Key pickup
     if (bossKey && !bossKey.collected) {
       for (const p of active) {
         if (overlap(p.x,p.y,p.w,p.h, bossKey.x,bossKey.y,bossKey.w,bossKey.h)) {
           bossKey.collected = true;
-          ironDoor.locked = false;
-          const di = platforms.findIndex(pl => pl[0]===ironDoor.x && pl[1]===ironDoor.y);
-          if (di !== -1) platforms.splice(di, 1);
+          const bossDoor = castleDoors.find(d => d.bossEntry);
+          if (bossDoor) bossDoor.locked = false;
           spawnParticles(bossKey.x+10, bossKey.y+10, '#FFD700', 14);
           playPowerupSound(); break;
         }
@@ -630,8 +666,8 @@ function drawCastleBackground() {
   }
   // Floor border highlight
   ctx.fillStyle = '#444'; ctx.fillRect(0, GROUND_Y - 4, W, 4);
-  // Room arch pillars at room boundaries (visual only, no physics)
-  for (const rx of [800, 1600, 2400, 3200]) {
+  // Room arch pillars at boundaries between room islands
+  for (const rx of [490, 1200, 2000, 2800, 3600, 4400]) {
     const ax = sx(rx);
     if (ax < -40 || ax > W + 40) continue;
     ctx.fillStyle = '#383838';
@@ -651,8 +687,8 @@ function drawCastleBackground() {
     ctx.beginPath(); ctx.arc(ax, GROUND_Y - 190, 20, 0, Math.PI*2); ctx.fill();
     ctx.globalAlpha = 1;
   }
-  // Boss room entrance visual at x=4000
-  const bx4 = sx(4000);
+  // Boss area entrance arch at x=4560
+  const bx4 = sx(4560);
   if (bx4 > -60 && bx4 < W + 60) {
     ctx.fillStyle = '#1A1A1A';
     ctx.fillRect(bx4 - 16, 0, 16, GROUND_Y - 4);
@@ -660,6 +696,52 @@ function drawCastleBackground() {
     ctx.fillStyle = '#333'; ctx.fillRect(bx4 - 16, GROUND_Y - 220, 32, 24);
     ctx.fillStyle = '#8B0000'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
     ctx.fillText('BOSS', bx4, GROUND_Y - 226); ctx.textAlign = 'left';
+  }
+}
+
+// ─── Castle Doors (Level 4) ───────────────────────────────────────────────────
+function drawCastleDoors() {
+  if (!castleDoors) return;
+  for (const door of castleDoors) {
+    const dx = sx(door.x);
+    if (dx + door.w < -10 || dx > W + 10) continue;
+    const dy = door.y;
+    // Door fill
+    ctx.fillStyle = door.locked ? '#3B1414' : door.bossEntry ? '#6B1111' : door.isExit ? '#0D2B4A' : '#0D3318';
+    ctx.fillRect(dx, dy, door.w, door.h);
+    // Door panels
+    ctx.fillStyle = door.locked ? '#5A1F1F' : door.bossEntry ? '#9C2020' : door.isExit ? '#1565C0' : '#1B5E20';
+    ctx.fillRect(dx+3, dy+4,       door.w-6, Math.floor(door.h/2)-6);
+    ctx.fillRect(dx+3, dy+Math.floor(door.h/2)+2, door.w-6, Math.floor(door.h/2)-6);
+    // Frame
+    ctx.fillStyle = '#888';
+    ctx.fillRect(dx-2, dy-2, door.w+4, 3);
+    ctx.fillRect(dx-2, dy-2, 3, door.h+5);
+    ctx.fillRect(dx+door.w-1, dy-2, 3, door.h+5);
+    ctx.fillRect(dx-2, dy+door.h, door.w+4, 4);
+    // Knob
+    ctx.fillStyle = door.locked ? '#555' : '#FFD700';
+    ctx.fillRect(dx + door.w - 8, dy + Math.floor(door.h/2) - 3, 5, 5);
+    // Label above door
+    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = door.locked ? '#AA4444' : '#FFD700';
+    ctx.fillText(door.label === '<' ? 'EXIT' : door.label, dx + door.w/2, dy - 5);
+    // LOCKED text
+    if (door.locked) {
+      ctx.fillStyle = '#AA4444'; ctx.font = '7px monospace';
+      ctx.fillText('LOCKED', dx + door.w/2, dy + Math.floor(door.h/2) + 4);
+    }
+    // [F] prompt when a player is nearby
+    const near = [player1, player2].some(p =>
+      p && p.lives > 0 &&
+      Math.abs((p.x + p.w/2) - (door.x + door.w/2)) < 55 &&
+      Math.abs((p.y + p.h/2) - (door.y + door.h/2)) < 65
+    );
+    if (near && !door.locked) {
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 8px monospace';
+      ctx.fillText('[F]', dx + door.w/2, dy - 16);
+    }
+    ctx.textAlign = 'left';
   }
 }
 
@@ -1296,7 +1378,7 @@ function draw() {
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
   if (currentLevel < 3) drawGoalFlag();
   drawEnemies();
-  if (currentLevel === 3) { drawBossKey(); drawIronDoor(); drawBoss(); }
+  if (currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); }
   drawPlayerCube(player1); drawPlayerCube(player2);
   if (currentLevel === 3) drawPlayerSword();
   drawParticles();
