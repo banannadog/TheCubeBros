@@ -1195,11 +1195,11 @@ function drawPlayerCube(p) {
   if (equippedSkin === 'explorer') {
     // Backpack (green, protrudes to the right of the cube)
     const bpW = Math.floor(pw * 0.45), bpH = Math.floor(ph * 0.55);
-    const bpX = ex + pw - 2, bpY = py + Math.floor(ph * 0.18);
+    const bpX = ex - bpW + 2, bpY = py + Math.floor(ph * 0.18);
     ctx.fillStyle = '#388E3C'; ctx.fillRect(bpX, bpY, bpW, bpH);
-    ctx.fillStyle = '#2E7D32'; ctx.fillRect(bpX, bpY, 2, bpH);            // left shadow
     ctx.fillStyle = '#43A047'; ctx.fillRect(bpX, bpY, bpW, 2);            // top highlight
-    ctx.fillStyle = '#1B5E20'; ctx.fillRect(bpX, bpY + bpH - 2, bpW, 2);  // bottom trim
+    ctx.fillStyle = '#2E7D32'; ctx.fillRect(bpX + bpW - 2, bpY, 2, bpH); // right shadow
+    ctx.fillStyle = '#1B5E20'; ctx.fillRect(bpX, bpY + bpH - 2, bpW, 2); // bottom trim
     ctx.fillStyle = '#1B5E20';
     ctx.fillRect(bpX + Math.floor(bpW * 0.35), bpY + Math.floor(bpH * 0.35), Math.floor(bpW * 0.3), 2);
 
@@ -1231,13 +1231,6 @@ function drawPlayerCube(p) {
     ctx.fillRect(ex+pw*0.15, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.36, eyeY, eSize, eSize);
     ctx.fillStyle = '#FFF';
     ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
-  }
-  ctx.fillStyle = '#000';
-  if (p.vy < -5) {
-    ctx.fillRect(ex+pw*0.40, py+ph*0.63, 5, 5);
-  } else {
-    const mx = ex+pw*0.28, my = py+ph*0.64;
-    ctx.fillRect(mx, my, pw*0.43, 2); ctx.fillRect(mx, my-2, 2, 3); ctx.fillRect(mx+pw*0.43-2, my-2, 2, 3);
   }
 }
 
