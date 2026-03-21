@@ -285,6 +285,7 @@ const BADGE_DEFS = [
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
   { id: 'explorer',  name: 'Explorer', badge: 'adventurer',  desc: 'Green backpack & brown suit' },
+  { id: 'murderer',  name: 'Murderer', badge: 'murderer',    desc: "Pitch black cube with Jason's mask & knife" },
 ];
 // Computed after LEVEL_DATA is defined (see bottom of script init)
 let TOTAL_COINS_IN_GAME = 0;
@@ -297,6 +298,7 @@ function makePlayer(startX, colors, ctrlFns) {
     lives: 3, coins: 0, score: 0,
     invincible: 0, coyoteTime: 0, wobble: 0,
     powerups: { speed: 0, size: 0, nightvision: 0 },
+    knifeSwing: 0,
     colors, ctrl: ctrlFns,
     attackPressed: false, justAttacked: false,
   };
@@ -415,6 +417,7 @@ function updatePlayer(p) {
   if (p.powerups.speed      > 0) p.powerups.speed--;
   if (p.powerups.size       > 0) p.powerups.size--;
   if (p.powerups.nightvision > 0) p.powerups.nightvision--;
+  if (p.knifeSwing          > 0) p.knifeSwing--;
   if (wasBig && p.powerups.size === 0) {
     p.w = p.baseW; p.h = p.baseH;
     if (p.onGround) p.y += 14;
@@ -735,6 +738,7 @@ function update() {
         p.score += 200;
         spawnParticles(e.x+e.w/2, e.y+e.h/2, '#E040FB', 12);
         enemyKillCount++; checkMurdererBadge();
+        if (equippedSkin === 'murderer') p.knifeSwing = 24;
         break;
       } else if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
         e.alive = false; e.squish = 1;
@@ -1244,17 +1248,81 @@ function drawPlayerCube(p) {
     ctx.fillStyle = '#3E2723'; ctx.fillRect(ex, py + ph - 2, pw, 2);
   }
 
-  // Face always drawn on top of any skin
-  const eyeY = py + Math.floor(ph*0.28);
-  ctx.fillStyle = '#000';
-  if (p.facingRight) {
-    ctx.fillRect(ex+pw*0.52, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.73, eyeY, eSize, eSize);
-    ctx.fillStyle = '#FFF';
-    ctx.fillRect(ex+pw*0.52+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.73+1, eyeY+1, 2, 2);
-  } else {
-    ctx.fillRect(ex+pw*0.15, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.36, eyeY, eSize, eSize);
-    ctx.fillStyle = '#FFF';
-    ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
+  // Murderer skin: pitch black cube + Jason mask + knife
+  if (equippedSkin === 'murderer') {
+    // Pitch black overlay over entire cube
+    ctx.fillStyle = '#000'; ctx.fillRect(ex, py, pw, ph);
+    ctx.fillStyle = '#111'; ctx.fillRect(ex, py, pw, 2); // subtle top highlight
+    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(ex, py + ph - 2, pw, 2);
+
+    // Jason hockey mask (white, centered on face area)
+    const mw = Math.floor(pw * 0.72), mh = Math.floor(ph * 0.7);
+    const mx = ex + Math.floor((pw - mw) / 2);
+    const my = py + Math.floor(ph * 0.1);
+    ctx.fillStyle = '#E8E8E0'; ctx.fillRect(mx, my, mw, mh);
+    // Mask shading — left edge shadow
+    ctx.fillStyle = '#C8C8C0'; ctx.fillRect(mx, my, 2, mh);
+    // Mask shading — right highlight
+    ctx.fillStyle = '#F5F5EE'; ctx.fillRect(mx + mw - 2, my, 2, mh);
+    // Eye holes (dark rectangular slits)
+    const eyeSlitW = Math.floor(mw * 0.22), eyeSlitH = Math.floor(mh * 0.18);
+    const eyeSlitY = my + Math.floor(mh * 0.22);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(mx + Math.floor(mw * 0.08), eyeSlitY, eyeSlitW, eyeSlitH);
+    ctx.fillRect(mx + Math.floor(mw * 0.58), eyeSlitY, eyeSlitW, eyeSlitH);
+    // Red vertical stripes (Jason's signature)
+    ctx.fillStyle = '#CC1111';
+    ctx.fillRect(mx + Math.floor(mw * 0.08), my, 2, mh);
+    ctx.fillRect(mx + Math.floor(mw * 0.47), my, 2, mh);
+    ctx.fillRect(mx + mw - Math.floor(mw * 0.08) - 2, my, 2, mh);
+    // Nose area indent
+    ctx.fillStyle = '#C8C8C0';
+    ctx.fillRect(mx + Math.floor(mw * 0.42), my + Math.floor(mh * 0.48), Math.floor(mw * 0.16), Math.floor(mh * 0.14));
+    // Mouth slit
+    ctx.fillStyle = '#999';
+    ctx.fillRect(mx + Math.floor(mw * 0.2), my + Math.floor(mh * 0.72), Math.floor(mw * 0.6), 2);
+
+    // Knife — held on facing side, angled up
+    const knifeX = p.facingRight ? ex + pw + 1 : ex - Math.floor(pw * 0.55);
+    const knifeY = py + Math.floor(ph * 0.35);
+    const swingT  = p.knifeSwing / 24; // 1→0 over animation
+    // Swing: rotate from -0.4 (held up) toward +1.4 (slashed down) then back
+    const swingAngle = swingT > 0
+      ? (swingT > 0.5
+          ? -0.4 + (1 - swingT) * 2 * 1.8   // downswing
+          : -0.4 + swingT * 2 * 1.8)          // upswing back
+      : -0.4;
+    const kAnchorX = knifeX + (p.facingRight ? 0 : Math.floor(pw * 0.55));
+    const kAnchorY = knifeY;
+    ctx.save();
+    ctx.translate(kAnchorX, kAnchorY);
+    ctx.rotate(p.facingRight ? swingAngle : Math.PI - swingAngle);
+    // Blade (grey, 3px wide, 12px long pointing up)
+    const bLen = Math.max(10, Math.floor(ph * 0.45));
+    ctx.fillStyle = '#B0BEC5'; ctx.fillRect(-1, -bLen, 3, bLen);
+    ctx.fillStyle = '#CFD8DC'; ctx.fillRect(0, -bLen, 1, bLen); // highlight
+    ctx.fillStyle = '#607D8B'; ctx.fillRect(-1, -bLen, 3, 2);   // tip
+    // Handle (dark brown, 3px wide, 6px tall below blade)
+    const hLen = Math.max(6, Math.floor(ph * 0.22));
+    ctx.fillStyle = '#4E342E'; ctx.fillRect(-2, 0, 5, hLen);
+    ctx.fillStyle = '#6D4C41'; ctx.fillRect(-2, 0, 5, 2);       // guard
+    ctx.fillStyle = '#3E2723'; ctx.fillRect(-2, hLen - 2, 5, 2); // pommel
+    ctx.restore();
+  }
+
+  // Face drawn on top — skip for murderer (mask replaces the face)
+  if (equippedSkin !== 'murderer') {
+    const eyeY = py + Math.floor(ph*0.28);
+    ctx.fillStyle = '#000';
+    if (p.facingRight) {
+      ctx.fillRect(ex+pw*0.52, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.73, eyeY, eSize, eSize);
+      ctx.fillStyle = '#FFF';
+      ctx.fillRect(ex+pw*0.52+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.73+1, eyeY+1, 2, 2);
+    } else {
+      ctx.fillRect(ex+pw*0.15, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.36, eyeY, eSize, eSize);
+      ctx.fillStyle = '#FFF';
+      ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
+    }
   }
 }
 
@@ -1494,12 +1562,43 @@ function drawSkinsPanel() {
     }
 
     // Eyes on top
-    ctx.fillStyle = '#000';
-    ctx.fillRect(mpx + Math.floor(sz*0.52), mpy + Math.floor(sz*0.28), 2, 2);
-    ctx.fillRect(mpx + Math.floor(sz*0.73), mpy + Math.floor(sz*0.28), 2, 2);
-    ctx.fillStyle = '#FFF';
-    ctx.fillRect(mpx + Math.floor(sz*0.52)+1, mpy + Math.floor(sz*0.28)+1, 1, 1);
-    ctx.fillRect(mpx + Math.floor(sz*0.73)+1, mpy + Math.floor(sz*0.28)+1, 1, 1);
+    if (skin.id !== 'murderer') {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(mpx + Math.floor(sz*0.52), mpy + Math.floor(sz*0.28), 2, 2);
+      ctx.fillRect(mpx + Math.floor(sz*0.73), mpy + Math.floor(sz*0.28), 2, 2);
+      ctx.fillStyle = '#FFF';
+      ctx.fillRect(mpx + Math.floor(sz*0.52)+1, mpy + Math.floor(sz*0.28)+1, 1, 1);
+      ctx.fillRect(mpx + Math.floor(sz*0.73)+1, mpy + Math.floor(sz*0.28)+1, 1, 1);
+    }
+
+    if (unlocked && skin.id === 'murderer') {
+      // Pitch black cube
+      ctx.fillStyle = '#000'; ctx.fillRect(mpx, mpy, sz, sz);
+      ctx.fillStyle = '#111'; ctx.fillRect(mpx, mpy, sz, 1);
+      // Mini Jason mask
+      const mmw = Math.floor(sz * 0.72), mmh = Math.floor(sz * 0.7);
+      const mmx = mpx + Math.floor((sz - mmw) / 2), mmy = mpy + Math.floor(sz * 0.1);
+      ctx.fillStyle = '#E8E8E0'; ctx.fillRect(mmx, mmy, mmw, mmh);
+      ctx.fillStyle = '#C8C8C0'; ctx.fillRect(mmx, mmy, 1, mmh);
+      // Eye slits
+      ctx.fillStyle = '#111';
+      ctx.fillRect(mmx + Math.floor(mmw*0.08), mmy + Math.floor(mmh*0.22), Math.floor(mmw*0.22), Math.floor(mmh*0.18));
+      ctx.fillRect(mmx + Math.floor(mmw*0.58), mmy + Math.floor(mmh*0.22), Math.floor(mmw*0.22), Math.floor(mmh*0.18));
+      // Red stripes
+      ctx.fillStyle = '#CC1111';
+      ctx.fillRect(mmx + Math.floor(mmw*0.08), mmy, 1, mmh);
+      ctx.fillRect(mmx + Math.floor(mmw*0.47), mmy, 1, mmh);
+      ctx.fillRect(mmx + mmw - Math.floor(mmw*0.08) - 1, mmy, 1, mmh);
+      // Mouth slit
+      ctx.fillStyle = '#999';
+      ctx.fillRect(mmx + Math.floor(mmw*0.2), mmy + Math.floor(mmh*0.72), Math.floor(mmw*0.6), 1);
+      // Mini knife (right side, pointing up)
+      const kx = mpx + sz + 1, ky = mpy + Math.floor(sz * 0.3);
+      ctx.fillStyle = '#B0BEC5'; ctx.fillRect(kx, ky - 8, 2, 8);
+      ctx.fillStyle = '#607D8B'; ctx.fillRect(kx, ky - 9, 2, 1);
+      ctx.fillStyle = '#4E342E'; ctx.fillRect(kx - 1, ky, 4, 5);
+      ctx.fillStyle = '#6D4C41'; ctx.fillRect(kx - 1, ky, 4, 1);
+    }
     ctx.globalAlpha = 1;
 
     // Name + desc
