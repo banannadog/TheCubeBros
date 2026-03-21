@@ -884,6 +884,12 @@ function drawTransition() {
   const nextLvl = currentLevel + 2;
   ctx.fillStyle = '#FFF'; ctx.font = '22px monospace';
   ctx.fillText(`Get ready for Level ${nextLvl}...`, W/2, H/2+5);
+  // +1 UP notice
+  const upPulse = 0.7 + Math.sin(tick * 0.15) * 0.3;
+  ctx.globalAlpha = upPulse;
+  ctx.fillStyle = '#76FF03'; ctx.font = 'bold 20px monospace';
+  ctx.fillText('+1 UP! ★', W/2, H/2-18);
+  ctx.globalAlpha = 1;
   // Progress bar
   ctx.fillStyle='#333'; ctx.fillRect(W/2-150, H/2+28, 300, 10);
   ctx.fillStyle= nextLvl === 3 ? '#00BCD4' : '#29B6F6';
