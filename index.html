@@ -429,7 +429,7 @@ function updatePlayer(p) {
   if (p.onGround) p.coyoteTime = 8;
   else if (p.coyoteTime > 0) p.coyoteTime--;
   if (p.ctrl.jump() && p.coyoteTime > 0) { p.vy = JUMP_FORCE; p.coyoteTime = 0; p.wobble = 7; }
-  p.vy = Math.min(p.vy + GRAVITY, MAX_FALL);
+  p.vy = Math.min(p.vy + (p.vy > 0 ? GRAVITY * 0.65 : GRAVITY), MAX_FALL);
   p.onGround = false;
   if (p.wobble > 0) p.wobble--;
   p.x += p.vx;
