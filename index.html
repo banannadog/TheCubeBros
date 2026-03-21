@@ -604,16 +604,20 @@ function drawGoalFlag() {
     const cx = gx, cy = GROUND_Y, cw = 80, wall = 160;
     const base = cy - wall;
     // Main wall
-    ctx.fillStyle = '#263238'; ctx.fillRect(cx, base, cw, wall);
+    ctx.fillStyle = '#455A64'; ctx.fillRect(cx, base, cw, wall);
+    // Stone highlight
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(cx, base, cw, 4); ctx.fillRect(cx, base, 4, wall);
     // Stone lines
-    ctx.fillStyle = '#1A2328';
+    ctx.fillStyle = '#37474F';
     for (let row = 0; row < wall; row += 18) {
       const off = (Math.floor(row/18) % 2) * 18;
       for (let col = off; col < cw; col += 36) ctx.fillRect(cx+col, base+row, 18, 1);
       ctx.fillRect(cx, base+row, cw, 1);
     }
+    // Shadow edge
+    ctx.fillStyle = '#263238'; ctx.fillRect(cx+cw-4, base, 4, wall); ctx.fillRect(cx, base+wall-4, cw, 4);
     // Battlements (5 merlons)
-    ctx.fillStyle = '#263238';
+    ctx.fillStyle = '#455A64';
     for (let i = 0; i < 5; i++) {
       if (i % 2 === 0) ctx.fillRect(cx + i*16, base-20, 16, 20);
     }
