@@ -274,6 +274,7 @@ const P2 = { mid: '#66BB6A', dark: '#2E7D32', light: '#A5D6A7', leg: '#2E7D32' }
 const BADGE_DEFS = [
   { id: 'billionaire',  name: 'Billionaire',  desc: 'Collect every coin in the game', color: '#FFD700', icon: '$' },
   { id: 'swordfighter', name: 'Swordfighter', desc: 'Defeat the King',               color: '#B0BEC5', icon: '⚔' },
+  { id: 'adventurer',   name: 'Adventurer',   desc: 'Beat all four levels',           color: '#66BB6A', icon: '🗺' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',  name: 'Rich',   badge: 'billionaire',  desc: 'Golden top hat & business suit' },
@@ -529,6 +530,11 @@ function updateBoss(active) {
 
 // ─── Victory Cutscene ─────────────────────────────────────────────────────────
 function startCutscene() {
+  if (!badges.has('adventurer')) {
+    badges.add('adventurer');
+    localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Adventurer', timer: 240 };
+  }
   const CSGY = 330;
   cutscene = {
     phase: 'walk',   // 'walk' → 'stand' → 'jump' → 'freeze'
