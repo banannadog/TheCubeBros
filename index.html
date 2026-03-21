@@ -302,28 +302,51 @@ function spawnParticles(x, y, color, n = 8) {
 }
 
 const moneyTrail = [];
+const heartTrail = [];
 function updateMoneyTrail() {
-  // Spawn
-  const active = [player1, player2].filter(p => p && p.lives > 0 && p.powerups.speed > 0);
+  // Spawn — money trail via equipped trail OR tycoon+speed legacy
+  const wantMoney = equippedTrail === 'money';
+  const wantHearts = equippedTrail === 'hearts';
+  const active = [player1, player2].filter(p => p && p.lives > 0);
   for (const p of active) {
-    if (equippedSkin !== 'tycoon') continue;
+    const tycoonBoost = equippedSkin === 'tycoon' && p.powerups.speed > 0;
     if (tick % 3 !== 0) continue;
-    moneyTrail.push({
-      x: p.x + p.w * 0.5 + (p.facingRight ? -p.w * 0.7 : p.w * 0.7),
-      y: p.y + p.h * 0.2 + Math.random() * p.h * 0.5,
-      vx: (p.facingRight ? -1 : 1) * (0.8 + Math.random() * 1.5),
-      vy: -1.2 - Math.random() * 1.5,
-      life: 1,
-      decay: 0.022 + Math.random() * 0.014,
-      size: 9 + Math.random() * 5,
-    });
+    if (wantMoney || tycoonBoost) {
+      moneyTrail.push({
+        x: p.x + p.w * 0.5 + (p.facingRight ? -p.w * 0.7 : p.w * 0.7),
+        y: p.y + p.h * 0.2 + Math.random() * p.h * 0.5,
+        vx: (p.facingRight ? -1 : 1) * (0.8 + Math.random() * 1.5),
+        vy: -1.2 - Math.random() * 1.5,
+        life: 1,
+        decay: 0.022 + Math.random() * 0.014,
+        size: 9 + Math.random() * 5,
+      });
+    }
+    if (wantHearts) {
+      heartTrail.push({
+        x: p.x + p.w * 0.5 + (Math.random() - 0.5) * p.w,
+        y: p.y + p.h * 0.3 + Math.random() * p.h * 0.4,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: -1.5 - Math.random() * 1.5,
+        life: 1,
+        decay: 0.018 + Math.random() * 0.012,
+        size: 8 + Math.random() * 6,
+      });
+    }
   }
-  // Update
+  // Update money
   for (let i = moneyTrail.length - 1; i >= 0; i--) {
     const m = moneyTrail[i];
     m.x += m.vx; m.y += m.vy; m.vy += 0.08;
     m.life -= m.decay;
     if (m.life <= 0) moneyTrail.splice(i, 1);
+  }
+  // Update hearts
+  for (let i = heartTrail.length - 1; i >= 0; i--) {
+    const h = heartTrail[i];
+    h.x += h.vx; h.y += h.vy; h.vy += 0.04;
+    h.life -= h.decay;
+    if (h.life <= 0) heartTrail.splice(i, 1);
   }
 }
 
@@ -339,8 +362,9 @@ let levelW = LEVEL_W;          // dynamic per-level width
 let boss = null;               // boss entity
 let bossKey = null;            // gold key pickup
 let doorsWithoutKey = 0;      // rooms entered before finding the key (level 4)
-let enemyKillCount = parseInt(localStorage.getItem('cb_kills') || '0'); // persists across sessions
-let gamesBeaten   = parseInt(localStorage.getItem('cb_wins')  || '0'); // times game fully beaten
+let enemyKillCount  = parseInt(localStorage.getItem('cb_kills')  || '0'); // persists across sessions
+let gamesBeaten     = parseInt(localStorage.getItem('cb_wins')   || '0'); // times game fully beaten
+let totalCoinsEver  = parseInt(localStorage.getItem('cb_tcoins') || '0'); // lifetime coin count
 let ironDoor = null;           // iron door state
 let castleDoors = null;        // lobby doors + room exit doors (level 4)
 let victoryDoor = null;        // door that appears when boss is beaten
@@ -348,9 +372,11 @@ let cutscene = null;           // cutscene state after victory
 let badges = new Set(JSON.parse(localStorage.getItem('cb_badges') || '[]'));
 let badgesPanelOpen = false;   // pauses game when true
 let skinsPanelOpen  = false;   // pauses game when true
+let trailsPanelOpen = false;   // pauses game when true
 let badgeNotif = null;         // { name, timer } — popup above BADGES button
 let jasonFlash = 0;           // frames remaining for "MAKE THEM REMEMBER" flash
-let equippedSkin = localStorage.getItem('cb_skin') || null;
+let equippedSkin  = localStorage.getItem('cb_skin')  || null;
+let equippedTrail = localStorage.getItem('cb_trail') || null;
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
 
@@ -365,11 +391,16 @@ const BADGE_DEFS = [
   { id: 'unlucky',      name: 'Unlucky',      desc: 'Search 4 empty rooms before the key', color: '#9C27B0', icon: '🔑' },
   { id: 'murderer',     name: 'Murderer',          desc: 'Kill 25 enemies',                     color: '#F44336', icon: '💀' },
   { id: 'reallylike',   name: 'You REALLY like this game', desc: 'Beat the game 10 times',   color: '#E91E63', icon: '🎮' },
+  { id: 'trillionaire', name: 'Trillionaire',              desc: 'Collect 1000 coins total',  color: '#FFE57F', icon: '$' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
   { id: 'explorer',  name: 'Explorer', badge: 'adventurer',  desc: 'Green backpack & brown suit' },
   { id: 'murderer',  name: 'Murderer', badge: 'murderer',    desc: 'Ki Ki Ki Ma Ma Ma' },
+];
+const TRAIL_DEFS = [
+  { id: 'money',  name: 'Money',  badge: 'trillionaire', desc: 'Stacks on stacks on stacks',  color: '#FFD700', icon: '$' },
+  { id: 'hearts', name: 'Hearts', badge: 'reallylike',   desc: 'You really do love this game', color: '#FF4081', icon: '♥' },
 ];
 // Computed after LEVEL_DATA is defined (see bottom of script init)
 let TOTAL_COINS_IN_GAME = 0;
@@ -472,7 +503,7 @@ function startLevel(n) {
     };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
-  particles.length = 0; moneyTrail.length = 0;
+  particles.length = 0; moneyTrail.length = 0; heartTrail.length = 0;
   gameState = 'playing';
 }
 
@@ -767,7 +798,7 @@ function update() {
   }
   if (badgeNotif) { badgeNotif.timer--; if (badgeNotif.timer <= 0) badgeNotif = null; }
   if (jasonFlash > 0) jasonFlash--;
-  if (badgesPanelOpen || skinsPanelOpen) return;
+  if (badgesPanelOpen || skinsPanelOpen || trailsPanelOpen) return;
   if (gameState !== 'playing' || gameOver || won) return;
   tick++;
   updatePlayer(player1);
@@ -784,6 +815,14 @@ function update() {
         c.collected = true; p.coins++; p.score += 100;
         spawnParticles(c.x+8, c.y+8, '#FDD835', 6);
         playCoinSound();
+        // Trillionaire badge: 1000 coins across all sessions
+        totalCoinsEver++;
+        localStorage.setItem('cb_tcoins', totalCoinsEver);
+        if (totalCoinsEver >= 1000 && !badges.has('trillionaire')) {
+          badges.add('trillionaire');
+          localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+          badgeNotif = { name: 'Trillionaire', timer: 240 };
+        }
         // Billionaire badge: all coins collected across all players
         if (!badges.has('billionaire')) {
           const totalCollected = (player1 ? player1.coins : 0) + (player2 ? player2.coins : 0);
@@ -1557,13 +1596,21 @@ function drawParticles() {
     const s = p.size * p.life;
     ctx.fillStyle = p.color; ctx.fillRect(sx(p.x)-s/2, p.y-s/2, s, s);
   }
-  // Money trail (Rich skin + speed boost)
+  // Money trail
   for (const m of moneyTrail) {
     ctx.globalAlpha = Math.max(0, m.life);
     ctx.fillStyle = '#FFD700';
     ctx.font = `bold ${Math.max(6, Math.floor(m.size * m.life + 4))}px monospace`;
     ctx.textAlign = 'center';
     ctx.fillText('$', sx(m.x), m.y);
+  }
+  // Hearts trail
+  for (const h of heartTrail) {
+    ctx.globalAlpha = Math.max(0, h.life);
+    ctx.fillStyle = '#FF4081';
+    ctx.font = `bold ${Math.max(6, Math.floor(h.size * h.life + 4))}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('♥', sx(h.x), h.y);
   }
   ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
@@ -1654,7 +1701,8 @@ function drawBadgesPanel() {
   ctx.textAlign = 'left';
 }
 
-const SKINS_BTN = { x: W - 73, y: H - 22, w: 68, h: 16 };
+const SKINS_BTN  = { x: W - 73,  y: H - 22, w: 68, h: 16 };
+const TRAILS_BTN = { x: W - 148, y: H - 22, w: 70, h: 16 };
 
 function drawSkinsPanel() {
   // Always draw SKINS button in bottom-right
@@ -1811,6 +1859,70 @@ function drawSkinsPanel() {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
   ctx.fillText('click SKINS to close', W / 2, py + ph - 5);
+  ctx.textAlign = 'left';
+}
+
+function drawTrailsPanel() {
+  // Only show TRAILS button if trillionaire badge earned
+  if (!badges.has('trillionaire')) return;
+  const btn = TRAILS_BTN;
+  ctx.fillStyle = trailsPanelOpen ? '#4A148C' : 'rgba(0,0,0,0.7)';
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.strokeStyle = '#EA80FC'; ctx.lineWidth = 1;
+  ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.w - 1, btn.h - 1);
+  ctx.fillStyle = '#EA80FC'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('TRAILS', btn.x + btn.w / 2, btn.y + 11);
+  ctx.textAlign = 'left';
+
+  if (!trailsPanelOpen) return;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, W, H);
+
+  const pw = 300, ph = 44 + TRAIL_DEFS.length * 56 + 16;
+  const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
+  ctx.fillStyle = '#111'; ctx.fillRect(px, py, pw, ph);
+  ctx.strokeStyle = '#EA80FC'; ctx.lineWidth = 2;
+  ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+
+  ctx.fillStyle = '#EA80FC'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('TRAILS', W / 2, py + 22);
+
+  TRAIL_DEFS.forEach((trail, i) => {
+    const unlocked = badges.has(trail.badge);
+    const equipped  = equippedTrail === trail.id;
+    const ry = py + 38 + i * 56;
+    ctx.fillStyle = equipped ? 'rgba(234,128,252,0.12)' : unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.2)';
+    ctx.fillRect(px + 8, ry, pw - 16, 50);
+
+    // Icon preview
+    ctx.globalAlpha = unlocked ? 1 : 0.3;
+    ctx.fillStyle = trail.color;
+    ctx.font = `bold 20px monospace`; ctx.textAlign = 'center';
+    ctx.fillText(trail.icon, px + 28, ry + 30);
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = unlocked ? '#FFF' : '#555';
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(trail.name, px + 48, ry + 18);
+    ctx.fillStyle = unlocked ? '#999' : '#444';
+    ctx.font = '8px monospace';
+    ctx.fillText(unlocked ? trail.desc : `Locked — earn "${trail.badge}" badge`, px + 48, ry + 30);
+
+    if (unlocked) {
+      const bx = px + pw - 66, by = ry + 14, bw = 58, bh = 18;
+      ctx.fillStyle = equipped ? '#6A1B9A' : '#2A0050';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = '#EA80FC'; ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+      ctx.fillStyle = '#EA80FC'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(equipped ? 'UNEQUIP' : 'EQUIP', bx + bw / 2, by + 12);
+      trail._btn = { x: bx, y: by, w: bw, h: bh };
+    }
+  });
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('click TRAILS to close', W / 2, py + ph - 5);
   ctx.textAlign = 'left';
 }
 
@@ -2201,6 +2313,7 @@ function draw() {
   }
   drawBadgesPanel();
   drawSkinsPanel();
+  drawTrailsPanel();
   if (gameOver) {
     const s = numPlayers===2 ? `P1: ${player1.score}  P2: ${player2.score}` : `Score: ${player1.score}`;
     drawOverlay('GAME OVER', s, '#EF5350');
@@ -2245,16 +2358,29 @@ canvas.addEventListener('click', e => {
   const inBtn = (btn) => mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
 
   // BADGES button
-  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; skinsPanelOpen = false; return; }
+  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; skinsPanelOpen = false; trailsPanelOpen = false; return; }
   // SKINS button
-  if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; badgesPanelOpen = false; return; }
+  if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; badgesPanelOpen = false; trailsPanelOpen = false; return; }
+  // TRAILS button
+  if (badges.has('trillionaire') && inBtn(TRAILS_BTN)) { trailsPanelOpen = !trailsPanelOpen; badgesPanelOpen = false; skinsPanelOpen = false; return; }
   // Skin equip/unequip buttons (only when panel open)
   if (skinsPanelOpen) {
     for (const skin of SKIN_DEFS) {
       if (skin._btn && inBtn(skin._btn)) {
         equippedSkin = equippedSkin === skin.id ? null : skin.id;
-          if (equippedSkin) localStorage.setItem('cb_skin', equippedSkin);
-          else localStorage.removeItem('cb_skin');
+        if (equippedSkin) localStorage.setItem('cb_skin', equippedSkin);
+        else localStorage.removeItem('cb_skin');
+        return;
+      }
+    }
+  }
+  // Trail equip/unequip buttons (only when panel open)
+  if (trailsPanelOpen) {
+    for (const trail of TRAIL_DEFS) {
+      if (trail._btn && inBtn(trail._btn)) {
+        equippedTrail = equippedTrail === trail.id ? null : trail.id;
+        if (equippedTrail) localStorage.setItem('cb_trail', equippedTrail);
+        else localStorage.removeItem('cb_trail');
         return;
       }
     }
