@@ -259,11 +259,11 @@ let ironDoor = null;           // iron door state
 let castleDoors = null;        // lobby doors + room exit doors (level 4)
 let victoryDoor = null;        // door that appears when boss is beaten
 let cutscene = null;           // cutscene state after victory
-let badges = new Set();        // earned badge IDs (persists across levels)
+let badges = new Set(JSON.parse(localStorage.getItem('cb_badges') || '[]'));
 let badgesPanelOpen = false;   // pauses game when true
 let skinsPanelOpen  = false;   // pauses game when true
 let badgeNotif = null;         // { name, timer } — popup above BADGES button
-let equippedSkin    = null;    // currently equipped skin ID
+let equippedSkin = localStorage.getItem('cb_skin') || null;
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
 
@@ -310,7 +310,7 @@ function applyPowerup(p, type) {
 
 function initGame(n) {
   numPlayers = n;
-  badges = new Set();
+  badges = new Set(JSON.parse(localStorage.getItem('cb_badges') || '[]'));
   player1 = makePlayer(60, P1, {
     left:  () => keys['KeyA'],
     right: () => keys['KeyD'],
@@ -669,6 +669,7 @@ function update() {
           const totalCollected = (player1 ? player1.coins : 0) + (player2 ? player2.coins : 0);
           if (totalCollected >= TOTAL_COINS_IN_GAME) {
             badges.add('billionaire');
+            localStorage.setItem('cb_badges', JSON.stringify([...badges]));
             badgeNotif = { name: 'Billionaire', timer: 240 };
           }
         }
@@ -1826,6 +1827,8 @@ canvas.addEventListener('click', e => {
     for (const skin of SKIN_DEFS) {
       if (skin._btn && inBtn(skin._btn)) {
         equippedSkin = equippedSkin === skin.id ? null : skin.id;
+          if (equippedSkin) localStorage.setItem('cb_skin', equippedSkin);
+          else localStorage.removeItem('cb_skin');
         return;
       }
     }
