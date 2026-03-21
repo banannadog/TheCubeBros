@@ -403,9 +403,9 @@ function update() {
                   (p2a && player2.x + player2.w >= LEVEL_W - 60);
   if (hitGoal) {
     if (currentLevel < LEVEL_DATA.length - 1) {
-      // Revive any dead players for the next level
-      if (player1 && player1.lives <= 0) player1.lives = 1;
-      if (player2 && player2.lives <= 0) player2.lives = 1;
+      // Award a life to alive players; revive dead players
+      if (player1) { if (player1.lives > 0) player1.lives++; else player1.lives = 1; }
+      if (player2) { if (player2.lives > 0) player2.lives++; else player2.lives = 1; }
       gameState = 'transition'; transitionTimer = 210;
     } else won = true;
   }
