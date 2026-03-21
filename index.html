@@ -272,7 +272,8 @@ const P2 = { mid: '#66BB6A', dark: '#2E7D32', light: '#A5D6A7', leg: '#2E7D32' }
 
 // ─── Badge & Skin Definitions ─────────────────────────────────────────────────
 const BADGE_DEFS = [
-  { id: 'billionaire', name: 'Billionaire', desc: 'Collect every coin in the game', color: '#FFD700', icon: '$' },
+  { id: 'billionaire',  name: 'Billionaire',  desc: 'Collect every coin in the game', color: '#FFD700', icon: '$' },
+  { id: 'swordfighter', name: 'Swordfighter', desc: 'Defeat the King',               color: '#B0BEC5', icon: '⚔' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon', name: 'Rich', badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -506,7 +507,15 @@ function updateBoss(active) {
           bossHitCooldown = 50;
           playerHasSword = false;
           spawnParticles(boss.x+boss.w/2, boss.y+boss.h/2, '#FFD700', 18);
-          if (boss.lives <= 0) { victoryDoor = { x: boss.x - 60, y: GROUND_Y - 50, w: 28, h: 50 }; return; }
+          if (boss.lives <= 0) {
+            victoryDoor = { x: boss.x - 60, y: GROUND_Y - 50, w: 28, h: 50 };
+            if (!badges.has('swordfighter')) {
+              badges.add('swordfighter');
+              localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+              badgeNotif = { name: 'Swordfighter', timer: 240 };
+            }
+            return;
+          }
           boss.state = 'idle'; boss.stateTimer = 0; boss.droppedSword = null;
         }
       }
