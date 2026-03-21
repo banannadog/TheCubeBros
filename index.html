@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>The Cube Bros</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -43,6 +44,58 @@ document.addEventListener('keydown', e => {
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(e.code)) e.preventDefault();
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ─── Mobile Touch Controls ───────────────────────────────────────────────────
+const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+const touch = { left: false, right: false, jump: false, interact: false };
+const TOUCH_BTNS = {
+  left:     { x: 12,  y: 415, w: 62, h: 58, label: '◀' },
+  right:    { x: 84,  y: 415, w: 62, h: 58, label: '▶' },
+  interact: { x: 650, y: 415, w: 62, h: 58, label: 'USE' },
+  jump:     { x: 722, y: 415, w: 62, h: 58, label: '▲' },
+};
+function updateTouchState(e) {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  touch.left = touch.right = touch.jump = touch.interact = false;
+  for (const t of e.touches) {
+    const tx = (t.clientX - rect.left) * scaleX;
+    const ty = (t.clientY - rect.top)  * scaleY;
+    for (const [key, btn] of Object.entries(TOUCH_BTNS)) {
+      if (tx >= btn.x && tx <= btn.x + btn.w && ty >= btn.y && ty <= btn.y + btn.h)
+        touch[key] = true;
+    }
+    // Menu card selection on touch
+    if (gameState === 'select') {
+      const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
+      if (tx >= c1X && tx <= c1X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); initGame(1); }
+      if (tx >= c2X && tx <= c2X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); initGame(2); }
+    }
+  }
+}
+canvas.addEventListener('touchstart', updateTouchState, { passive: false });
+canvas.addEventListener('touchmove',  updateTouchState, { passive: false });
+canvas.addEventListener('touchend',   updateTouchState, { passive: false });
+
+function drawTouchControls() {
+  if (!isMobile || (gameState !== 'playing' && gameState !== 'cutscene')) return;
+  for (const [key, btn] of Object.entries(TOUCH_BTNS)) {
+    const active = touch[key];
+    ctx.globalAlpha = active ? 0.75 : 0.35;
+    ctx.fillStyle = active ? '#00E5FF' : '#334';
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+    ctx.strokeStyle = '#00E5FF'; ctx.lineWidth = 2;
+    ctx.strokeRect(btn.x + 1, btn.y + 1, btn.w - 2, btn.h - 2);
+    ctx.globalAlpha = active ? 1 : 0.7;
+    ctx.fillStyle = active ? '#000' : '#00E5FF';
+    ctx.font = 'bold ' + (btn.label === 'USE' ? '11' : '18') + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
+}
 
 // ─── Audio ───────────────────────────────────────────────────────────────────
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -329,10 +382,10 @@ function initGame(n) {
   numPlayers = n;
   badges = new Set(JSON.parse(localStorage.getItem('cb_badges') || '[]'));
   player1 = makePlayer(60, P1, {
-    left:  () => keys['KeyA'],
-    right: () => keys['KeyD'],
-    jump:   () => keys['KeyW'] || keys['Space'],
-    attack: () => keys['KeyF'],
+    left:   () => keys['KeyA']  || touch.left,
+    right:  () => keys['KeyD']  || touch.right,
+    jump:   () => keys['KeyW']  || keys['Space'] || touch.jump,
+    attack: () => keys['KeyF']  || touch.interact,
   });
   player2 = n === 2 ? makePlayer(100, P2, {
     left:   () => keys['ArrowLeft'],
@@ -2092,6 +2145,7 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
   drawHUD();
+  drawTouchControls();
   // Fire Jason banner — visible while speed boost active, fades out after
   const _jasonSpeedOn = equippedSkin === 'murderer' && ((player1 && player1.powerups.speed > 0) || (player2 && player2.powerups.speed > 0));
   if (_jasonSpeedOn || jasonFlash > 0) {
