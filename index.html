@@ -1448,24 +1448,58 @@ function drawSkinsPanel() {
     ctx.fillStyle = equipped ? 'rgba(0,229,255,0.1)' : unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.2)';
     ctx.fillRect(px + 8, ry, pw - 16, 50);
 
-    // Preview: mini cube with hat
+    // Preview: mini cube with full skin rendering
     ctx.globalAlpha = unlocked ? 1 : 0.3;
-    const previewSz = 22;
-    drawMiniCube(px + 18, ry + 14, previewSz, P1.mid, P1.dark, P1.light);
+    const sz = 22;
+    const mpx = px + 22, mpy = ry + 14;
+    drawMiniCube(mpx, mpy, sz, P1.mid, P1.dark, P1.light);
+
     if (unlocked && skin.id === 'tycoon') {
-      // mini hat preview
-      ctx.fillStyle = '#FFD700'; ctx.fillRect(px + 20, ry + 8, 18, 6);
-      ctx.fillRect(px + 23, ry + 3, 12, 7);
-      ctx.fillStyle = '#B8860B'; ctx.fillRect(px + 20, ry + 13, 18, 1);
+      const crownH = Math.floor(sz * 0.55), crownW = Math.floor(sz * 0.65);
+      const crownX = mpx + Math.floor((sz - crownW) / 2);
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(crownX, mpy - crownH, crownW, crownH);
+      ctx.fillStyle = '#FFE55C'; ctx.fillRect(crownX, mpy - crownH, 1, crownH);
+      ctx.fillStyle = '#B8860B'; ctx.fillRect(crownX + crownW - 2, mpy - crownH, 2, crownH);
+      ctx.fillStyle = '#B8860B'; ctx.fillRect(crownX, mpy - crownH, crownW, 1);
+      ctx.fillStyle = '#7A5C00'; ctx.fillRect(crownX, mpy - Math.floor(sz * 0.14), crownW, 2);
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(mpx - 3, mpy - 2, sz + 6, 3);
+      ctx.fillStyle = '#B8860B'; ctx.fillRect(mpx - 3, mpy + 1, sz + 6, 1);
+      const lapY = Math.round(mpy + sz * 0.42), lapH = Math.round(mpy + sz) - Math.round(mpy + sz * 0.42);
+      ctx.fillStyle = '#B8860B'; ctx.fillRect(mpx, lapY, sz, lapH);
+      ctx.fillStyle = '#FFD700'; ctx.fillRect(mpx, lapY, sz, 1);
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(mpx, lapY, Math.floor(sz * 0.26), Math.floor(lapH * 0.6));
+      ctx.fillRect(mpx + sz - Math.floor(sz * 0.26), lapY, Math.floor(sz * 0.26), Math.floor(lapH * 0.6));
+      ctx.fillStyle = '#7A5C00'; ctx.fillRect(mpx + Math.floor(sz * 0.38), lapY, Math.floor(sz * 0.24), lapH);
+      ctx.fillStyle = '#FFE55C'; ctx.fillRect(mpx + Math.floor(sz * 0.44), lapY + 1, 1, Math.floor(lapH * 0.65));
+      ctx.fillStyle = '#7A5C00'; ctx.fillRect(mpx, mpy + sz - 1, sz, 1);
     }
+
     if (unlocked && skin.id === 'explorer') {
-      // mini backpack
-      ctx.fillStyle = '#388E3C'; ctx.fillRect(px + 38, ry + 18, 8, 12);
-      ctx.fillStyle = '#1B5E20'; ctx.fillRect(px + 38, ry + 28, 8, 2);
-      // mini vest panels
-      ctx.fillStyle = '#6D4C41'; ctx.fillRect(px + 18, ry + 20, 5, 14);
-      ctx.fillRect(px + 31, ry + 20, 5, 14);
+      const bpW = Math.floor(sz * 0.45), bpH = Math.floor(sz * 0.55);
+      const bpX = mpx - bpW + 2, bpY = mpy + Math.floor(sz * 0.18);
+      ctx.fillStyle = '#388E3C'; ctx.fillRect(bpX, bpY, bpW, bpH);
+      ctx.fillStyle = '#43A047'; ctx.fillRect(bpX, bpY, bpW, 1);
+      ctx.fillStyle = '#2E7D32'; ctx.fillRect(bpX + bpW - 1, bpY, 1, bpH);
+      ctx.fillStyle = '#1B5E20'; ctx.fillRect(bpX, bpY + bpH - 1, bpW, 1);
+      ctx.fillStyle = '#1B5E20'; ctx.fillRect(bpX + Math.floor(bpW*0.35), bpY + Math.floor(bpH*0.35), Math.floor(bpW*0.3), 1);
+      const lapY = Math.round(mpy + sz * 0.38), lapH = Math.round(mpy + sz) - Math.round(mpy + sz * 0.38);
+      ctx.fillStyle = '#5D4037'; ctx.fillRect(mpx, lapY, sz, lapH);
+      ctx.fillStyle = '#6D4C41'; ctx.fillRect(mpx, lapY, sz, 1);
+      ctx.fillStyle = '#8D6E63';
+      ctx.fillRect(mpx, lapY, Math.floor(sz * 0.28), Math.floor(lapH * 0.55));
+      ctx.fillRect(mpx + sz - Math.floor(sz * 0.28), lapY, Math.floor(sz * 0.28), Math.floor(lapH * 0.55));
+      ctx.fillStyle = '#EFEBE9'; ctx.fillRect(mpx + Math.floor(sz * 0.38), lapY, Math.floor(sz * 0.24), lapH);
+      ctx.fillStyle = '#3E2723'; ctx.fillRect(mpx, mpy + sz - 1, sz, 1);
     }
+
+    // Eyes on top
+    ctx.fillStyle = '#000';
+    ctx.fillRect(mpx + Math.floor(sz*0.52), mpy + Math.floor(sz*0.28), 2, 2);
+    ctx.fillRect(mpx + Math.floor(sz*0.73), mpy + Math.floor(sz*0.28), 2, 2);
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(mpx + Math.floor(sz*0.52)+1, mpy + Math.floor(sz*0.28)+1, 1, 1);
+    ctx.fillRect(mpx + Math.floor(sz*0.73)+1, mpy + Math.floor(sz*0.28)+1, 1, 1);
     ctx.globalAlpha = 1;
 
     // Name + desc
