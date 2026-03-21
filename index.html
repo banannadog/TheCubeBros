@@ -1255,32 +1255,50 @@ function drawPlayerCube(p) {
     ctx.fillStyle = '#111'; ctx.fillRect(ex, py, pw, 2); // subtle top highlight
     ctx.fillStyle = '#0a0a0a'; ctx.fillRect(ex, py + ph - 2, pw, 2);
 
-    // Jason hockey mask (white, centered on face area)
-    const mw = Math.floor(pw * 0.72), mh = Math.floor(ph * 0.7);
+    // Jason Voorhees hockey mask
+    const mw = Math.floor(pw * 0.78), mh = Math.floor(ph * 0.78);
     const mx = ex + Math.floor((pw - mw) / 2);
-    const my = py + Math.floor(ph * 0.1);
-    ctx.fillStyle = '#E8E8E0'; ctx.fillRect(mx, my, mw, mh);
-    // Mask shading — left edge shadow
-    ctx.fillStyle = '#C8C8C0'; ctx.fillRect(mx, my, 2, mh);
-    // Mask shading — right highlight
-    ctx.fillStyle = '#F5F5EE'; ctx.fillRect(mx + mw - 2, my, 2, mh);
-    // Eye holes (dark rectangular slits)
-    const eyeSlitW = Math.floor(mw * 0.22), eyeSlitH = Math.floor(mh * 0.18);
-    const eyeSlitY = my + Math.floor(mh * 0.22);
+    const my = py + Math.floor(ph * 0.08);
+    // White mask base
+    ctx.fillStyle = '#E8E4DC'; ctx.fillRect(mx, my, mw, mh);
+    ctx.fillStyle = '#C8C4BC'; ctx.fillRect(mx, my, 2, mh);          // left edge shadow
+    ctx.fillStyle = '#F0EDE8'; ctx.fillRect(mx + mw - 2, my, 2, mh); // right edge highlight
+    // Round eye holes
+    const eHsz = Math.max(3, Math.floor(mw * 0.2));
+    const eHy  = my + Math.floor(mh * 0.22);
     ctx.fillStyle = '#111';
-    ctx.fillRect(mx + Math.floor(mw * 0.08), eyeSlitY, eyeSlitW, eyeSlitH);
-    ctx.fillRect(mx + Math.floor(mw * 0.58), eyeSlitY, eyeSlitW, eyeSlitH);
-    // Red vertical stripes (Jason's signature)
+    ctx.fillRect(mx + Math.floor(mw * 0.08), eHy, eHsz, eHsz);          // left eye
+    ctx.fillRect(mx + mw - Math.floor(mw * 0.08) - eHsz, eHy, eHsz, eHsz); // right eye
+    // Nose holes
+    ctx.fillStyle = '#111';
+    ctx.fillRect(mx + Math.floor(mw * 0.38), my + Math.floor(mh * 0.52), 2, 2);
+    ctx.fillRect(mx + Math.floor(mw * 0.55), my + Math.floor(mh * 0.52), 2, 2);
+    // Mouth grill (3 horizontal slots)
+    ctx.fillStyle = '#888';
+    for (let s = 0; s < 3; s++)
+      ctx.fillRect(mx + Math.floor(mw * 0.18), my + Math.floor(mh * 0.70) + s * 3, Math.floor(mw * 0.64), 2);
+    // RED CHEVRON MARKS — Jason's signature (three downward-pointing triangles)
     ctx.fillStyle = '#CC1111';
-    ctx.fillRect(mx + Math.floor(mw * 0.08), my, 2, mh);
-    ctx.fillRect(mx + Math.floor(mw * 0.47), my, 2, mh);
-    ctx.fillRect(mx + mw - Math.floor(mw * 0.08) - 2, my, 2, mh);
-    // Nose area indent
-    ctx.fillStyle = '#C8C8C0';
-    ctx.fillRect(mx + Math.floor(mw * 0.42), my + Math.floor(mh * 0.48), Math.floor(mw * 0.16), Math.floor(mh * 0.14));
-    // Mouth slit
-    ctx.fillStyle = '#999';
-    ctx.fillRect(mx + Math.floor(mw * 0.2), my + Math.floor(mh * 0.72), Math.floor(mw * 0.6), 2);
+    // Forehead chevron (large, centered at top)
+    const cvW = Math.floor(mw * 0.52), cvH = Math.floor(mh * 0.26);
+    const cvX = mx + Math.floor((mw - cvW) / 2), cvY = my + 1;
+    for (let r = 0; r < cvH; r++) {
+      const w = Math.max(1, Math.floor(cvW * (1 - r / cvH)));
+      ctx.fillRect(cvX + Math.floor((cvW - w) / 2), cvY + r, w, 1);
+    }
+    // Left cheek chevron (smaller)
+    const kcW = Math.floor(mw * 0.26), kcH = Math.floor(mh * 0.16);
+    const lcvX = mx + Math.floor(mw * 0.04), lcvY = my + Math.floor(mh * 0.44);
+    for (let r = 0; r < kcH; r++) {
+      const w = Math.max(1, Math.floor(kcW * (1 - r / kcH)));
+      ctx.fillRect(lcvX + Math.floor((kcW - w) / 2), lcvY + r, w, 1);
+    }
+    // Right cheek chevron (mirror)
+    const rcvX = mx + mw - Math.floor(mw * 0.04) - kcW;
+    for (let r = 0; r < kcH; r++) {
+      const w = Math.max(1, Math.floor(kcW * (1 - r / kcH)));
+      ctx.fillRect(rcvX + Math.floor((kcW - w) / 2), lcvY + r, w, 1);
+    }
 
     // Knife — held on facing side, angled up
     const knifeX = p.facingRight ? ex + pw + 1 : ex - Math.floor(pw * 0.55);
@@ -1576,22 +1594,36 @@ function drawSkinsPanel() {
       ctx.fillStyle = '#000'; ctx.fillRect(mpx, mpy, sz, sz);
       ctx.fillStyle = '#111'; ctx.fillRect(mpx, mpy, sz, 1);
       // Mini Jason mask
-      const mmw = Math.floor(sz * 0.72), mmh = Math.floor(sz * 0.7);
-      const mmx = mpx + Math.floor((sz - mmw) / 2), mmy = mpy + Math.floor(sz * 0.1);
-      ctx.fillStyle = '#E8E8E0'; ctx.fillRect(mmx, mmy, mmw, mmh);
-      ctx.fillStyle = '#C8C8C0'; ctx.fillRect(mmx, mmy, 1, mmh);
-      // Eye slits
+      const mmw = Math.floor(sz * 0.78), mmh = Math.floor(sz * 0.78);
+      const mmx = mpx + Math.floor((sz - mmw) / 2), mmy = mpy + Math.floor(sz * 0.08);
+      ctx.fillStyle = '#E8E4DC'; ctx.fillRect(mmx, mmy, mmw, mmh);
+      ctx.fillStyle = '#C8C4BC'; ctx.fillRect(mmx, mmy, 1, mmh);
+      ctx.fillStyle = '#F0EDE8'; ctx.fillRect(mmx + mmw - 1, mmy, 1, mmh);
+      // Round eye holes
+      const meHsz = Math.max(2, Math.floor(mmw * 0.2));
       ctx.fillStyle = '#111';
-      ctx.fillRect(mmx + Math.floor(mmw*0.08), mmy + Math.floor(mmh*0.22), Math.floor(mmw*0.22), Math.floor(mmh*0.18));
-      ctx.fillRect(mmx + Math.floor(mmw*0.58), mmy + Math.floor(mmh*0.22), Math.floor(mmw*0.22), Math.floor(mmh*0.18));
-      // Red stripes
+      ctx.fillRect(mmx + Math.floor(mmw*0.08), mmy + Math.floor(mmh*0.22), meHsz, meHsz);
+      ctx.fillRect(mmx + mmw - Math.floor(mmw*0.08) - meHsz, mmy + Math.floor(mmh*0.22), meHsz, meHsz);
+      // Mouth slots
+      ctx.fillStyle = '#888';
+      for (let s = 0; s < 2; s++)
+        ctx.fillRect(mmx + Math.floor(mmw*0.18), mmy + Math.floor(mmh*0.70) + s*2, Math.floor(mmw*0.64), 1);
+      // Red chevron marks
       ctx.fillStyle = '#CC1111';
-      ctx.fillRect(mmx + Math.floor(mmw*0.08), mmy, 1, mmh);
-      ctx.fillRect(mmx + Math.floor(mmw*0.47), mmy, 1, mmh);
-      ctx.fillRect(mmx + mmw - Math.floor(mmw*0.08) - 1, mmy, 1, mmh);
-      // Mouth slit
-      ctx.fillStyle = '#999';
-      ctx.fillRect(mmx + Math.floor(mmw*0.2), mmy + Math.floor(mmh*0.72), Math.floor(mmw*0.6), 1);
+      const mcvW = Math.floor(mmw*0.52), mcvH = Math.floor(mmh*0.26);
+      const mcvX = mmx + Math.floor((mmw-mcvW)/2);
+      for (let r = 0; r < mcvH; r++) {
+        const w = Math.max(1, Math.floor(mcvW*(1-r/mcvH)));
+        ctx.fillRect(mcvX + Math.floor((mcvW-w)/2), mmy+1+r, w, 1);
+      }
+      const mkcW = Math.floor(mmw*0.26), mkcH = Math.floor(mmh*0.16);
+      const mlcvX = mmx + Math.floor(mmw*0.04), mlcvY = mmy + Math.floor(mmh*0.44);
+      const mrcvX = mmx + mmw - Math.floor(mmw*0.04) - mkcW;
+      for (let r = 0; r < mkcH; r++) {
+        const w = Math.max(1, Math.floor(mkcW*(1-r/mkcH)));
+        ctx.fillRect(mlcvX + Math.floor((mkcW-w)/2), mlcvY+r, w, 1);
+        ctx.fillRect(mrcvX + Math.floor((mkcW-w)/2), mlcvY+r, w, 1);
+      }
       // Mini knife (right side, pointing up)
       const kx = mpx + sz + 1, ky = mpy + Math.floor(sz * 0.3);
       ctx.fillStyle = '#B0BEC5'; ctx.fillRect(kx, ky - 8, 2, 8);
