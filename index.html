@@ -259,11 +259,19 @@ let ironDoor = null;           // iron door state
 let castleDoors = null;        // lobby doors + room exit doors (level 4)
 let victoryDoor = null;        // door that appears when boss is beaten
 let cutscene = null;           // cutscene state after victory
+let badges = new Set();        // earned badge IDs (persists across levels)
 let playerHasSword = false;    // true after picking up boss's dropped sword
 let bossHitCooldown = 0;       // prevents rapid multi-hits
 
 const P1 = { mid: '#29B6F6', dark: '#0277BD', light: '#81D4FA', leg: '#0277BD' };
 const P2 = { mid: '#66BB6A', dark: '#2E7D32', light: '#A5D6A7', leg: '#2E7D32' };
+
+// ─── Badge Definitions ────────────────────────────────────────────────────────
+const BADGE_DEFS = [
+  { id: 'billionaire', name: 'Billionaire', desc: 'Collect every coin in the game', color: '#FFD700', icon: '$' },
+];
+// Computed after LEVEL_DATA is defined (see bottom of script init)
+let TOTAL_COINS_IN_GAME = 0;
 
 function makePlayer(startX, colors, ctrlFns) {
   return {
@@ -295,6 +303,7 @@ function applyPowerup(p, type) {
 
 function initGame(n) {
   numPlayers = n;
+  badges = new Set();
   player1 = makePlayer(60, P1, {
     left:  () => keys['KeyA'],
     right: () => keys['KeyD'],
@@ -645,7 +654,13 @@ function update() {
       if (overlap(p.x,p.y,p.w,p.h, c.x,c.y,16,16)) {
         c.collected = true; p.coins++; p.score += 100;
         spawnParticles(c.x+8, c.y+8, '#FDD835', 6);
-        playCoinSound(); break;
+        playCoinSound();
+        // Billionaire badge: all coins collected across all players
+        if (!badges.has('billionaire')) {
+          const totalCollected = (player1 ? player1.coins : 0) + (player2 ? player2.coins : 0);
+          if (totalCollected >= TOTAL_COINS_IN_GAME) badges.add('billionaire');
+        }
+        break;
       }
     }
   }
@@ -1196,6 +1211,35 @@ function drawParticles() {
 }
 
 // ─── HUD ─────────────────────────────────────────────────────────────────────
+function drawBadgesPanel() {
+  const earned = BADGE_DEFS.filter(b => badges.has(b.id));
+  if (earned.length === 0) return;
+  const badgeH = 20, pad = 4, panelW = 130;
+  const panelH = earned.length * (badgeH + 2) + pad * 2;
+  const px = 5, py = H - panelH - 5;
+  // Panel background
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(px, py, panelW, panelH);
+  ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 1;
+  ctx.strokeRect(px + 0.5, py + 0.5, panelW - 1, panelH - 1);
+  // Header
+  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('BADGES', px + pad, py + pad + 6);
+  // Each badge
+  earned.forEach((b, i) => {
+    const by = py + pad + 10 + i * (badgeH + 2);
+    // Icon circle
+    ctx.fillStyle = b.color;
+    ctx.beginPath(); ctx.arc(px + pad + 7, by + badgeH/2, 7, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(b.icon, px + pad + 7, by + badgeH/2 + 3);
+    // Name
+    ctx.fillStyle = '#FFF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(b.name, px + pad + 18, by + badgeH/2 + 3);
+  });
+  ctx.textAlign = 'left';
+}
+
 function drawHUD() {
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, 40);
 
@@ -1562,6 +1606,7 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
   drawHUD();
+  drawBadgesPanel();
   if (gameOver) {
     const s = numPlayers===2 ? `P1: ${player1.score}  P2: ${player2.score}` : `Score: ${player1.score}`;
     drawOverlay('GAME OVER', s, '#EF5350');
@@ -1588,6 +1633,8 @@ document.addEventListener('keydown', e => {
 });
 
 // ─── Loop ────────────────────────────────────────────────────────────────────
+TOTAL_COINS_IN_GAME = LEVEL_DATA.reduce((s, d) => s + d.rawCoins.length, 0);
+
 function loop() { tick++; update(); draw(); requestAnimationFrame(loop); }
 loop();
 </script>
