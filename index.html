@@ -1147,24 +1147,6 @@ function drawPlayerCube(p) {
   ctx.shadowBlur = 0;
 
   const ex = sx(px), eSize = Math.max(4, Math.round(pw*0.18));
-  const eyeY = py + Math.floor(ph*0.28);
-  ctx.fillStyle = '#000';
-  if (p.facingRight) {
-    ctx.fillRect(ex+pw*0.52, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.73, eyeY, eSize, eSize);
-    ctx.fillStyle = '#FFF';
-    ctx.fillRect(ex+pw*0.52+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.73+1, eyeY+1, 2, 2);
-  } else {
-    ctx.fillRect(ex+pw*0.15, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.36, eyeY, eSize, eSize);
-    ctx.fillStyle = '#FFF';
-    ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
-  }
-  ctx.fillStyle = '#000';
-  if (p.vy < -5) {
-    ctx.fillRect(ex+pw*0.40, py+ph*0.63, 5, 5);
-  } else {
-    const mx = ex+pw*0.28, my = py+ph*0.64;
-    ctx.fillRect(mx, my, pw*0.43, 2); ctx.fillRect(mx, my-2, 2, 3); ctx.fillRect(mx+pw*0.43-2, my-2, 2, 3);
-  }
   // Speed lines
   if (p.powerups.speed > 0 && Math.abs(p.vx) > 2) {
     ctx.strokeStyle = 'rgba(255,215,0,0.55)'; ctx.lineWidth = 2;
@@ -1236,6 +1218,26 @@ function drawPlayerCube(p) {
     ctx.fillRect(ex + Math.floor(pw * 0.38), lapelY, Math.floor(pw * 0.24), lapelH);
     // Bottom trim
     ctx.fillStyle = '#3E2723'; ctx.fillRect(ex, py + ph - 2, pw, 2);
+  }
+
+  // Face always drawn on top of any skin
+  const eyeY = py + Math.floor(ph*0.28);
+  ctx.fillStyle = '#000';
+  if (p.facingRight) {
+    ctx.fillRect(ex+pw*0.52, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.73, eyeY, eSize, eSize);
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(ex+pw*0.52+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.73+1, eyeY+1, 2, 2);
+  } else {
+    ctx.fillRect(ex+pw*0.15, eyeY, eSize, eSize); ctx.fillRect(ex+pw*0.36, eyeY, eSize, eSize);
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
+  }
+  ctx.fillStyle = '#000';
+  if (p.vy < -5) {
+    ctx.fillRect(ex+pw*0.40, py+ph*0.63, 5, 5);
+  } else {
+    const mx = ex+pw*0.28, my = py+ph*0.64;
+    ctx.fillRect(mx, my, pw*0.43, 2); ctx.fillRect(mx, my-2, 2, 3); ctx.fillRect(mx+pw*0.43-2, my-2, 2, 3);
   }
 }
 
