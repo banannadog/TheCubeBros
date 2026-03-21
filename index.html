@@ -506,7 +506,8 @@ function update() {
     for (const p of active) {
       if (overlap(p.x,p.y,p.w,p.h, c.x,c.y,c.w,c.h)) {
         c.opened = true;
-        applyPowerup(p, c.type); break;
+        for (const ap of active) applyPowerup(ap, c.type);
+        break;
       }
     }
   }
