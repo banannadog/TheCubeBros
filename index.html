@@ -595,9 +595,9 @@ function drawCutscene() {
 
     if (numPlayers === 2) {
       const total = player1.score + player2.score;
-      ctx.fillStyle = P1.mid; ctx.font = 'bold 16px monospace';
+      ctx.fillStyle = P1.dark; ctx.font = 'bold 16px monospace';
       ctx.fillText(`P1 Score:  ${String(player1.score).padStart(6,'0')}`, W/2, 190);
-      ctx.fillStyle = P2.mid;
+      ctx.fillStyle = P2.dark;
       ctx.fillText(`P2 Score:  ${String(player2.score).padStart(6,'0')}`, W/2, 215);
       ctx.fillStyle = '#FFD700'; ctx.font = 'bold 18px monospace';
       ctx.fillText(`TOTAL:  ${String(total).padStart(6,'0')}`, W/2, 248);
