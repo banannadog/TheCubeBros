@@ -412,6 +412,7 @@ function hexToHsv(hex) {
 }
 if (trailColor) { const [h,s,v]=hexToHsv(trailColor); _cpHue=h; _cpSat=s; _cpVal=v; }
 let playerHasSword = false;    // true after picking up boss's dropped sword
+let tookDamage = false;        // reset on new game, set true on any damage
 let bossHitCooldown = 0;       // prevents rapid multi-hits
 
 const P1 = { mid: '#29B6F6', dark: '#0277BD', light: '#81D4FA', leg: '#0277BD' };
@@ -426,6 +427,7 @@ const BADGE_DEFS = [
   { id: 'murderer',     name: 'Murderer',          desc: 'Kill 25 enemies',                     color: '#F44336', icon: '💀' },
   { id: 'reallylike',   name: 'You REALLY like this game', desc: 'Beat the game 10 times',   color: '#E91E63', icon: '🎮' },
   { id: 'trillionaire', name: 'Trillionaire',              desc: 'Collect 500 coins total',   color: '#FFE57F', icon: '$' },
+  { id: 'invincible',   name: 'Invincible',               desc: 'Beat all four levels without taking damage', color: '#00BCD4', icon: '🛡' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -485,6 +487,7 @@ function initGame(n) {
     jump:   () => keys['ArrowUp'] || keys['Enter'],
     attack: () => keys['Slash'],
   }) : null;
+  tookDamage = false;
   startLevel(1);
 }
 
@@ -591,7 +594,7 @@ function updatePlayer(p) {
   p.y += p.vy;
   resolveY(p);
   if (p.y > H + 100) {
-    p.lives--;
+    p.lives--; tookDamage = true;
     if (p.lives <= 0) return;
     p.x = Math.max(60, camX + 40);
     p.y = GROUND_Y - p.h - 10;
@@ -638,7 +641,7 @@ function updateBoss(active) {
       for (const p of active) {
         if (p.invincible > 0) continue;
         if (overlap(swordX, boss.y+18, 38, 14, p.x, p.y, p.w, p.h)) {
-          p.lives--; p.invincible = 100; p.vy = -7;
+          p.lives--; tookDamage = true; p.invincible = 100; p.vy = -7;
           p.vx = p.x < boss.x + boss.w/2 ? -5 : 5;
           spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF4444', 10);
         }
@@ -697,6 +700,11 @@ function startCutscene() {
     badges.add('adventurer');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Adventurer', timer: 240 };
+  }
+  if (!tookDamage && !badges.has('invincible')) {
+    badges.add('invincible');
+    localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Invincible', timer: 240 };
   }
   gamesBeaten++;
   localStorage.setItem('cb_wins', gamesBeaten);
@@ -909,7 +917,7 @@ function update() {
         enemyKillCount++; checkMurdererBadge();
         break;
       } else {
-        p.lives--; p.invincible = 100; p.vy = -7;
+        p.lives--; tookDamage = true; p.invincible = 100; p.vy = -7;
         p.vx = p.x < e.x+e.w/2 ? -5 : 5;
         spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF7043', 8);
       }
