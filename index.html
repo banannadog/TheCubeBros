@@ -86,6 +86,15 @@ const ENEMIES_INIT = [
 ];
 let enemies = ENEMIES_INIT.map(e => ({ ...e }));
 
+// ─── Audio ───────────────────────────────────────────────────────────────────
+const coinSound = new Audio('https://www.myinstants.com/media/sounds/mario_coin_sound.mp3');
+coinSound.volume = 0.5;
+function playCoinSound() {
+  const s = coinSound.cloneNode();
+  s.volume = 0.5;
+  s.play().catch(() => {});
+}
+
 // ─── Particles ───────────────────────────────────────────────────────────────
 const particles = [];
 function spawnParticles(x, y, color, n = 8) {
@@ -225,6 +234,7 @@ function update() {
         p.coins++;
         p.score += 100;
         spawnParticles(c.x + 8, c.y + 8, '#FDD835', 6);
+        playCoinSound();
         break;
       }
     }
