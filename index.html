@@ -278,7 +278,7 @@ const BADGE_DEFS = [
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
-  { id: 'explorer',  name: 'Explorer', badge: 'adventurer',  desc: 'Green backpack & brown vest' },
+  { id: 'explorer',  name: 'Explorer', badge: 'adventurer',  desc: 'Green backpack & brown suit' },
 ];
 // Computed after LEVEL_DATA is defined (see bottom of script init)
 let TOTAL_COINS_IN_GAME = 0;
@@ -1209,37 +1209,36 @@ function drawPlayerCube(p) {
     ctx.fillStyle = '#7A5C00'; ctx.fillRect(ex, py + ph - 2, pw, 2);
   }
 
-  // Explorer skin: green backpack + brown vest
+  // Explorer skin: green backpack + brown suit
   if (equippedSkin === 'explorer') {
     // Backpack (green, protrudes to the right of the cube)
     const bpW = Math.floor(pw * 0.45), bpH = Math.floor(ph * 0.55);
     const bpX = ex + pw - 2, bpY = py + Math.floor(ph * 0.18);
     ctx.fillStyle = '#388E3C'; ctx.fillRect(bpX, bpY, bpW, bpH);
-    ctx.fillStyle = '#2E7D32'; ctx.fillRect(bpX, bpY, 2, bpH);           // left shadow
-    ctx.fillStyle = '#43A047'; ctx.fillRect(bpX, bpY, bpW, 2);           // top highlight
-    ctx.fillStyle = '#1B5E20'; ctx.fillRect(bpX, bpY + bpH - 2, bpW, 2); // bottom trim
-    // Backpack strap detail
+    ctx.fillStyle = '#2E7D32'; ctx.fillRect(bpX, bpY, 2, bpH);            // left shadow
+    ctx.fillStyle = '#43A047'; ctx.fillRect(bpX, bpY, bpW, 2);            // top highlight
+    ctx.fillStyle = '#1B5E20'; ctx.fillRect(bpX, bpY + bpH - 2, bpW, 2);  // bottom trim
     ctx.fillStyle = '#1B5E20';
     ctx.fillRect(bpX + Math.floor(bpW * 0.35), bpY + Math.floor(bpH * 0.35), Math.floor(bpW * 0.3), 2);
 
-    // Brown vest (two side panels + collar strip over the cube body)
-    const vestTop  = py + Math.floor(ph * 0.2);
-    const vestBot  = py + ph;
-    const vestH    = vestBot - vestTop;
-    const panelW   = Math.floor(pw * 0.28);
-    // Left panel
-    ctx.fillStyle = '#6D4C41'; ctx.fillRect(ex, vestTop, panelW, vestH);
-    ctx.fillStyle = '#8D6E63'; ctx.fillRect(ex, vestTop, panelW, 2);
-    // Right panel (behind backpack, shorter)
-    ctx.fillStyle = '#6D4C41'; ctx.fillRect(ex + pw - panelW, vestTop, panelW - 2, vestH);
-    ctx.fillStyle = '#8D6E63'; ctx.fillRect(ex + pw - panelW, vestTop, panelW - 2, 2);
-    // Collar / top edge
-    ctx.fillStyle = '#5D4037'; ctx.fillRect(ex, vestTop, pw, 3);
-    // Button row down centre
-    ctx.fillStyle = '#4E342E';
-    for (let i = 0; i < 3; i++) {
-      ctx.fillRect(ex + Math.floor(pw * 0.45), vestTop + 4 + i * Math.floor(vestH * 0.28), 3, 3);
-    }
+    // Brown suit — full body coverage like the tycoon suit
+    const lapelY = Math.round(py + ph * 0.38);
+    const lapelH = Math.round(py + ph) - lapelY;
+    // Suit jacket (lower ~62%)
+    ctx.fillStyle = '#5D4037'; ctx.fillRect(ex, lapelY, pw, lapelH);
+    ctx.fillStyle = '#6D4C41'; ctx.fillRect(ex, lapelY, pw, 2);            // top highlight
+    // Lapels
+    ctx.fillStyle = '#8D6E63';
+    ctx.fillRect(ex + 1, lapelY, Math.floor(pw * 0.28), Math.floor(lapelH * 0.55));
+    ctx.fillRect(ex + pw - 1 - Math.floor(pw * 0.28), lapelY, Math.floor(pw * 0.28), Math.floor(lapelH * 0.55));
+    // Shirt / tie strip (cream)
+    ctx.fillStyle = '#EFEBE9';
+    ctx.fillRect(ex + Math.floor(pw * 0.38), lapelY, Math.floor(pw * 0.24), lapelH);
+    // Tie (dark brown)
+    ctx.fillStyle = '#3E2723';
+    ctx.fillRect(ex + Math.floor(pw * 0.44), lapelY + 2, Math.floor(pw * 0.12), Math.floor(lapelH * 0.7));
+    // Bottom trim
+    ctx.fillStyle = '#3E2723'; ctx.fillRect(ex, py + ph - 2, pw, 2);
   }
 }
 
