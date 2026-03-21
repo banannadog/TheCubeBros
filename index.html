@@ -416,7 +416,9 @@ function resolveY(ent) {
 function updatePlayer(p) {
   if (!p || p.lives <= 0) return;
   const wasBig = p.powerups.size > 0;
+  const wasSpeed = p.powerups.speed > 0;
   if (p.powerups.speed      > 0) p.powerups.speed--;
+  if (wasSpeed && p.powerups.speed === 0 && equippedSkin === 'murderer') jasonFlash = 25;
   if (p.powerups.size       > 0) p.powerups.size--;
   if (p.powerups.nightvision > 0) p.powerups.nightvision--;
   if (p.knifeSwing          > 0) p.knifeSwing--;
@@ -2076,9 +2078,10 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
   drawHUD();
-  // Fire Jason flash banner
-  if (jasonFlash > 0) {
-    const alpha = jasonFlash > 20 ? 1 : jasonFlash / 20;
+  // Fire Jason banner — visible while speed boost active, fades out after
+  const _jasonSpeedOn = equippedSkin === 'murderer' && ((player1 && player1.powerups.speed > 0) || (player2 && player2.powerups.speed > 0));
+  if (_jasonSpeedOn || jasonFlash > 0) {
+    const alpha = _jasonSpeedOn ? 1 : jasonFlash / 25;
     const scale = (jasonFlash <= 60 && jasonFlash > 50) ? 1 + (60 - jasonFlash) * 0.04 : 1;
     ctx.save();
     ctx.globalAlpha = alpha;
