@@ -301,6 +301,32 @@ function spawnParticles(x, y, color, n = 8) {
   }
 }
 
+const moneyTrail = [];
+function updateMoneyTrail() {
+  // Spawn
+  const active = [player1, player2].filter(p => p && p.lives > 0 && p.powerups.speed > 0);
+  for (const p of active) {
+    if (equippedSkin !== 'tycoon') continue;
+    if (tick % 3 !== 0) continue;
+    moneyTrail.push({
+      x: p.x + p.w * 0.5 + (p.facingRight ? -p.w * 0.7 : p.w * 0.7),
+      y: p.y + p.h * 0.2 + Math.random() * p.h * 0.5,
+      vx: (p.facingRight ? -1 : 1) * (0.8 + Math.random() * 1.5),
+      vy: -1.2 - Math.random() * 1.5,
+      life: 1,
+      decay: 0.022 + Math.random() * 0.014,
+      size: 9 + Math.random() * 5,
+    });
+  }
+  // Update
+  for (let i = moneyTrail.length - 1; i >= 0; i--) {
+    const m = moneyTrail[i];
+    m.x += m.vx; m.y += m.vy; m.vy += 0.08;
+    m.life -= m.decay;
+    if (m.life <= 0) moneyTrail.splice(i, 1);
+  }
+}
+
 // ─── Game State ──────────────────────────────────────────────────────────────
 let gameState  = 'select';  // 'select' | 'playing' | 'transition'
 let menuSel    = 0;
@@ -446,7 +472,7 @@ function startLevel(n) {
     };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
-  particles.length = 0;
+  particles.length = 0; moneyTrail.length = 0;
   gameState = 'playing';
 }
 
@@ -884,6 +910,7 @@ function update() {
     p.x += p.vx; p.y += p.vy; p.vy += 0.22; p.life -= p.decay;
     if (p.life <= 0) particles.splice(i, 1);
   }
+  updateMoneyTrail();
 
   // Camera
   let targetCam;
@@ -1530,7 +1557,15 @@ function drawParticles() {
     const s = p.size * p.life;
     ctx.fillStyle = p.color; ctx.fillRect(sx(p.x)-s/2, p.y-s/2, s, s);
   }
-  ctx.globalAlpha = 1;
+  // Money trail (Rich skin + speed boost)
+  for (const m of moneyTrail) {
+    ctx.globalAlpha = Math.max(0, m.life);
+    ctx.fillStyle = '#FFD700';
+    ctx.font = `bold ${Math.max(6, Math.floor(m.size * m.life + 4))}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('$', sx(m.x), m.y);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 
 // ─── HUD ─────────────────────────────────────────────────────────────────────
