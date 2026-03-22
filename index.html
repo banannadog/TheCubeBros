@@ -500,6 +500,8 @@ let boss = null;               // boss entity
 let bossKey = null;            // gold key pickup
 let doorsWithoutKey = 0;      // rooms entered before finding the key (level 4)
 let enemyKillCount  = parseInt(localStorage.getItem('cb_kills')  || '0'); // persists across sessions
+let robotKillCount  = parseInt(localStorage.getItem('cb_robot_kills') || '0');
+let robotSkinVariant = parseInt(localStorage.getItem('cb_robot_variant') || '0'); // 0=standard, 1=armored
 let gamesBeaten     = parseInt(localStorage.getItem('cb_wins')   || '0'); // times game fully beaten
 let totalCoinsEver  = parseInt(localStorage.getItem('cb_tcoins') || '0'); // lifetime coin count
 let ironDoor = null;           // iron door state
@@ -564,12 +566,14 @@ const BADGE_DEFS = [
   { id: 'mistakeshappen',    name: 'Mistakes Happen',          desc: 'Die on Level 1',                           color: '#78909C', icon: '🤦' },
   { id: 'nyctophobia',       name: 'Nyctophobia',              desc: 'Die on Level 3 without night vision',      color: '#1A237E', icon: '🌑' },
   { id: 'engineer',          name: 'Engineer',                 desc: 'Beat all four Mechanical Factory levels',  color: '#FF6F00', icon: '⚙' },
+  { id: 'robotdestroyer',    name: 'Robot Destroyer',          desc: 'Defeat 25 robot enemies',                   color: '#546E7A', icon: '🤖' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
   { id: 'explorer',  name: 'Explorer', badge: 'adventurer',  desc: 'Green backpack & brown suit' },
   { id: 'murderer',  name: 'Murderer', badge: 'murderer',    desc: 'Ki Ki Ki Ma Ma Ma' },
-  { id: 'mechanic',  name: 'Mechanic', badge: 'engineer',    desc: 'Orange hard hat & cosmetic hammer' },
+  { id: 'mechanic',  name: 'Mechanic', badge: 'engineer',       desc: 'Orange hard hat & cosmetic hammer' },
+  { id: 'robot',     name: 'R.O.B.O.T', badge: 'robotdestroyer', desc: 'You ARE the robot', hasVariant: true },
 ];
 const TRAIL_DEFS = [
   { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
@@ -1706,6 +1710,7 @@ function update() {
         p.score += 200;
         spawnParticles(e.x+e.w/2, e.y+e.h/2, '#E040FB', 12);
         enemyKillCount++; checkMurdererBadge();
+        if (currentAdventure === 1) { robotKillCount++; checkRobotDestroyerBadge(); }
         if (equippedSkin === 'murderer') p.knifeSwing = 24;
         break;
       } else if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
@@ -1718,6 +1723,7 @@ function update() {
         p.vy = -9; p.score += 200;
         spawnParticles(e.x+e.w/2, e.y+e.h/2, '#EF5350', 10);
         enemyKillCount++; checkMurdererBadge();
+        if (currentAdventure === 1) { robotKillCount++; checkRobotDestroyerBadge(); }
         break;
       } else {
         p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p); p.invincible = 100; p.vy = -7;
@@ -2558,8 +2564,88 @@ function drawPlayerCube(p) {
     ctx.fillStyle = '#90A4AE'; ctx.fillRect(hmrBaseX, hmrBaseY, 2, 9);      // left highlight
   }
 
-  // Face drawn on top — skip for murderer (mask replaces the face)
-  if (equippedSkin !== 'murderer') {
+  // R.O.B.O.T skin: player looks like a robot enemy
+  if (equippedSkin === 'robot') {
+    const fr = p.facingRight;
+    const armored = robotSkinVariant === 1;
+    if (armored) {
+      // Armored variant — override cube with dark steel
+      ctx.fillStyle = '#37474F'; ctx.fillRect(ex, py, pw, ph);
+      ctx.fillStyle = '#1C313A'; ctx.fillRect(ex+pw-3, py+3, 3, ph-3); ctx.fillRect(ex+3, py+ph-3, pw-3, 3);
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(ex+1, py+1, pw-4, 2); ctx.fillRect(ex+1, py+1, 2, ph-4);
+      // Shoulder plates
+      ctx.fillStyle = '#263238';
+      ctx.fillRect(ex - 4, py + 2, 5, ph * 0.45); ctx.fillRect(ex + pw - 1, py + 2, 5, ph * 0.45);
+      ctx.fillStyle = '#455A64';
+      ctx.fillRect(ex - 3, py + 3, 3, ph * 0.43); ctx.fillRect(ex + pw, py + 3, 3, ph * 0.43);
+      // Panel seams
+      ctx.fillStyle = '#1C313A';
+      ctx.fillRect(ex, py + ph*0.5, pw, 2); ctx.fillRect(ex + pw*0.5, py, 2, ph);
+      ctx.fillRect(ex, py + ph*0.25, pw, 1); ctx.fillRect(ex, py + ph*0.75, pw, 1);
+      // Hazard stripes
+      ctx.save();
+      ctx.beginPath(); ctx.rect(ex, py, pw, ph); ctx.clip();
+      ctx.fillStyle = '#E65100';
+      for (let s = -pw; s < pw * 2; s += 8) ctx.fillRect(ex + s, py + ph * 0.43, 4, ph * 0.14);
+      ctx.restore();
+      // Pulsing energy core
+      const pulse = 0.6 + Math.sin(tick * 0.15) * 0.4;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#FF6F00'; ctx.shadowColor = '#FF6F00'; ctx.shadowBlur = 10 * pulse;
+      ctx.fillRect(ex + pw*0.5 - 4, py + ph*0.38, 8, 8);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      // Rivets
+      ctx.fillStyle = '#78909C';
+      for (const [rx,ry] of [[ex+3,py+3],[ex+pw-6,py+3],[ex+3,py+ph-6],[ex+pw-6,py+ph-6],[ex+3,py+ph*0.5-1],[ex+pw-6,py+ph*0.5-1],[ex+pw*0.5-1,py+3],[ex+pw*0.5-1,py+ph-6]])
+        { ctx.beginPath(); ctx.arc(rx, ry, 2, 0, Math.PI*2); ctx.fill(); }
+      // Dual antennas
+      ctx.fillStyle = '#546E7A';
+      ctx.fillRect(ex + pw*0.3 - 1, py - 9, 2, 9); ctx.fillRect(ex + pw*0.7 - 1, py - 9, 2, 9);
+      ctx.fillStyle = '#FF1744'; ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(ex + pw*0.3, py - 10, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + pw*0.7, py - 10, 3, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      // Eyes (wide red)
+      const eyeYa = py + ph * 0.26;
+      ctx.fillStyle = '#FF1744';
+      if (fr) { ctx.fillRect(ex+pw*0.50, eyeYa, 7, 5); ctx.fillRect(ex+pw*0.72, eyeYa, 7, 5); }
+      else    { ctx.fillRect(ex+pw*0.12, eyeYa, 7, 5); ctx.fillRect(ex+pw*0.34, eyeYa, 7, 5); }
+      // Grille
+      ctx.fillStyle = '#0D1F26';
+      const grYa = py + ph*0.58;
+      if (fr) { for (let i=0; i<5; i++) ctx.fillRect(ex+pw*.48+i*4, grYa, 3, 5); }
+      else    { for (let i=0; i<5; i++) ctx.fillRect(ex+pw*.08+i*4, grYa, 3, 5); }
+    } else {
+      // Standard robot variant
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(ex, py, pw, ph);
+      ctx.fillStyle = '#37474F'; ctx.fillRect(ex+pw-3, py+3, 3, ph-3); ctx.fillRect(ex+3, py+ph-3, pw-3, 3);
+      ctx.fillStyle = '#78909C'; ctx.fillRect(ex+1, py+1, pw-4, 2); ctx.fillRect(ex+1, py+1, 2, ph-4);
+      // Panel seams
+      ctx.fillStyle = '#37474F';
+      ctx.fillRect(ex, py + ph*0.5, pw, 2); ctx.fillRect(ex + pw*0.5, py, 2, ph);
+      // Corner rivets
+      ctx.fillStyle = '#90A4AE';
+      for (const [rx,ry] of [[ex+3,py+3],[ex+pw-6,py+3],[ex+3,py+ph-6],[ex+pw-6,py+ph-6]])
+        { ctx.beginPath(); ctx.arc(rx, ry, 2, 0, Math.PI*2); ctx.fill(); }
+      // Antenna
+      ctx.fillStyle = '#607D8B'; ctx.fillRect(ex + pw*0.5 - 1, py - 6, 2, 6);
+      ctx.fillStyle = '#FF1744';
+      ctx.beginPath(); ctx.arc(ex + pw*0.5, py - 7, 2.5, 0, Math.PI*2); ctx.fill();
+      // Eyes
+      const eyeYs = py + ph * 0.28;
+      ctx.fillStyle = '#FF1744';
+      if (fr) { ctx.fillRect(ex+pw*0.52, eyeYs, 5, 4); ctx.fillRect(ex+pw*0.73, eyeYs, 5, 4); }
+      else    { ctx.fillRect(ex+pw*0.15, eyeYs, 5, 4); ctx.fillRect(ex+pw*0.36, eyeYs, 5, 4); }
+      // Grille
+      ctx.fillStyle = '#263238';
+      const grYs = py + ph*0.58;
+      if (fr) { for (let i=0; i<4; i++) ctx.fillRect(ex+pw*.52+i*5, grYs, 3, 5); }
+      else    { for (let i=0; i<4; i++) ctx.fillRect(ex+pw*.12+i*5, grYs, 3, 5); }
+    }
+  }
+
+  // Face drawn on top — skip for murderer or robot (they have their own eyes)
+  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot') {
     const eyeY = py + Math.floor(ph*0.28);
     ctx.fillStyle = '#000';
     if (p.facingRight) {
@@ -2591,6 +2677,14 @@ function checkMurdererBadge() {
     badges.add('murderer');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Murderer', timer: 240 };
+  }
+}
+function checkRobotDestroyerBadge() {
+  localStorage.setItem('cb_robot_kills', robotKillCount);
+  if (robotKillCount >= 25 && !badges.has('robotdestroyer')) {
+    badges.add('robotdestroyer');
+    localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Robot Destroyer', timer: 240 };
   }
 }
 function checkMistakesBadge() {
@@ -3292,6 +3386,53 @@ function drawSkinsPanel() {
       ctx.fillStyle = '#6D4C41'; ctx.fillRect(kx - 1, ky, 4, 1);
     }
 
+    if (unlocked && skin.id === 'robot') {
+      const armored = robotSkinVariant === 1;
+      // Override cube color
+      ctx.fillStyle = armored ? '#37474F' : '#546E7A'; ctx.fillRect(mpx, mpy, sz, sz);
+      ctx.fillStyle = armored ? '#1C313A' : '#37474F';
+      ctx.fillRect(mpx+sz-2, mpy+2, 2, sz-2); ctx.fillRect(mpx+2, mpy+sz-2, sz-2, 2);
+      ctx.fillStyle = armored ? '#546E7A' : '#78909C';
+      ctx.fillRect(mpx+1, mpy+1, sz-3, 2); ctx.fillRect(mpx+1, mpy+1, 2, sz-3);
+      // Panel seam
+      ctx.fillStyle = armored ? '#1C313A' : '#37474F';
+      ctx.fillRect(mpx, mpy+sz*0.5, sz, 1); ctx.fillRect(mpx+sz*0.5, mpy, 1, sz);
+      if (armored) {
+        // Hazard stripe
+        ctx.save(); ctx.beginPath(); ctx.rect(mpx, mpy, sz, sz); ctx.clip();
+        ctx.fillStyle = '#E65100';
+        for (let s = -sz; s < sz*2; s += 6) ctx.fillRect(mpx+s, mpy+sz*0.43, 3, sz*0.14);
+        ctx.restore();
+        // Energy core
+        const p2 = 0.6 + Math.sin(tick*0.15)*0.4;
+        ctx.globalAlpha = p2; ctx.fillStyle = '#FF6F00';
+        ctx.fillRect(mpx+sz*0.5-3, mpy+sz*0.38, 6, 6);
+        ctx.globalAlpha = 1;
+        // Dual antennas
+        ctx.fillStyle = '#546E7A';
+        ctx.fillRect(mpx+sz*0.3-1, mpy-5, 1, 5); ctx.fillRect(mpx+sz*0.7-1, mpy-5, 1, 5);
+        ctx.fillStyle = '#FF1744';
+        ctx.beginPath(); ctx.arc(mpx+sz*0.3, mpy-6, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(mpx+sz*0.7, mpy-6, 2, 0, Math.PI*2); ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#FF1744';
+        ctx.fillRect(mpx+sz*0.50, mpy+sz*0.26, 4, 3); ctx.fillRect(mpx+sz*0.72, mpy+sz*0.26, 4, 3);
+      } else {
+        // Single antenna
+        ctx.fillStyle = '#607D8B'; ctx.fillRect(mpx+sz*0.5-1, mpy-5, 1, 5);
+        ctx.fillStyle = '#FF1744';
+        ctx.beginPath(); ctx.arc(mpx+sz*0.5, mpy-6, 2, 0, Math.PI*2); ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#FF1744';
+        ctx.fillRect(mpx+sz*0.52, mpy+sz*0.28, 3, 2); ctx.fillRect(mpx+sz*0.73, mpy+sz*0.28, 3, 2);
+      }
+      // Variant label under preview
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = armored ? '#FF6F00' : '#78909C'; ctx.font = '7px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(armored ? 'ARMORED' : 'STANDARD', mpx + sz/2, mpy + sz + 9);
+      ctx.globalAlpha = 1;
+    }
+
     if (unlocked && skin.id === 'mechanic') {
       // Mini brim
       ctx.fillStyle = '#1A1A1A'; ctx.fillRect(mpx - 3, mpy - 2, sz + 6, 2);
@@ -3337,8 +3478,19 @@ function drawSkinsPanel() {
       ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
       ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
       ctx.fillText(equipped ? 'UNEQUIP' : 'EQUIP', bx + bw / 2, by + 12);
-      // Store button bounds for click detection (reuse last frame bounds is fine)
       skin._btn = { x: bx, y: by, w: bw, h: bh };
+      // Variant button for robot skin
+      if (skin.hasVariant) {
+        const vx = bx - 72, vw = 68;
+        const isArmored = robotSkinVariant === 1;
+        ctx.fillStyle = isArmored ? '#37474F' : '#1A2A30';
+        ctx.fillRect(vx, by, vw, bh);
+        ctx.strokeStyle = isArmored ? '#FF6F00' : '#546E7A'; ctx.lineWidth = 1;
+        ctx.strokeRect(vx + 0.5, by + 0.5, vw - 1, bh - 1);
+        ctx.fillStyle = isArmored ? '#FF6F00' : '#90A4AE'; ctx.font = 'bold 7px monospace';
+        ctx.fillText(isArmored ? '⚙ ARMORED' : '⚙ STANDARD', vx + vw / 2, by + 12);
+        skin._varBtn = { x: vx, y: by, w: vw, h: bh };
+      }
     }
   });
 
@@ -4333,6 +4485,11 @@ canvas.addEventListener('click', e => {
   // Skin equip/unequip buttons (only when panel open)
   if (skinsPanelOpen) {
     for (const skin of SKIN_DEFS) {
+      if (skin._varBtn && inBtn(skin._varBtn)) {
+        robotSkinVariant = robotSkinVariant === 0 ? 1 : 0;
+        localStorage.setItem('cb_robot_variant', robotSkinVariant);
+        return;
+      }
       if (skin._btn && inBtn(skin._btn)) {
         equippedSkin = equippedSkin === skin.id ? null : skin.id;
         if (equippedSkin) localStorage.setItem('cb_skin', equippedSkin);
