@@ -1686,6 +1686,17 @@ function update() {
       e.vx *= -1;
       e.x = Math.max(e.patrolStart, Math.min(e.x, e.patrolEnd - e.w));
     }
+    // Generator door blocks enemies
+    for (const gen of generators) {
+      if (gen.solved) continue;
+      const doorH = GROUND_Y * (1 - gen.doorAnim);
+      if (doorH <= 2) continue;
+      const dX = gen.doorX, dW = 24;
+      if (e.y < doorH && e.x + e.w > dX && e.x < dX + dW) {
+        if (e.vx > 0) { e.x = dX - e.w; } else { e.x = dX + dW; }
+        e.vx *= -1;
+      }
+    }
     for (const p of active) {
       if (p.invincible > 0 || !overlap(p.x,p.y,p.w,p.h,e.x,e.y,e.w,e.h)) continue;
       const needHammer = currentAdventure === 1 && currentLevel === 2 && !p.hasHammer;
