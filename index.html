@@ -49,11 +49,11 @@ document.addEventListener('keyup', e => { keys[e.code] = false; });
 const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 const touch = { left: false, right: false, jump: false, interact: false, menu: false };
 const TOUCH_BTNS = {
-  left:     { x: 12,  y: 368, w: 62, h: 58, label: '◀' },
-  right:    { x: 84,  y: 368, w: 62, h: 58, label: '▶' },
-  menu:     { x: 369, y: 390, w: 62, h: 36, label: 'MENU' },
-  interact: { x: 650, y: 368, w: 62, h: 58, label: 'USE' },
-  jump:     { x: 722, y: 368, w: 62, h: 58, label: '▲' },
+  left:     { x: 12,  y: 328, w: 62, h: 58, label: '◀' },
+  right:    { x: 84,  y: 328, w: 62, h: 58, label: '▶' },
+  menu:     { x: 369, y: 350, w: 62, h: 36, label: 'MENU' },
+  interact: { x: 650, y: 328, w: 62, h: 58, label: 'USE' },
+  jump:     { x: 722, y: 328, w: 62, h: 58, label: '▲' },
 };
 function updateTouchState(e) {
   e.preventDefault();
