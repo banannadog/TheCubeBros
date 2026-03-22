@@ -3851,20 +3851,38 @@ function drawTransition() {
     ctx.fillStyle=color; ctx.font='bold 12px monospace';
     ctx.fillText(label, cx+15, cy+40);
   }
-  if (nextLvl === 2) {
-    ctx.fillStyle='#AAA'; ctx.font='13px monospace';
-    ctx.fillText('Collect chests in Level 2 for powerups!', W/2, H/2+62);
-    miniChest(W/2-70, H/2+72, '#FFE082', '⚡ Speed');
-    miniChest(W/2+20, H/2+72, '#CE93D8', '★ Size');
-  } else if (nextLvl === 3) {
-    ctx.fillStyle='#AAA'; ctx.font='13px monospace';
-    ctx.fillText('Level 3: It\'s midnight! Find night vision!', W/2, H/2+62);
-    miniChest(W/2-15, H/2+72, '#00E5FF', 'NV NightVis');
+  if (currentAdventure === 1) {
+    // Mechanical Factory hints
+    if (nextLvl === 2) {
+      ctx.fillStyle='#AAA'; ctx.font='13px monospace';
+      ctx.fillText('Level 2: Dodge laser balls and hit the stop button!', W/2, H/2+62);
+    } else if (nextLvl === 3) {
+      ctx.fillStyle='#FF8F00'; ctx.font='13px monospace';
+      ctx.fillText('Level 3: Armored robots ahead! Find the HAMMER!', W/2, H/2+62);
+      miniChest(W/2-15, H/2+72, '#FF6F00', '🔨 Hammer');
+    } else {
+      ctx.fillStyle='#EF9A9A'; ctx.font='13px monospace';
+      ctx.fillText('Level 4: Defeat the Factory Commander!', W/2, H/2+62);
+      ctx.fillStyle='#FFD700'; ctx.font='bold 13px monospace';
+      ctx.fillText('Stomp on it to damage it', W/2, H/2+82);
+    }
   } else {
-    ctx.fillStyle='#EF9A9A'; ctx.font='13px monospace';
-    ctx.fillText('Level 4: The Castle! Find the KEY, defeat the KING!', W/2, H/2+62);
-    ctx.fillStyle='#FFD700'; ctx.font='bold 13px monospace';
-    ctx.fillText('Dodge 3 sword swings — pick up his sword — slash him!', W/2, H/2+82);
+    // Cube Kingdom hints
+    if (nextLvl === 2) {
+      ctx.fillStyle='#AAA'; ctx.font='13px monospace';
+      ctx.fillText('Collect chests in Level 2 for powerups!', W/2, H/2+62);
+      miniChest(W/2-70, H/2+72, '#FFE082', '⚡ Speed');
+      miniChest(W/2+20, H/2+72, '#CE93D8', '★ Size');
+    } else if (nextLvl === 3) {
+      ctx.fillStyle='#AAA'; ctx.font='13px monospace';
+      ctx.fillText('Level 3: It\'s midnight! Find night vision!', W/2, H/2+62);
+      miniChest(W/2-15, H/2+72, '#00E5FF', 'NV NightVis');
+    } else {
+      ctx.fillStyle='#EF9A9A'; ctx.font='13px monospace';
+      ctx.fillText('Level 4: The Castle! Find the KEY, defeat the KING!', W/2, H/2+62);
+      ctx.fillStyle='#FFD700'; ctx.font='bold 13px monospace';
+      ctx.fillText('Dodge 3 sword swings — pick up his sword — slash him!', W/2, H/2+82);
+    }
   }
   ctx.textAlign='left';
 }
