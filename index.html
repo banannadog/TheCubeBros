@@ -4,9 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>The Cube Bros</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; font-family: 'Press Start 2P', monospace; }
     canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
   </style>
 </head>
@@ -16,6 +19,15 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const W = 800, H = 450;
+
+// Redirect all ctx.font assignments to use the pixel font automatically
+(function() {
+  const _fontDesc = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'font');
+  Object.defineProperty(ctx, 'font', {
+    get() { return _fontDesc.get.call(this); },
+    set(val) { _fontDesc.set.call(this, val.replace(/monospace/g, "'Press Start 2P', monospace")); }
+  });
+})();
 
 function resizeCanvas() {
   const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
