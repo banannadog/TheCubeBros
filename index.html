@@ -2629,6 +2629,8 @@ function advanceGenStage() {
   if (next >= 5) {
     generators[activeGenIdx].solved = true;
     generatorOpen = false; activeGenIdx = null;
+    // 2 seconds of invincibility for completing the generator
+    for (const p of [player1, player2]) { if (p) p.invincible = 120; }
   } else {
     genNextStage = next; genTransition = true; genTransTimer = 70;
   }
