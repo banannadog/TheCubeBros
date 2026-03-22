@@ -520,6 +520,7 @@ let mfBossCutsceneTimer = 0;
 let mfBossScreenFlash = 0; // flash brightness on impact
 let bossLasers = [];          // projectiles fired by MF boss
 let mfVictoryCutscene = null; // MF win animation state
+let mfVictoryDoor = null;     // door that appears after beating Factory Commander
 let jasonFlash = 0;           // frames remaining for "MAKE THEM REMEMBER" flash
 let equippedSkin  = localStorage.getItem('cb_skin')  || null;
 let equippedTrail = localStorage.getItem('cb_trail') || null;
@@ -651,7 +652,7 @@ function startLevel(n) {
   mfRunTimer = 0; laserBalls = []; laserBallTimer = 0; mfStopButton = null;
   mfLasersActive = (currentAdventure === 1 && currentLevel === 1);
   // MF Level 4 — Boss Arena init
-  mfBoss = null; mfBossCutsceneDone = false; mfBossCutscenePhase = 'walk'; mfBossCutsceneTimer = 0; mfBossScreenFlash = 0; bossLasers = [];
+  mfBoss = null; mfBossCutsceneDone = false; mfBossCutscenePhase = 'walk'; mfBossCutsceneTimer = 0; mfBossScreenFlash = 0; bossLasers = []; mfVictoryDoor = null;
   if (currentAdventure === 1 && currentLevel === 3) {
     const bossX = 860 / 2 - 34; // center of arena
     mfBoss = { x: bossX, y: -80, w: 68, h: 68, hp: 4, maxHp: 4, vy: 0, targetY: GROUND_Y - 230,
@@ -1704,7 +1705,18 @@ function update() {
   // MF Level 4: boss arena
   if (currentAdventure === 1 && currentLevel === 3) {
     updateMFBoss();
-    if (mfBoss && mfBoss.phase === 'dead' && gameState === 'playing') startMFVictoryCutscene();
+    // Spawn victory door the moment boss is defeated
+    if (mfBoss && mfBoss.phase === 'dead' && !mfVictoryDoor) {
+      mfVictoryDoor = { x: 860 / 2 - 14, y: GROUND_Y - 50, w: 28, h: 50 };
+    }
+    // Player walks through the door → play cutscene
+    if (mfVictoryDoor && gameState === 'playing') {
+      for (const p of [player1, player2].filter(Boolean)) {
+        if (p.lives > 0 && overlap(p.x-4, p.y, p.w+8, p.h, mfVictoryDoor.x, mfVictoryDoor.y, mfVictoryDoor.w, mfVictoryDoor.h)) {
+          startMFVictoryCutscene(); break;
+        }
+      }
+    }
   }
 
   // Level 4: door interaction, key collection, boss (CK only)
@@ -3853,6 +3865,41 @@ function drawVictoryDoor() {
   ctx.textAlign = 'left';
 }
 
+function drawMFVictoryDoor() {
+  if (!mfVictoryDoor) return;
+  const d = mfVictoryDoor;
+  const dx = sx(d.x), dy = d.y, dw = d.w, dh = d.h;
+  if (dx + dw < -10 || dx > W + 10) return;
+  const pulse = 0.7 + Math.sin(tick * 0.12) * 0.3;
+  // Steel frame
+  ctx.fillStyle = '#37474F'; ctx.fillRect(dx - 3, dy - 3, dw + 6, dh + 6);
+  // Orange glowing door body
+  ctx.shadowColor = '#FF6F00'; ctx.shadowBlur = 18 * pulse;
+  ctx.fillStyle = '#BF360C'; ctx.fillRect(dx, dy, dw, dh);
+  // Orange panel highlights
+  ctx.fillStyle = '#FF6F00';
+  ctx.fillRect(dx + 3, dy + 4, dw - 6, Math.floor(dh / 2) - 6);
+  ctx.fillRect(dx + 3, dy + Math.floor(dh / 2) + 2, dw - 6, Math.floor(dh / 2) - 6);
+  // Rivet dots
+  ctx.fillStyle = '#546E7A';
+  ctx.fillRect(dx + 2, dy + 2, 3, 3); ctx.fillRect(dx + dw - 5, dy + 2, 3, 3);
+  ctx.fillRect(dx + 2, dy + dh - 5, 3, 3); ctx.fillRect(dx + dw - 5, dy + dh - 5, 3, 3);
+  // Handle
+  ctx.fillStyle = '#FF8F00'; ctx.fillRect(dx + dw - 8, dy + Math.floor(dh / 2) - 3, 5, 5);
+  ctx.shadowBlur = 0;
+  // Label
+  ctx.fillStyle = '#FF6F00'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('EXIT', dx + dw / 2, dy - 5);
+  const near = [player1, player2].some(p =>
+    p && p.lives > 0 && Math.abs((p.x + p.w / 2) - (d.x + dw / 2)) < 55
+  );
+  if (near) {
+    ctx.fillStyle = '#FFF'; ctx.font = 'bold 8px monospace';
+    ctx.fillText('[WALK IN]', dx + dw / 2, dy - 16);
+  }
+  ctx.textAlign = 'left';
+}
+
 function drawBossKey() {
   if (!bossKey || bossKey.collected) return;
   const kx = sx(bossKey.x); if (kx < -30 || kx > W+30) return;
@@ -4009,7 +4056,7 @@ function draw() {
   if (currentAdventure === 1 && currentLevel === 1) { drawLaserBalls(); drawMFStopButton(); }
   drawEnemies();
   if (currentAdventure === 0 && currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); }
-  if (currentAdventure === 1 && currentLevel === 3) { drawBossLasers(); drawMFBoss(); drawMFBossIntroOverlay(); }
+  if (currentAdventure === 1 && currentLevel === 3) { drawBossLasers(); drawMFBoss(); drawMFVictoryDoor(); drawMFBossIntroOverlay(); }
   drawPlayerCube(player1); drawPlayerCube(player2);
   if (currentLevel === 3) drawPlayerSword();
   drawParticles();
