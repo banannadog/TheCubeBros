@@ -25,7 +25,7 @@ const W = 800, H = 450;
   const _fontDesc = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'font');
   Object.defineProperty(ctx, 'font', {
     get() { return _fontDesc.get.call(this); },
-    set(val) { _fontDesc.set.call(this, val.replace(/monospace/g, "'Press Start 2P', monospace")); }
+    set(val) { _fontDesc.set.call(this, val.replace(/(\d+(\.\d+)?)px/g, (_, n) => (Math.round(parseFloat(n) * 0.75)) + 'px').replace(/monospace/g, "'Press Start 2P', monospace")); }
   });
 })();
 
