@@ -3287,7 +3287,7 @@ function drawBadgesPanel() {
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillText(b.name, px + 46, ry + 18);
     ctx.fillStyle = earned ? '#CCC' : '#444';
-    ctx.font = '8px monospace';
+    ctx.font = (b.id === 'engineer' || b.id === 'invincible') ? '6px monospace' : '8px monospace';
     ctx.fillText(b.desc, px + 46, ry + 30);
     if (earned) {
       ctx.fillStyle = '#4CAF50'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'right';
