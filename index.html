@@ -437,6 +437,8 @@ const BADGE_DEFS = [
   { id: 'invincible',     name: 'Invincible',     desc: 'Beat all four levels without taking damage', color: '#00BCD4', icon: '🛡' },
   { id: 'indestructible',    name: 'Indestructible',          desc: 'Beat all four levels on Hard mode',        color: '#FF6F00', icon: '💪' },
   { id: 'deathsdoor',        name: "Knocking on Death's Door", desc: 'Win the game with only 1 life left',       color: '#9C27B0', icon: '💀' },
+  { id: 'mistakeshappen',    name: 'Mistakes Happen',          desc: 'Die on Level 1',                           color: '#78909C', icon: '🤦' },
+  { id: 'nyctophobia',       name: 'Nyctophobia',              desc: 'Die on Level 3 without night vision',      color: '#1A237E', icon: '🌑' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -603,7 +605,7 @@ function updatePlayer(p) {
   p.y += p.vy;
   resolveY(p);
   if (p.y > H + 100) {
-    p.lives--; tookDamage = true;
+    p.lives--; tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p);
     if (p.lives <= 0) return;
     p.x = Math.max(60, camX + 40);
     p.y = GROUND_Y - p.h - 10;
@@ -651,7 +653,7 @@ function updateBoss(active) {
         if (p.invincible > 0) continue;
         if (overlap(swordX, boss.y+18, 38, 14, p.x, p.y, p.w, p.h)) {
           if (difficulty === 'hard') p.lives = 0; else p.lives--;
-          tookDamage = true; p.invincible = 100; p.vy = -7;
+          tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p); p.invincible = 100; p.vy = -7;
           p.vx = p.x < boss.x + boss.w/2 ? -5 : 5;
           spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF4444', 10);
         }
@@ -938,7 +940,7 @@ function update() {
         enemyKillCount++; checkMurdererBadge();
         break;
       } else {
-        p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true; p.invincible = 100; p.vy = -7;
+        p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p); p.invincible = 100; p.vy = -7;
         p.vx = p.x < e.x+e.w/2 ? -5 : 5;
         spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF7043', 8);
       }
@@ -1599,6 +1601,20 @@ function checkMurdererBadge() {
     badges.add('murderer');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Murderer', timer: 240 };
+  }
+}
+function checkMistakesBadge() {
+  if (currentLevel === 0 && !badges.has('mistakeshappen')) {
+    badges.add('mistakeshappen');
+    localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Mistakes Happen', timer: 240 };
+  }
+}
+function checkNyctophobiaBadge(p) {
+  if (currentLevel === 2 && p.powerups.nightvision === 0 && !badges.has('nyctophobia')) {
+    badges.add('nyctophobia');
+    localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Nyctophobia', timer: 240 };
   }
 }
 
