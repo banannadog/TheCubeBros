@@ -47,12 +47,13 @@ document.addEventListener('keyup', e => { keys[e.code] = false; });
 
 // ─── Mobile Touch Controls ───────────────────────────────────────────────────
 const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-const touch = { left: false, right: false, jump: false, interact: false };
+const touch = { left: false, right: false, jump: false, interact: false, menu: false };
 const TOUCH_BTNS = {
-  left:     { x: 12,  y: 415, w: 62, h: 58, label: '◀' },
-  right:    { x: 84,  y: 415, w: 62, h: 58, label: '▶' },
-  interact: { x: 650, y: 415, w: 62, h: 58, label: 'USE' },
-  jump:     { x: 722, y: 415, w: 62, h: 58, label: '▲' },
+  left:     { x: 12,  y: 368, w: 62, h: 58, label: '◀' },
+  right:    { x: 84,  y: 368, w: 62, h: 58, label: '▶' },
+  menu:     { x: 369, y: 390, w: 62, h: 36, label: 'MENU' },
+  interact: { x: 650, y: 368, w: 62, h: 58, label: 'USE' },
+  jump:     { x: 722, y: 368, w: 62, h: 58, label: '▲' },
 };
 function updateTouchState(e) {
   e.preventDefault();
@@ -69,8 +70,13 @@ function updateTouchState(e) {
     // Menu card selection on touch
     const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
     if (gameState === 'select') {
-      if (tx >= c1X && tx <= c1X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); pendingPlayers=1; gameState='difficulty'; menuSel=0; }
-      if (tx >= c2X && tx <= c2X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); pendingPlayers=2; gameState='difficulty'; menuSel=0; }
+      if (tx >= c1X && tx <= c1X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); pendingPlayers=1; gameState='adventure'; menuSel=0; }
+      if (tx >= c2X && tx <= c2X+cW && ty >= cY && ty <= cY+cH) { playTacoBell(); pendingPlayers=2; gameState='adventure'; menuSel=0; }
+    }
+    if (gameState === 'adventure') {
+      const ac1X = W/2 - 220 - 20, ac2X = W/2 + 20, acY = 148, acW = 220, acH = 200;
+      if (tx >= ac1X && tx <= ac1X+acW && ty >= acY && ty <= acY+acH) { currentAdventure=0; playTacoBell(); gameState='difficulty'; menuSel=0; }
+      if (badges.has('adventurer') && tx >= ac2X && tx <= ac2X+acW && ty >= acY && ty <= acY+acH) { currentAdventure=1; playTacoBell(); gameState='difficulty'; menuSel=0; }
     }
     if (gameState === 'difficulty') {
       if (tx >= c1X && tx <= c1X+cW && ty >= cY && ty <= cY+cH) { difficulty='easy'; playTacoBell(); initGame(pendingPlayers); }
@@ -83,19 +89,24 @@ canvas.addEventListener('touchmove',  updateTouchState, { passive: false });
 canvas.addEventListener('touchend',   updateTouchState, { passive: false });
 
 function drawTouchControls() {
-  if (!isMobile || (gameState !== 'playing' && gameState !== 'cutscene')) return;
+  if (!isMobile) return;
+  const showAll = gameState === 'playing' || gameState === 'cutscene' || gameState === 'mfcutscene';
   for (const [key, btn] of Object.entries(TOUCH_BTNS)) {
+    // MENU button shows whenever a game is active; movement buttons only during gameplay
+    if (key !== 'menu' && !showAll) continue;
+    if (key === 'menu' && gameState === 'select') continue;
     const active = touch[key];
-    ctx.globalAlpha = active ? 0.75 : 0.35;
-    ctx.fillStyle = active ? '#00E5FF' : '#334';
+    const isMenu = key === 'menu';
+    ctx.globalAlpha = active ? 0.85 : 0.4;
+    ctx.fillStyle = active ? (isMenu ? '#FF6F00' : '#00E5FF') : (isMenu ? '#3A1800' : '#334');
     ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
-    ctx.strokeStyle = '#00E5FF'; ctx.lineWidth = 2;
+    ctx.strokeStyle = isMenu ? '#FF6F00' : '#00E5FF'; ctx.lineWidth = 2;
     ctx.strokeRect(btn.x + 1, btn.y + 1, btn.w - 2, btn.h - 2);
-    ctx.globalAlpha = active ? 1 : 0.7;
-    ctx.fillStyle = active ? '#000' : '#00E5FF';
-    ctx.font = 'bold ' + (btn.label === 'USE' ? '11' : '18') + 'px monospace';
+    ctx.globalAlpha = active ? 1 : 0.75;
+    ctx.fillStyle = active ? '#000' : (isMenu ? '#FF6F00' : '#00E5FF');
+    ctx.font = 'bold ' + (btn.label === 'USE' || btn.label === 'MENU' ? '10' : '18') + 'px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
+    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2 + (isMenu ? 4 : 6));
     ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
   }
@@ -292,6 +303,74 @@ const LEVEL_DATA = [
   },
 ];
 
+// ─── Mechanical Factory override levels (null = use LEVEL_DATA) ──────────────
+const MF_LEVEL_DATA = [
+  null, // Level 1: shared with Cube Kingdom (robot skin applied via draw)
+  // Level 2: Laser Run — open factory floor designed for dodging
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      [200,350,90,12],[420,300,90,12],[640,355,90,12],[860,305,100,12],
+      [1080,350,90,12],[1300,295,100,12],[1500,345,90,12],[1700,300,100,12],
+      [1900,355,90,12],[2100,295,100,12],[2310,348,90,12],[2510,300,100,12],
+      [2710,352,90,12],[2910,298,100,12],[3110,348,90,12],[3290,305,90,12],
+    ],
+    rawCoins: [
+      [220,320],[440,270],[660,325],[880,275],[1100,320],[1320,265],
+      [1520,315],[1720,270],[1920,325],[2120,265],[2330,318],[2530,270],
+      [2730,322],[2930,268],[3130,318],[3310,275],
+      [100,388],[600,388],[1150,388],[1750,388],[2350,388],[2900,388],
+    ],
+    enemies: [],
+    chests: [],
+  },
+  // Level 3: MF version — same layout, hammer chest replaces NV chest
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      [150,355,80,12],[310,308,80,12],[500,268,80,12],[690,318,70,12],
+      [880,358,60,12],[1020,306,70,12],[1170,263,70,12],
+      [1330,296,80,12],
+      [1490,348,60,12],
+      [1640,363,60,12],[1730,328,60,12],[1820,293,60,12],[1920,253,80,12],[2020,213,80,12],
+      [2200,343,100,12],[2380,296,80,12],[2530,343,70,12],[2660,288,100,12],
+      [2830,328,56,12],[2950,273,56,12],[3070,328,56,12],[3190,263,72,12],[3310,328,90,12],
+    ],
+    rawCoins: [
+      [180,323],[250,323],[340,276],[372,276],[530,236],[562,236],[720,286],
+      [910,326],[1050,274],[1200,231],[1360,264],[1520,316],
+      [1670,331],[1760,296],[1850,261],[1950,221],[2050,181],
+      [2230,311],[2262,311],[2410,264],[2560,311],[2690,256],
+      [2860,296],[2980,241],[3100,296],[3220,231],[3340,296],
+    ],
+    enemies: [
+      mkE(480,GROUND_Y-26,300,660,2.6),   mkE(900,GROUND_Y-26,740,1060,2.6),
+      mkE(1360,GROUND_Y-26,1200,1560,2.6),mkE(1860,GROUND_Y-26,1700,2060,2.6),
+      mkE(2360,GROUND_Y-26,2200,2560,2.9),mkE(2810,GROUND_Y-26,2660,2970,2.9),
+      mkE(3260,GROUND_Y-26,3110,3460,2.9),
+      mkE(1170,263-26,1150,1240,2.0),
+      mkE(2020,213-26,2000,2100,2.0),
+      mkE(2670,288-26,2660,2760,2.1),
+    ],
+    // Hammer chest on platform [310,308,80,12]
+    chests: [
+      { x: 326, y: 280, w: 32, h: 28, type: 'hammer' },
+    ],
+  },
+  // Level 4: Boss Arena — small contained factory room
+  {
+    levelWidth: 860,
+    platforms: [
+      [0, GROUND_Y, 860, 40],
+      [160, 330, 100, 12],
+      [600, 330, 100, 12],
+    ],
+    rawCoins: [],
+    enemies: [],
+    chests: [],
+  },
+];
+
 // ─── Mutable level state ──────────────────────────────────────────────────────
 let platforms, coins, enemies, chests;
 
@@ -372,11 +451,45 @@ function updateMoneyTrail() {
 }
 
 // ─── Game State ──────────────────────────────────────────────────────────────
-let gameState     = 'select';  // 'select' | 'difficulty' | 'playing' | 'transition'
-let menuSel       = 0;
-let numPlayers    = 1;
-let difficulty    = 'easy';   // 'easy' | 'hard'
+let gameState        = 'select';  // 'select' | 'adventure' | 'difficulty' | 'playing' | 'transition'
+let menuSel          = 0;
+let numPlayers       = 1;
+let difficulty       = 'easy';   // 'easy' | 'hard'
+let currentAdventure = 0;        // 0 = Cube Kingdom, 1 = Mechanical Factory
 let pendingPlayers = 1;
+// ── Generator / Door (Mechanical Factory) ─────────────────────────────────────
+let generators     = [];
+let generatorOpen  = false;
+let activeGenIdx   = null;
+const MF_GEN_DEFS  = [
+  { gx: 1290, doorX: 1424 },
+  null,                         // Level 2: laser run — no generator
+  null,                         // Level 3: no generator
+  null,
+];
+// Stage system (5 minigames per generator)
+let genStage       = 0;    // 0-4 current stage
+let genTransition  = false; // showing "STAGE COMPLETE" between stages
+let genTransTimer  = 0;
+let genNextStage   = 0;
+// Stage 0 — Wire Link
+const WIRE_COLORS  = ['#FF1744','#2196F3','#FF4081','#4CAF50','#FFD700'];
+let wireLeftOrder  = [], wireRightOrder = [], wireMatches = {}, wireSelected = null;
+let wireErrorTimer = 0, wireErrorPos = -1;
+// Stage 1 — Sequence (Simon Says)
+let seqPattern = [], seqPhase = 'showing', seqTick = 0, seqPlayerIdx = 0;
+// Stage 2 — Pressure (gauge calibration)
+let gaugeTargets = [], gaugeValues = [];
+// Stage 3 — Pattern (memory grid)
+let patternTarget = [], patternPlayer = [], patternPhase = 'show', patternTimer = 0;
+// Stage 4 — Lights Out
+let lightsGrid = [];
+// MF Level 2 — Laser Run
+let mfRunTimer     = 0;
+let laserBalls     = [];
+let laserBallTimer = 0;
+let mfStopButton   = null;
+let mfLasersActive = false;
 let currentLevel = 0;       // 0-indexed
 let transitionTimer = 0;
 let player1, player2;
@@ -398,6 +511,15 @@ let badgeScrollY    = 0;       // scroll offset in px for badges panel
 let skinsPanelOpen  = false;   // pauses game when true
 let trailsPanelOpen = false;   // pauses game when true
 let badgeNotif = null;         // { name, timer } — popup above BADGES button
+let hammerHintTimer = 0;       // shows "Need Hammer!" when stomping MF robots unarmed
+// ─── MF Boss ─────────────────────────────────────────────────────────────────
+let mfBoss = null;
+let mfBossCutsceneDone = false;
+let mfBossCutscenePhase = 'walk'; // 'walk'|'pause'|'appear'|'impact'|'rise'|'text'|'done'
+let mfBossCutsceneTimer = 0;
+let mfBossScreenFlash = 0; // flash brightness on impact
+let bossLasers = [];          // projectiles fired by MF boss
+let mfVictoryCutscene = null; // MF win animation state
 let jasonFlash = 0;           // frames remaining for "MAKE THEM REMEMBER" flash
 let equippedSkin  = localStorage.getItem('cb_skin')  || null;
 let equippedTrail = localStorage.getItem('cb_trail') || null;
@@ -439,11 +561,13 @@ const BADGE_DEFS = [
   { id: 'deathsdoor',        name: "Knocking on Death's Door", desc: 'Win the game with only 1 life left',       color: '#9C27B0', icon: '💀' },
   { id: 'mistakeshappen',    name: 'Mistakes Happen',          desc: 'Die on Level 1',                           color: '#78909C', icon: '🤦' },
   { id: 'nyctophobia',       name: 'Nyctophobia',              desc: 'Die on Level 3 without night vision',      color: '#1A237E', icon: '🌑' },
+  { id: 'engineer',          name: 'Engineer',                 desc: 'Beat all four Mechanical Factory levels',  color: '#FF6F00', icon: '⚙' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
   { id: 'explorer',  name: 'Explorer', badge: 'adventurer',  desc: 'Green backpack & brown suit' },
   { id: 'murderer',  name: 'Murderer', badge: 'murderer',    desc: 'Ki Ki Ki Ma Ma Ma' },
+  { id: 'mechanic',  name: 'Mechanic', badge: 'engineer',    desc: 'Orange hard hat & cosmetic hammer' },
 ];
 const TRAIL_DEFS = [
   { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
@@ -464,6 +588,7 @@ function makePlayer(startX, colors, ctrlFns) {
     knifeSwing: 0,
     colors, ctrl: ctrlFns,
     attackPressed: false, justAttacked: false,
+    hasHammer: false,
   };
 }
 
@@ -479,6 +604,9 @@ function applyPowerup(p, type) {
   } else if (type === 'nightvision') {
     p.powerups.nightvision = NIGHTVISION_FRAMES;
     spawnParticles(p.x + p.w/2, p.y + p.h/2, '#00E5FF', 16);
+  } else if (type === 'hammer') {
+    p.hasHammer = true;
+    spawnParticles(p.x + p.w/2, p.y + p.h/2, '#FF6F00', 18);
   }
   playPowerupSound();
 }
@@ -504,12 +632,31 @@ function initGame(n) {
 
 function startLevel(n) {
   currentLevel = n - 1;
-  const d = LEVEL_DATA[currentLevel];
+  // Use MF-specific level data if available, otherwise shared LEVEL_DATA
+  const d = (currentAdventure === 1 && MF_LEVEL_DATA[currentLevel]) || LEVEL_DATA[currentLevel];
   levelW = d.levelWidth || LEVEL_W;
   platforms = [...d.platforms]; // mutable copy so we can push/splice door
   coins   = d.rawCoins.map(([x,y]) => ({ x, y, collected: false, bob: Math.random()*Math.PI*2 }));
   enemies = d.enemies.map(e => ({ ...e, alive: true, squish: 0, vx: -Math.abs(e.vx) * (difficulty === 'hard' ? 1.8 : 1) }));
   chests  = d.chests.map(c => ({ ...c, opened: false }));
+  // MF: remove night vision chest (no darkness mechanic)
+  if (currentAdventure === 1) chests = chests.filter(c => c.type !== 'nightvision');
+  // Init MF generators
+  generators = []; generatorOpen = false; activeGenIdx = null;
+  if (currentAdventure === 1 && MF_GEN_DEFS[currentLevel]) {
+    const def = MF_GEN_DEFS[currentLevel];
+    generators.push({ x: def.gx, y: GROUND_Y - 54, w: 60, h: 54, doorX: def.doorX, solved: false, doorAnim: 0 });
+  }
+  // MF Level 2 — Laser Run init
+  mfRunTimer = 0; laserBalls = []; laserBallTimer = 0; mfStopButton = null;
+  mfLasersActive = (currentAdventure === 1 && currentLevel === 1);
+  // MF Level 4 — Boss Arena init
+  mfBoss = null; mfBossCutsceneDone = false; mfBossCutscenePhase = 'walk'; mfBossCutsceneTimer = 0; mfBossScreenFlash = 0; bossLasers = [];
+  if (currentAdventure === 1 && currentLevel === 3) {
+    const bossX = 860 / 2 - 34; // center of arena
+    mfBoss = { x: bossX, y: -80, w: 68, h: 68, hp: 4, maxHp: 4, vy: 0, targetY: GROUND_Y - 230,
+               phase: 'idle', phaseTimer: 0, shootRound: 0, ballsFired: 0, shootTimer: 0, invincible: 0 };
+  }
   for (const p of [player1, player2]) {
     if (!p) continue;
     p.x = 60; p.y = GROUND_Y - p.baseH;
@@ -590,18 +737,30 @@ function updatePlayer(p) {
     if (p.onGround) p.y += 14;
   }
   const spd = MOVE_SPEED * (p.powerups.speed > 0 ? 2.0 : 1.0);
-  if (p.ctrl.left())       { p.vx = -spd; p.facingRight = false; }
-  else if (p.ctrl.right()) { p.vx =  spd; p.facingRight = true;  }
-  else                     { p.vx *= 0.78; if (Math.abs(p.vx) < 0.2) p.vx = 0; }
+  const cutsceneLock = currentAdventure === 1 && currentLevel === 3 && !mfBossCutsceneDone;
+  if (!cutsceneLock) {
+    if (p.ctrl.left())       { p.vx = -spd; p.facingRight = false; }
+    else if (p.ctrl.right()) { p.vx =  spd; p.facingRight = true;  }
+    else                     { p.vx *= 0.78; if (Math.abs(p.vx) < 0.2) p.vx = 0; }
+  } else { p.vx *= 0.8; if (Math.abs(p.vx) < 0.2) p.vx = 0; }
   if (p.onGround) p.coyoteTime = 8;
   else if (p.coyoteTime > 0) p.coyoteTime--;
-  if (p.ctrl.jump() && p.coyoteTime > 0) { p.vy = JUMP_FORCE; p.coyoteTime = 0; p.wobble = 7; }
+  if (!cutsceneLock && p.ctrl.jump() && p.coyoteTime > 0) { p.vy = JUMP_FORCE; p.coyoteTime = 0; p.wobble = 7; }
   p.vy = Math.min(p.vy + (p.vy > 0 ? GRAVITY * 0.65 : GRAVITY), MAX_FALL);
   p.onGround = false;
   if (p.wobble > 0) p.wobble--;
   p.x += p.vx;
   if (p.x < 0) { p.x = 0; p.vx = 0; }
   resolveX(p);
+  // Door collision for MF generators
+  for (const gen of generators) {
+    const doorH = GROUND_Y * (1 - gen.doorAnim);
+    if (doorH <= 2) continue;
+    if (p.x + p.w > gen.doorX && p.x < gen.doorX + 24 && p.y < doorH) {
+      if (p.x + p.w / 2 <= gen.doorX + 12) { p.x = gen.doorX - p.w; } else { p.x = gen.doorX + 24; }
+      p.vx = 0;
+    }
+  }
   p.y += p.vy;
   resolveY(p);
   if (p.y > H + 100) {
@@ -706,9 +865,514 @@ function updateBoss(active) {
   }
 }
 
+// ─── MF Boss Cutscene / Update ────────────────────────────────────────────────
+function updateMFBoss() {
+  if (!mfBoss) return;
+  mfBossCutsceneTimer++;
+  const t = mfBossCutsceneTimer;
+  if (mfBossScreenFlash > 0) mfBossScreenFlash -= 0.08;
+
+  // Auto-move player during cutscene
+  if (!mfBossCutsceneDone) {
+    for (const p of [player1, player2]) {
+      if (!p) continue;
+      if (mfBossCutscenePhase === 'walk') {
+        if (p.x < 240) { p.x += 2.2; p.facingRight = true; }
+        p.vx = 0;
+      } else {
+        p.vx = 0; // hold still
+      }
+    }
+  }
+
+  if (mfBossCutscenePhase === 'walk') {
+    if (t >= 130) { mfBossCutscenePhase = 'pause'; mfBossCutsceneTimer = 0; }
+
+  } else if (mfBossCutscenePhase === 'pause') {
+    if (t >= 50) { mfBossCutscenePhase = 'appear'; mfBossCutsceneTimer = 0; }
+
+  } else if (mfBossCutscenePhase === 'appear') {
+    // Boss falls from ceiling
+    mfBoss.vy += 1.4;
+    mfBoss.y += mfBoss.vy;
+    if (mfBoss.y >= GROUND_Y - mfBoss.h) {
+      mfBoss.y = GROUND_Y - mfBoss.h;
+      mfBoss.vy = 0;
+      mfBossScreenFlash = 1.0;
+      spawnParticles(mfBoss.x + mfBoss.w/2, mfBoss.y + mfBoss.h, '#546E7A', 28);
+      spawnParticles(mfBoss.x + mfBoss.w/2, mfBoss.y + mfBoss.h, '#FF6F00', 14);
+      mfBossCutscenePhase = 'impact'; mfBossCutsceneTimer = 0;
+    }
+
+  } else if (mfBossCutscenePhase === 'impact') {
+    if (t >= 35) { mfBossCutscenePhase = 'rise'; mfBossCutsceneTimer = 0; }
+
+  } else if (mfBossCutscenePhase === 'rise') {
+    // Boss rises into air
+    mfBoss.y -= 1.8;
+    if (mfBoss.y <= mfBoss.targetY) {
+      mfBoss.y = mfBoss.targetY;
+      mfBossCutscenePhase = 'text'; mfBossCutsceneTimer = 0;
+    }
+
+  } else if (mfBossCutscenePhase === 'text') {
+    if (t >= 140) {
+      mfBossCutscenePhase = 'done';
+      mfBossCutsceneDone = true;
+      mfBoss.phase = 'idle'; mfBoss.phaseTimer = 0;
+    }
+  }
+
+  // ── Battle phase ──────────────────────────────────────────────────────────
+  if (!mfBossCutsceneDone || !mfBoss) return;
+  const b = mfBoss;
+  if (b.invincible > 0) b.invincible--;
+  b.phaseTimer++;
+
+  // Update boss lasers
+  for (let i = bossLasers.length - 1; i >= 0; i--) {
+    const bl = bossLasers[i];
+    bl.x += bl.vx; bl.y += bl.vy;
+    if (bl.x < -60 || bl.x > levelW + 60 || bl.y > GROUND_Y + 60) { bossLasers.splice(i, 1); continue; }
+    for (const p of [player1, player2]) {
+      if (!p || p.invincible > 0) continue;
+      if (Math.hypot(p.x + p.w/2 - bl.x, p.y + p.h/2 - bl.y) < bl.r + 13) {
+        p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true;
+        checkMistakesBadge(); p.invincible = 100; p.vy = -7;
+        p.vx = p.x < bl.x ? -5 : 5;
+        spawnParticles(bl.x, bl.y, '#FF1744', 10);
+        bossLasers.splice(i, 1); break;
+      }
+    }
+  }
+
+  if (b.phase === 'idle') {
+    b.y = b.targetY + Math.sin(tick * 0.05) * 8;
+    if (b.phaseTimer >= 55) { b.phase = 'shooting'; b.phaseTimer = 0; b.shootRound = 0; b.ballsFired = 0; b.shootTimer = 20; }
+
+  } else if (b.phase === 'shooting') {
+    b.y = b.targetY + Math.sin(tick * 0.05) * 8;
+    b.shootTimer--;
+    if (b.shootTimer <= 0 && b.ballsFired < 3) {
+      // Fire one ball aimed at player
+      const p = player1 && player1.lives > 0 ? player1 : player2;
+      if (p) {
+        const a = Math.atan2((p.y+p.h/2)-(b.y+b.h/2), (p.x+p.w/2)-(b.x+b.w/2));
+        bossLasers.push({ x: b.x+b.w/2, y: b.y+b.h/2, vx: Math.cos(a)*5, vy: Math.sin(a)*5, r: 9 });
+        spawnParticles(b.x+b.w/2, b.y+b.h/2, '#FF6F00', 5);
+      }
+      b.ballsFired++;
+      b.shootTimer = 30; // 30 frames between each ball
+    }
+    if (b.ballsFired >= 3 && b.shootTimer <= 0) {
+      if (b.shootRound === 0) {
+        // First round done — pause then second round
+        b.phase = 'waiting'; b.phaseTimer = 0;
+      } else {
+        // Second round done — fall
+        b.phase = 'falling'; b.phaseTimer = 0; b.vy = 0;
+      }
+    }
+
+  } else if (b.phase === 'waiting') {
+    b.y = b.targetY + Math.sin(tick * 0.05) * 8;
+    if (b.phaseTimer >= 50) { b.phase = 'shooting'; b.phaseTimer = 0; b.shootRound = 1; b.ballsFired = 0; b.shootTimer = 20; }
+
+  } else if (b.phase === 'falling') {
+    b.vy += 0.9;
+    b.y += b.vy;
+    if (b.y >= GROUND_Y - b.h) {
+      b.y = GROUND_Y - b.h; b.vy = 0;
+      b.phase = 'grounded'; b.phaseTimer = 0;
+      bossLasers.length = 0;
+      spawnParticles(b.x + b.w/2, b.y + b.h, '#546E7A', 24);
+      mfBossScreenFlash = 0.5;
+    }
+
+  } else if (b.phase === 'grounded') {
+    // Auto-rise after 10 seconds even if not stomped
+    if (b.phaseTimer >= 600) { b.phase = 'rising'; b.phaseTimer = 0; }
+    if (b.invincible > 0) return;
+    for (const p of [player1, player2]) {
+      if (!p || p.invincible > 0 || p.lives <= 0) continue;
+      if (p.vy > 0 && (p.y + p.h) < (b.y + b.h * 0.45 + p.vy + 4) &&
+          overlap(p.x, p.y, p.w, p.h, b.x - 4, b.y, b.w + 8, b.h)) {
+        b.hp--;
+        p.vy = -11; b.invincible = 60;
+        spawnParticles(b.x + b.w/2, b.y + b.h * 0.25, '#FF6F00', 20);
+        mfBossScreenFlash = 0.7;
+        if (b.hp <= 0) {
+          b.phase = 'dead';
+          spawnParticles(b.x + b.w/2, b.y + b.h/2, '#FF1744', 40);
+          spawnParticles(b.x + b.w/2, b.y + b.h/2, '#FF6F00', 30);
+        } else {
+          b.phase = 'hit'; b.phaseTimer = 0;
+        }
+        break;
+      }
+    }
+
+  } else if (b.phase === 'hit') {
+    // Brief flash stagger before rising
+    if (b.phaseTimer >= 45) { b.phase = 'rising'; b.phaseTimer = 0; }
+
+  } else if (b.phase === 'rising') {
+    b.y -= 2.5;
+    if (b.y <= b.targetY) {
+      b.y = b.targetY; b.phase = 'idle'; b.phaseTimer = 0;
+    }
+  }
+}
+
+function drawBossLasers() {
+  for (const bl of bossLasers) {
+    const bx = sx(bl.x);
+    const pulse = 0.7 + Math.sin(tick * 0.3 + bl.x) * 0.3;
+    ctx.shadowColor = '#FF6F00'; ctx.shadowBlur = 14 * pulse;
+    ctx.fillStyle = '#FF6F00';
+    ctx.beginPath(); ctx.arc(bx, bl.y, bl.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#FFCC80';
+    ctx.beginPath(); ctx.arc(bx - 2, bl.y - 2, bl.r * 0.45, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawMFBossIntroOverlay() {
+  if (mfBossCutsceneDone) return;
+  const t = mfBossCutsceneTimer;
+
+  // Letterbox bars
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, 44);
+  ctx.fillRect(0, H - 44, W, 44);
+
+  if (mfBossCutscenePhase === 'text') {
+    // Boss name banner
+    const alpha = Math.min(1, t / 20);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, H/2 - 42, W, 84);
+    ctx.fillStyle = '#FF6F00'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('B O S S', W/2, H/2 - 16);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 26px monospace';
+    ctx.fillText('FACTORY COMMANDER', W/2, H/2 + 16);
+    ctx.fillStyle = '#FF1744'; ctx.font = 'bold 10px monospace';
+    ctx.fillText('▼  DEFEAT THE COMMANDER TO ESCAPE  ▼', W/2, H/2 + 36);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
+
+  // Impact screen flash
+  if (mfBossScreenFlash > 0) {
+    ctx.fillStyle = `rgba(255,120,0,${Math.min(0.7, mfBossScreenFlash)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// Draw the MF boss cube (big armored robot)
+function drawMFBoss() {
+  if (!mfBoss) return;
+  const bx = sx(mfBoss.x);
+  const by = mfBoss.y;
+  const bw = mfBoss.w, bh = mfBoss.h;
+  const pulse = 0.6 + Math.sin(tick * 0.15) * 0.4;
+
+  // Shadow on ground when hovering
+  if (mfBossCutsceneDone || mfBossCutscenePhase === 'rise' || mfBossCutscenePhase === 'text') {
+    const shadowAlpha = 0.3 * (1 - (GROUND_Y - bh - by) / 200);
+    if (shadowAlpha > 0) {
+      ctx.fillStyle = `rgba(0,0,0,${shadowAlpha.toFixed(2)})`;
+      ctx.fillRect(bx + bw * 0.1, GROUND_Y - 6, bw * 0.8, 10);
+    }
+  }
+
+  // Shoulder armor plates
+  ctx.fillStyle = '#1C313A';
+  ctx.fillRect(bx - 6, by + 4, 7, bh * 0.4);
+  ctx.fillRect(bx + bw - 1, by + 4, 7, bh * 0.4);
+  ctx.fillStyle = '#37474F';
+  ctx.fillRect(bx - 5, by + 5, 4, bh * 0.38);
+  ctx.fillRect(bx + bw, by + 5, 4, bh * 0.38);
+
+  // Body
+  drawCube(mfBoss.x, by, bw, bh, '#263238', '#1C313A', '#37474F');
+
+  // Panel seams
+  ctx.fillStyle = '#1C313A';
+  ctx.fillRect(bx, by + bh*0.5, bw, 2);
+  ctx.fillRect(bx + bw*0.5, by, 2, bh);
+  ctx.fillRect(bx, by + bh*0.25, bw, 1);
+  ctx.fillRect(bx, by + bh*0.75, bw, 1);
+
+  // Orange hazard stripe
+  ctx.save();
+  ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
+  ctx.fillStyle = '#E65100';
+  for (let s = -bw; s < bw*2; s += 10) ctx.fillRect(bx + s, by + bh*0.42, 5, bh*0.16);
+  ctx.restore();
+
+  // Pulsing energy core (orange, bigger than L3 enemies)
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#FF6F00';
+  ctx.shadowColor = '#FF6F00'; ctx.shadowBlur = 16 * pulse;
+  ctx.fillRect(bx + bw*0.5 - 7, by + bh*0.36, 14, 14);
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+  // Rivets (10 — more than L3)
+  ctx.fillStyle = '#546E7A';
+  for (const [rx,ry] of [
+    [bx+4,by+4],[bx+bw-7,by+4],[bx+4,by+bh-7],[bx+bw-7,by+bh-7],
+    [bx+4,by+bh*0.5-1],[bx+bw-7,by+bh*0.5-1],
+    [bx+bw*0.5-1,by+4],[bx+bw*0.5-1,by+bh-7],
+    [bx+bw*0.25,by+bh*0.25],[bx+bw*0.75,by+bh*0.25],
+  ]) {
+    ctx.beginPath(); ctx.arc(rx, ry, 2.5, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Dual antennas (taller)
+  ctx.fillStyle = '#455A64';
+  ctx.fillRect(bx + bw*0.28 - 1.5, by - 14, 3, 14);
+  ctx.fillRect(bx + bw*0.72 - 1.5, by - 14, 3, 14);
+  ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 14 * pulse;
+  ctx.fillStyle = '#FF1744';
+  ctx.beginPath(); ctx.arc(bx + bw*0.28, by - 15, 4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(bx + bw*0.72, by - 15, 4, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Eyes (large, glowing)
+  const eyeY = by + bh * 0.25;
+  ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 22 * pulse;
+  ctx.fillStyle = '#FF1744';
+  ctx.fillRect(bx + bw*0.16, eyeY, 12, 8);
+  ctx.fillRect(bx + bw*0.58, eyeY, 12, 8);
+  ctx.shadowBlur = 0;
+
+  // Grille (wide)
+  ctx.fillStyle = '#0D1F26';
+  const grY = by + bh * 0.58;
+  for (let i = 0; i < 6; i++) ctx.fillRect(bx + bw*0.12 + i*5, grY, 4, 7);
+
+  // Hit flash — white overlay on boss when stomped
+  if (mfBossCutsceneDone && (mfBoss.phase === 'hit' || mfBoss.invincible > 40)) {
+    ctx.globalAlpha = 0.55 + Math.sin(tick * 0.8) * 0.3;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(bx - 6, by - 16, bw + 12, bh + 16);
+    ctx.globalAlpha = 1;
+  }
+
+  // "STOMP ME!" hint when grounded
+  if (mfBossCutsceneDone && mfBoss.phase === 'grounded' && mfBoss.invincible === 0) {
+    const ap = 0.7 + Math.sin(tick * 0.15) * 0.3;
+    ctx.globalAlpha = ap;
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('⬇ STOMP!', bx + bw/2, by - 24);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
+
+  // HP bar (only when battle started)
+  if (mfBossCutsceneDone) {
+    const barW = 160, barX = W/2 - barW/2, barY = 52;
+    ctx.fillStyle = '#111'; ctx.fillRect(barX - 2, barY - 2, barW + 4, 14);
+    ctx.fillStyle = '#B71C1C'; ctx.fillRect(barX, barY, barW, 10);
+    ctx.fillStyle = '#F44336';
+    ctx.fillRect(barX, barY, barW * (mfBoss.hp / mfBoss.maxHp), 10);
+    // Heart icons for lives
+    ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    for (let i = 0; i < mfBoss.maxHp; i++) {
+      ctx.fillStyle = i < mfBoss.hp ? '#F44336' : '#333';
+      ctx.fillText('♥', barX + i * 16, barY + 9);
+    }
+    ctx.fillStyle = '#FFF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('FACTORY COMMANDER', W/2, barY - 3);
+    ctx.textAlign = 'left';
+  }
+}
+
+// ─── MF Victory Cutscene ─────────────────────────────────────────────────────
+function startMFVictoryCutscene() {
+  gamesBeaten++;
+  localStorage.setItem('cb_wins', gamesBeaten);
+  if (gamesBeaten >= 10 && !badges.has('reallylike')) {
+    badges.add('reallylike'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'You REALLY like this game', timer: 300 };
+  }
+  if (!tookDamage && !badges.has('invincible')) {
+    badges.add('invincible'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Invincible', timer: 240 };
+  }
+  const minLives = Math.min(player1 ? player1.lives : 99, player2 ? player2.lives : 99);
+  if (minLives === 1 && !badges.has('deathsdoor')) {
+    badges.add('deathsdoor'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: "Knocking on Death's Door", timer: 300 };
+  }
+  if (difficulty === 'hard' && !badges.has('indestructible')) {
+    badges.add('indestructible'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Indestructible', timer: 240 };
+  }
+  if (!badges.has('engineer')) {
+    badges.add('engineer'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Engineer', timer: 240 };
+  }
+  camX = 0;
+  const p1X = 230, p1Y = GROUND_Y - 28;
+  const p2X = 530, p2Y = GROUND_Y - 28;
+  mfVictoryCutscene = {
+    phase: 'spin', timer: 0, camYOffset: 0,
+    p1X, p1Y, p2X, p2Y,
+    hammerX: p1X + 14, hammerY: p1Y - 26,
+    hammerAngle: 0, hammerVX: 0, hammerVY: 0,
+    fadeAlpha: 0,
+  };
+  gameState = 'mfcutscene';
+}
+
+function updateMFVictoryCutscene() {
+  if (!mfVictoryCutscene) return;
+  const cs = mfVictoryCutscene;
+  cs.timer++;
+
+  if (cs.phase === 'spin') {
+    cs.hammerAngle += 0.22;
+    if (cs.timer >= 120) { // 2 seconds of spinning
+      cs.phase = 'throw'; cs.timer = 0;
+      cs.hammerVX = 1.6; cs.hammerVY = -9;
+    }
+  } else if (cs.phase === 'throw') {
+    cs.hammerAngle += 0.28; // keep spinning while flying
+    cs.hammerX += cs.hammerVX;
+    cs.hammerY += cs.hammerVY;
+    cs.hammerVY += 0.1; // gravity
+    cs.hammerVX *= 0.998;
+    // Camera follows hammer upward
+    const targetCamY = Math.max(0, cs.hammerY - H * 0.45);
+    cs.camYOffset += (targetCamY - cs.camYOffset) * 0.1;
+    if (cs.hammerVY >= 0) { cs.phase = 'halt'; cs.timer = 0; } // hammer peaked
+  } else if (cs.phase === 'halt') {
+    cs.hammerAngle += 0.03; // gentle slow drift
+    cs.hammerY += cs.hammerVY;
+    cs.hammerVY += 0.02; // very slow fall
+    if (cs.timer >= 70) {
+      cs.fadeAlpha = Math.min(1, cs.fadeAlpha + 0.018);
+      if (cs.fadeAlpha >= 1) cs.phase = 'freeze';
+    }
+  }
+}
+
+function drawHammerItem(wx, wy, angle) {
+  ctx.save();
+  ctx.translate(wx, wy);
+  ctx.rotate(angle);
+  ctx.fillStyle = '#6D4C41'; ctx.fillRect(-2, -3, 4, 20);  // handle
+  ctx.fillStyle = '#8D6E63'; ctx.fillRect(-2, 3, 4, 5);    // grip wrap
+  ctx.fillStyle = '#546E7A'; ctx.fillRect(-11, -15, 22, 11); // head
+  ctx.fillStyle = '#78909C'; ctx.fillRect(-10, -14, 20, 3);  // head highlight
+  ctx.fillStyle = '#37474F'; ctx.fillRect(-11, -4, 22, 2);   // head dark edge
+  ctx.fillStyle = '#90A4AE';
+  ctx.beginPath(); ctx.arc(-7, -9, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(7, -9, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawMFVictoryCutscene() {
+  const cs = mfVictoryCutscene;
+  const sz = 28;
+  const P1c = player1 ? player1.colors : { mid: '#42A5F5', dark: '#1565C0', light: '#90CAF9' };
+  const P2c = player2 ? player2.colors : { mid: '#EF5350', dark: '#B71C1C', light: '#EF9A9A' };
+
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(0, -cs.camYOffset);
+
+  // Background fill — extended for camera pan
+  ctx.fillStyle = '#151515';
+  ctx.fillRect(0, -400, W, 400 + GROUND_Y + 50);
+
+  // Metal panel grid
+  ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1;
+  for (let py = -400; py < GROUND_Y; py += 80) {
+    for (let px = 0; px < W; px += 120) {
+      ctx.strokeRect(px + 5, py + 5, 110, 70);
+      ctx.fillStyle = '#1e1e1e';
+      for (const [bx2,by2] of [[px+10,py+10],[px+115,py+10],[px+10,py+70],[px+115,py+70]]) {
+        ctx.beginPath(); ctx.arc(bx2, by2, 1.5, 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  // Ground
+  ctx.fillStyle = '#546E7A'; ctx.fillRect(0, GROUND_Y, W, 40);
+  ctx.fillStyle = '#607D8B'; ctx.fillRect(0, GROUND_Y, W, 6);
+  ctx.fillStyle = '#37474F'; ctx.fillRect(0, GROUND_Y + 34, W, 6);
+  ctx.fillStyle = '#78909C';
+  for (let rx = 20; rx < W; rx += 48) { ctx.beginPath(); ctx.arc(rx, GROUND_Y + 3, 2, 0, Math.PI*2); ctx.fill(); }
+
+  // Side platforms
+  ctx.fillStyle = '#455A64';
+  ctx.fillRect(160, 330, 100, 12); ctx.fillRect(600, 330, 100, 12);
+  ctx.fillStyle = '#607D8B';
+  ctx.fillRect(160, 330, 100, 3); ctx.fillRect(600, 330, 100, 3);
+
+  // Player 2 watching (to the right, facing left)
+  if (numPlayers === 2) {
+    drawMiniCube(cs.p2X, cs.p2Y, sz, P2c.mid, P2c.dark, P2c.light);
+    // Eyes on left side (watching P1)
+    ctx.fillStyle = '#111';
+    ctx.fillRect(cs.p2X + 3, cs.p2Y + 8, 4, 4);
+    ctx.fillRect(cs.p2X + 10, cs.p2Y + 8, 4, 4);
+    // "!" speech bubble
+    const bubPulse = 0.7 + Math.sin(cs.timer * 0.1) * 0.3;
+    ctx.globalAlpha = bubPulse;
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('!', cs.p2X + sz/2, cs.p2Y - 10);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
+
+  // Player 1 — slight lunge forward during throw
+  const p1LungeX = (cs.phase === 'throw' && cs.timer < 18) ? 5 : 0;
+  drawMiniCube(cs.p1X + p1LungeX, cs.p1Y, sz, P1c.mid, P1c.dark, P1c.light);
+
+  // Hammer
+  if (cs.phase === 'spin') {
+    drawHammerItem(cs.p1X + 14, cs.p1Y - 26, cs.hammerAngle);
+  } else if (cs.phase === 'throw' || cs.phase === 'halt') {
+    drawHammerItem(cs.hammerX, cs.hammerY, cs.hammerAngle);
+  }
+
+  ctx.restore(); // end camera pan
+
+  // Screen-space fade and win overlay
+  if ((cs.phase === 'halt' && cs.timer >= 70) || cs.phase === 'freeze') {
+    ctx.fillStyle = `rgba(0,0,0,${cs.fadeAlpha.toFixed(3)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  if (cs.phase === 'freeze') {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FF6F00'; ctx.font = 'bold 38px monospace';
+    ctx.fillText('YOU WIN!', W/2, 110);
+    ctx.fillStyle = '#FFD700'; ctx.font = '22px monospace';
+    ctx.fillText('★  ★  ★', W/2, 142);
+    if (numPlayers === 2 && player2) {
+      ctx.fillStyle = P1c.light; ctx.font = 'bold 16px monospace';
+      ctx.fillText(`P1: ${String(player1.score).padStart(6,'0')}`, W/2, 192);
+      ctx.fillStyle = P2c.light;
+      ctx.fillText(`P2: ${String(player2.score).padStart(6,'0')}`, W/2, 216);
+      ctx.fillStyle = '#FFD700'; ctx.font = 'bold 18px monospace';
+      ctx.fillText(`TOTAL: ${String(player1.score + player2.score).padStart(6,'0')}`, W/2, 248);
+    } else {
+      ctx.fillStyle = '#FFF'; ctx.font = 'bold 20px monospace';
+      ctx.fillText(`Score: ${String(player1.score).padStart(6,'0')}`, W/2, 210);
+    }
+    ctx.fillStyle = '#AAA'; ctx.font = '13px monospace';
+    ctx.fillText('Mechanical Factory cleared!', W/2, 290);
+    ctx.fillStyle = '#777'; ctx.font = '11px monospace';
+    ctx.fillText('Press R to return to menu', W/2, 315);
+    ctx.textAlign = 'left';
+  }
+}
+
 // ─── Victory Cutscene ─────────────────────────────────────────────────────────
 function startCutscene() {
-  if (!badges.has('adventurer')) {
+  if (currentAdventure === 0 && !badges.has('adventurer')) {
     badges.add('adventurer');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Adventurer', timer: 240 };
@@ -855,7 +1519,15 @@ function drawCutscene() {
 
 // ─── Main Update ─────────────────────────────────────────────────────────────
 function update() {
-  if (gameState === 'cutscene') { updateCutscene(); return; }
+  // Mobile MENU button — same rules as KeyR
+  if (touch.menu) {
+    if (gameState === 'mfcutscene' && mfVictoryCutscene && mfVictoryCutscene.phase !== 'freeze') { /* block */ }
+    else if (gameState !== 'select' && gameState !== 'adventure' && gameState !== 'difficulty') {
+      gameState = 'select'; menuSel = 0; touch.menu = false;
+    }
+  }
+  if (gameState === 'cutscene')   { updateCutscene(); return; }
+  if (gameState === 'mfcutscene') { updateMFVictoryCutscene(); return; }
   if (gameState === 'transition') {
     tick++;
     transitionTimer--;
@@ -863,14 +1535,76 @@ function update() {
     return;
   }
   if (badgeNotif) { badgeNotif.timer--; if (badgeNotif.timer <= 0) badgeNotif = null; }
+  if (hammerHintTimer > 0) hammerHintTimer--;
   if (jasonFlash > 0) jasonFlash--;
-  if (badgesPanelOpen || skinsPanelOpen || trailsPanelOpen || colorPickerOpen) return;
+  // Animate generator doors + minigame state (runs even when minigame open)
+  for (const gen of generators) {
+    if (gen.solved && gen.doorAnim < 1) gen.doorAnim = Math.min(1, gen.doorAnim + 0.012);
+  }
+  if (wireErrorTimer > 0) wireErrorTimer--;
+  if (generatorOpen) {
+    if (genTransition) { genTransTimer--; if (genTransTimer<=0) { genTransition=false; initGenStage(genNextStage); } }
+    if (genStage===1 && seqPhase==='showing') {
+      seqTick++;
+      if (seqTick >= seqPattern.length*60+20) seqPhase='input';
+    }
+    if (genStage===3 && patternPhase==='show') { patternTimer--; if (patternTimer<=0) patternPhase='input'; }
+  }
+  if (badgesPanelOpen || skinsPanelOpen || trailsPanelOpen || colorPickerOpen || generatorOpen) return;
   if (gameState !== 'playing' || gameOver || won) return;
   tick++;
   updatePlayer(player1);
   updatePlayer(player2);
 
   const active = [player1, player2].filter(p => p && p.lives > 0);
+
+  // MF Level 2: Laser Run
+  if (currentAdventure === 1 && currentLevel === 1) {
+    // Permanent speed boost — keep it always active
+    for (const p of [player1, player2]) {
+      if (p && p.lives > 0) p.powerups.speed = Math.max(p.powerups.speed, 10);
+    }
+    mfRunTimer++;
+    // After 25 seconds, materialise the stop button just ahead of the camera
+    if (mfRunTimer >= 3600 && !mfStopButton && mfLasersActive) {
+      mfStopButton = { x: camX + W - 80, y: GROUND_Y - 60, w: 50, h: 50 };
+    }
+    // Spawn laser balls every 1.5 s (90 frames) while active
+    if (mfLasersActive) {
+      laserBallTimer++;
+      if (laserBallTimer >= 90) {
+        laserBallTimer = 0;
+        laserBalls.push({ x: camX + W + 20, y: GROUND_Y - 40 - Math.random() * 220, r: 12, vx: -7 - Math.random() * 3 });
+      }
+    }
+    // Update laser balls
+    for (let i = laserBalls.length - 1; i >= 0; i--) {
+      const b = laserBalls[i];
+      b.x += b.vx;
+      if (b.x < camX - 60) { laserBalls.splice(i, 1); continue; }
+      for (const p of active) {
+        if (p.invincible > 0) continue;
+        const dx = (p.x + p.w / 2) - b.x, dy = (p.y + p.h / 2) - b.y;
+        if (Math.sqrt(dx * dx + dy * dy) < b.r + Math.min(p.w, p.h) * 0.55) {
+          p.lives -= difficulty === 'hard' ? 2 : 1;
+          tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p);
+          p.invincible = 100; p.vy = -7;
+          spawnParticles(b.x, b.y, '#FF1744', 10);
+          laserBalls.splice(i, 1); break;
+        }
+      }
+    }
+    // Stop button: player walks into it → clears all laser balls (flag still used to advance)
+    if (mfStopButton) {
+      for (const p of active) {
+        if (overlap(p.x, p.y, p.w, p.h, mfStopButton.x, mfStopButton.y, mfStopButton.w, mfStopButton.h)) {
+          laserBalls = []; mfLasersActive = false; mfStopButton = null;
+          spawnParticles(p.x + p.w/2, p.y, '#FF1744', 16);
+          break;
+        }
+      }
+    }
+  }
 
   // Coins
   for (const c of coins) {
@@ -925,7 +1659,8 @@ function update() {
     }
     for (const p of active) {
       if (p.invincible > 0 || !overlap(p.x,p.y,p.w,p.h,e.x,e.y,e.w,e.h)) continue;
-      if (p.powerups.size > 0) {
+      const needHammer = currentAdventure === 1 && !p.hasHammer;
+      if (p.powerups.size > 0 && !needHammer) {
         // Big powerup — instant kill on any touch
         e.alive = false; e.squish = 1;
         p.score += 200;
@@ -934,6 +1669,11 @@ function update() {
         if (equippedSkin === 'murderer') p.knifeSwing = 24;
         break;
       } else if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
+        if (needHammer) {
+          // Bounce off without killing — robots are armored
+          p.vy = -6; hammerHintTimer = 120;
+          break;
+        }
         e.alive = false; e.squish = 1;
         p.vy = -9; p.score += 200;
         spawnParticles(e.x+e.w/2, e.y+e.h/2, '#EF5350', 10);
@@ -961,8 +1701,14 @@ function update() {
       } else won = true;
     }
   }
-  // Level 4: door interaction, key collection, boss
-  if (currentLevel === 3) {
+  // MF Level 4: boss arena
+  if (currentAdventure === 1 && currentLevel === 3) {
+    updateMFBoss();
+    if (mfBoss && mfBoss.phase === 'dead' && gameState === 'playing') startMFVictoryCutscene();
+  }
+
+  // Level 4: door interaction, key collection, boss (CK only)
+  if (currentAdventure === 0 && currentLevel === 3) {
     // Castle door — press F near any door
     let doorTaken = false;
     for (const p of active) {
@@ -1148,8 +1894,129 @@ function drawCastleDoors() {
   }
 }
 
+// ─── MF Level 2: Laser Balls & Stop Button ────────────────────────────────────
+function drawLaserBalls() {
+  for (const b of laserBalls) {
+    const bx = sx(b.x); if (bx < -30 || bx > W + 30) continue;
+    // Glow trail (to the right — behind the ball)
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = '#FF1744';
+    for (let t = 1; t <= 3; t++) {
+      ctx.beginPath(); ctx.arc(bx + t * 11, b.y, b.r * (1 - t * 0.22), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Outer glow
+    ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 22;
+    ctx.fillStyle = '#FF1744';
+    ctx.beginPath(); ctx.arc(bx, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // Inner core
+    ctx.fillStyle = '#FF8A80';
+    ctx.beginPath(); ctx.arc(bx, b.y, b.r * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(bx - b.r * 0.25, b.y - b.r * 0.25, b.r * 0.22, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawMFStopButton() {
+  if (!mfStopButton) return;
+  const bx = sx(mfStopButton.x); if (bx + mfStopButton.w < -20 || bx > W + 20) return;
+  const by = mfStopButton.y, bw = mfStopButton.w, bh = mfStopButton.h;
+  const pulse = 0.6 + Math.sin(tick * 0.14) * 0.4;
+  // Pillar
+  ctx.fillStyle = '#455A64'; ctx.fillRect(bx + bw / 2 - 5, by + bh, 10, GROUND_Y - by - bh);
+  // Panel body
+  ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 18 * pulse;
+  ctx.fillStyle = '#3C0000'; ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = '#FF1744'; ctx.fillRect(bx + 5, by + 5, bw - 10, bh - 10);
+  ctx.fillStyle = '#FF6659'; ctx.fillRect(bx + 5, by + 5, bw - 10, 5);
+  ctx.shadowBlur = 0;
+  // Frame
+  ctx.strokeStyle = '#FF8A80'; ctx.lineWidth = 2;
+  ctx.strokeRect(bx - 2, by - 2, bw + 4, bh + 4);
+  // Label
+  ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('STOP', bx + bw / 2, by + bh / 2 - 2);
+  ctx.fillStyle = '#FFCDD2'; ctx.font = '7px monospace';
+  ctx.fillText('[RUN INTO]', bx + bw / 2, by + bh / 2 + 9);
+  ctx.textAlign = 'left';
+}
+
 // ─── Background ──────────────────────────────────────────────────────────────
+function drawFactoryBackground() {
+  // Base metal gradient
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#1a1a1a'); g.addColorStop(0.5, '#222222'); g.addColorStop(1, '#2a2a2a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // Metal panel grid (parallax scrolling)
+  const panelW = 120, panelH = 80;
+  const offX = ((camX * 0.3) % panelW + panelW) % panelW;
+  const offY = 0;
+  for (let py = 0; py < H; py += panelH) {
+    for (let px = -offX; px < W + panelW; px += panelW) {
+      // Panel face
+      ctx.fillStyle = (Math.floor((px+offX)/panelW) + Math.floor(py/panelH)) % 2 === 0
+        ? '#252525' : '#202020';
+      ctx.fillRect(px+2, py+2, panelW-4, panelH-4);
+      // Panel border / seam
+      ctx.fillStyle = '#111'; ctx.fillRect(px, py, panelW, 2); ctx.fillRect(px, py, 2, panelH);
+      // Corner bolts
+      ctx.fillStyle = '#444';
+      for (const [bx, by] of [[px+6,py+6],[px+panelW-9,py+6],[px+6,py+panelH-9],[px+panelW-9,py+panelH-9]]) {
+        ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#666'; ctx.beginPath(); ctx.arc(bx-1, by-1, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#444';
+      }
+    }
+  }
+
+  // Wires / cables running horizontally across the back wall
+  const wireData = [
+    { y: 90,  color: '#E65100', w: 4, speed: 0.15 },   // thick orange
+    { y: 95,  color: '#BF360C', w: 3, speed: 0.15 },   // dark orange
+    { y: 160, color: '#F9A825', w: 3, speed: 0.2  },   // yellow
+    { y: 164, color: '#F57F17', w: 2, speed: 0.2  },   // amber
+    { y: 240, color: '#1B5E20', w: 4, speed: 0.1  },   // green data cable
+    { y: 245, color: '#2E7D32', w: 2, speed: 0.1  },
+    { y: 310, color: '#0D47A1', w: 3, speed: 0.25 },   // blue power
+    { y: 315, color: '#1565C0', w: 2, speed: 0.25 },
+    { y: 355, color: '#B71C1C', w: 5, speed: 0.12 },   // thick red
+    { y: 361, color: '#C62828', w: 2, speed: 0.12 },
+  ];
+  for (const wd of wireData) {
+    // Wire sag: draw as a series of short catenary curves
+    const segW = 200;
+    const startX = -(((camX * wd.speed) % segW + segW) % segW);
+    ctx.strokeStyle = wd.color; ctx.lineWidth = wd.w; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let sx = startX; sx < W + segW; sx += segW) {
+      ctx.moveTo(sx, wd.y);
+      ctx.quadraticCurveTo(sx + segW/2, wd.y + 14, sx + segW, wd.y);
+    }
+    ctx.stroke();
+    // Wire connectors / clips every segment
+    for (let sx = startX + segW; sx < W + segW; sx += segW) {
+      ctx.fillStyle = '#555';
+      ctx.fillRect(sx - 4, wd.y - 5, 8, 10);
+      ctx.fillStyle = '#777';
+      ctx.fillRect(sx - 3, wd.y - 3, 6, 6);
+    }
+  }
+
+  // Distant machinery silhouettes (pipes, tanks)
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = '#111';
+  const machX1 = ((-(camX * 0.08)) % (LEVEL_W + W) + LEVEL_W + W) % (LEVEL_W + W);
+  for (const [ox, oy, ow, oh] of [[0,280,30,130],[140,240,60,170],[240,260,30,140],[380,220,80,180],[500,270,30,130],[680,230,50,170],[760,260,30,140]]) {
+    ctx.fillRect(machX1 + ox - 300, oy, ow, oh);
+    ctx.beginPath(); ctx.arc(machX1 + ox - 300 + ow/2, oy, ow/2, Math.PI, 0); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawBackground() {
+  if (currentAdventure === 1) { drawFactoryBackground(); return; }
   if (currentLevel === 3) { drawCastleBackground(); return; }
   const g = ctx.createLinearGradient(0, 0, 0, H);
   if (currentLevel === 2) {
@@ -1218,14 +2085,19 @@ function drawBackground() {
 
 // ─── Platforms ───────────────────────────────────────────────────────────────
 function drawPlatforms() {
-  const [gc, gt, gl, gd] = currentLevel === 3
+  const isMF = currentAdventure === 1;
+  const [gc, gt, gl, gd] = isMF
+    ? ['#37474F','#546E7A','#78909C','#263238']   // metal ground: steel blue-gray
+    : currentLevel === 3
     ? ['#2E2E2E','#3A3A3A','#4A4A4A','#1A1A1A']
     : currentLevel === 2
     ? ['#0A0A14','#12122A','#1A1A35','#060610']
     : currentLevel === 1
     ? ['#4A1942','#7B1FA2','#9C27B0','#311B3F']
     : ['#5D4037','#388E3C','#4CAF50','#4A2F20'];
-  const [bc, bl, bd] = currentLevel === 3
+  const [bc, bl, bd] = isMF
+    ? ['#455A64','#607D8B','#37474F']              // metal platforms: steel
+    : currentLevel === 3
     ? ['#383838','#555555','#222222']
     : currentLevel === 2
     ? ['#16162E','#2A2A50','#0D0D20']
@@ -1241,6 +2113,18 @@ function drawPlatforms() {
       ctx.fillStyle = gl; ctx.fillRect(x, py+1, pw, 3);
       ctx.fillStyle = gd;
       for (let gx = 0; gx < pw; gx += 32) ctx.fillRect(x+gx, py+10, 2, ph-10);
+      if (isMF) {
+        // Metal plate seams
+        ctx.fillStyle = '#263238';
+        for (let gx = 0; gx < pw; gx += 48) ctx.fillRect(x+gx, py, 2, ph);
+        // Rivets along top edge
+        ctx.fillStyle = '#78909C';
+        for (let gx = 8; gx < pw; gx += 24) {
+          ctx.beginPath(); ctx.arc(x+gx, py+5, 2.5, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#90A4AE'; ctx.beginPath(); ctx.arc(x+gx-1, py+4, 1, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#78909C';
+        }
+      }
     } else {
       ctx.fillStyle = bc; ctx.fillRect(x, py, pw, ph);
       ctx.fillStyle = bl; ctx.fillRect(x, py, pw, 3);
@@ -1248,6 +2132,16 @@ function drawPlatforms() {
       ctx.fillRect(x, py+ph-3, pw, 3); ctx.fillRect(x, py+ph/2-1, pw, 2);
       for (let bx = 0;  bx < pw; bx += 20) ctx.fillRect(x+bx, py, 2, ph/2);
       for (let bx = 10; bx < pw; bx += 20) ctx.fillRect(x+bx, py+ph/2, 2, ph/2);
+      if (isMF) {
+        // Rivets on platform corners
+        ctx.fillStyle = '#78909C';
+        for (const rx of [5, pw-8]) {
+          ctx.beginPath(); ctx.arc(x+rx, py+ph/2, 2, 0, Math.PI*2); ctx.fill();
+        }
+        // Orange warning stripe on platform edge
+        ctx.fillStyle = '#E65100';
+        ctx.fillRect(x, py, pw, 2);
+      }
     }
   }
 }
@@ -1280,9 +2174,9 @@ function drawChests() {
       // Powerup icon + pulsing label
       const pulse = 0.75 + Math.sin(tick * 0.1) * 0.25;
       ctx.globalAlpha = pulse;
-      ctx.fillStyle = c.type === 'speed' ? '#FFE082' : c.type === 'nightvision' ? '#00E5FF' : '#CE93D8';
+      ctx.fillStyle = c.type === 'speed' ? '#FFE082' : c.type === 'nightvision' ? '#00E5FF' : c.type === 'hammer' ? '#FF6F00' : '#CE93D8';
       ctx.font = '13px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(c.type === 'speed' ? '⚡' : c.type === 'nightvision' ? 'NV' : '★', x+c.w/2, c.y-4);
+      ctx.fillText(c.type === 'speed' ? '⚡' : c.type === 'nightvision' ? 'NV' : c.type === 'hammer' ? '🔨' : '★', x+c.w/2, c.y-4);
       ctx.globalAlpha = 1; ctx.textAlign = 'left';
     } else {
       // Open body
@@ -1568,6 +2462,51 @@ function drawPlayerCube(p) {
     ctx.restore();
   }
 
+  // Mechanic skin: orange hard hat + cosmetic hammer
+  if (equippedSkin === 'mechanic') {
+    // Brim (black, wide)
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fillRect(ex - 5, py - 4, pw + 10, 4);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(ex - 5, py - 4, pw + 10, 1); // brim highlight
+    // Side lugs (bumps on brim)
+    ctx.fillStyle = '#E65100';
+    ctx.fillRect(ex - 2, py - 8, 5, 5);
+    ctx.fillRect(ex + pw - 3, py - 8, 5, 5);
+    ctx.fillStyle = '#BF360C';
+    ctx.fillRect(ex - 2, py - 5, 5, 2);
+    ctx.fillRect(ex + pw - 3, py - 5, 5, 2);
+    // Dome (orange, pixelated hard hat shape)
+    const dW = Math.floor(pw * 0.78), dH = Math.floor(ph * 0.60);
+    const dX = ex + Math.floor((pw - dW) / 2), dY = py - 4 - dH;
+    ctx.fillStyle = '#E65100';
+    ctx.fillRect(dX, dY, dW, dH);
+    // Dome highlight (lighter orange, top-left)
+    ctx.fillStyle = '#FF8F00';
+    ctx.fillRect(dX + 1, dY, dW - 3, 2);
+    ctx.fillRect(dX, dY + 2, 2, dH - 5);
+    // Dome shadow (darker, bottom-right)
+    ctx.fillStyle = '#BF360C';
+    ctx.fillRect(dX + dW - 3, dY + 2, 3, dH - 2);
+    ctx.fillRect(dX + 1, dY + dH - 3, dW - 4, 3);
+    // Black top vent strip
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fillRect(dX + Math.floor(dW * 0.36), dY, Math.floor(dW * 0.28), Math.floor(dH * 0.52));
+    // Cosmetic hammer (held on facing side, static)
+    const hSide = p.facingRight ? 1 : -1;
+    const hmrBaseX = p.facingRight ? ex + pw + 2 : ex - 14;
+    const hmrBaseY = py + Math.floor(ph * 0.22);
+    const hndleH = Math.floor(ph * 0.7);
+    // Handle (wood brown)
+    ctx.fillStyle = '#8D6E63'; ctx.fillRect(hmrBaseX + 4, hmrBaseY + 6, 4, hndleH);
+    ctx.fillStyle = '#6D4C41'; ctx.fillRect(hmrBaseX + 6, hmrBaseY + 6, 2, hndleH);
+    // Head (steel gray)
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(hmrBaseX, hmrBaseY, 12, 9);
+    ctx.fillStyle = '#78909C'; ctx.fillRect(hmrBaseX, hmrBaseY, 12, 2);     // top highlight
+    ctx.fillStyle = '#37474F'; ctx.fillRect(hmrBaseX, hmrBaseY + 7, 12, 2); // bottom shadow
+    ctx.fillStyle = '#90A4AE'; ctx.fillRect(hmrBaseX, hmrBaseY, 2, 9);      // left highlight
+  }
+
   // Face drawn on top — skip for murderer (mask replaces the face)
   if (equippedSkin !== 'murderer') {
     const eyeY = py + Math.floor(ph*0.28);
@@ -1581,8 +2520,8 @@ function drawPlayerCube(p) {
       ctx.fillStyle = '#FFF';
       ctx.fillRect(ex+pw*0.15+1, eyeY+1, 2, 2); ctx.fillRect(ex+pw*0.36+1, eyeY+1, 2, 2);
     }
-    // Smile — only on bare cube (no skin equipped)
-    if (!equippedSkin) {
+    // Smile — on bare cube or mechanic skin
+    if (!equippedSkin || equippedSkin === 'mechanic') {
       const mouthY = py + Math.floor(ph * 0.62);
       const mouthW = Math.floor(pw * 0.42);
       const mouthX = p.facingRight ? ex + Math.floor(pw * 0.38) : ex + Math.floor(pw * 0.2);
@@ -1611,11 +2550,240 @@ function checkMistakesBadge() {
   }
 }
 function checkNyctophobiaBadge(p) {
-  if (currentLevel === 2 && p.powerups.nightvision === 0 && !badges.has('nyctophobia')) {
+  if (currentAdventure === 0 && currentLevel === 2 && p.powerups.nightvision === 0 && !badges.has('nyctophobia')) {
     badges.add('nyctophobia');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Nyctophobia', timer: 240 };
   }
+}
+
+// ─── Generator / Wire Minigame ───────────────────────────────────────────────
+function shuffleArr(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function openGenerator(idx) {
+  generatorOpen = true; activeGenIdx = idx;
+  genStage = 0; genTransition = false; genTransTimer = 0;
+  initGenStage(0);
+}
+function initGenStage(stage) {
+  genStage = stage;
+  if (stage === 0) {
+    wireLeftOrder = shuffleArr([0,1,2,3,4]); wireRightOrder = shuffleArr([0,1,2,3,4]);
+    wireMatches = {}; wireSelected = null; wireErrorTimer = 0; wireErrorPos = -1;
+  } else if (stage === 1) {
+    seqPattern = Array.from({length:4}, () => Math.floor(Math.random()*4));
+    seqPhase = 'showing'; seqTick = 0; seqPlayerIdx = 0;
+  } else if (stage === 2) {
+    gaugeTargets = Array.from({length:3}, () => 2 + Math.floor(Math.random()*7));
+    gaugeValues  = Array.from({length:3}, () => Math.floor(Math.random()*10));
+  } else if (stage === 3) {
+    patternTarget = Array.from({length:9}, () => Math.random() < 0.5);
+    patternPlayer = Array(9).fill(false);
+    patternPhase = 'show'; patternTimer = 150;
+  } else if (stage === 4) {
+    lightsGrid = Array(9).fill(false);
+    for (let i = 0; i < 5; i++) toggleLightsOut(Math.floor(Math.random()*9));
+    if (!lightsGrid.some(v => v)) toggleLightsOut(4);
+  }
+}
+function advanceGenStage() {
+  const next = genStage + 1;
+  if (next >= 5) {
+    generators[activeGenIdx].solved = true;
+    generatorOpen = false; activeGenIdx = null;
+  } else {
+    genNextStage = next; genTransition = true; genTransTimer = 70;
+  }
+}
+function checkWireSolved() {
+  if (Object.keys(wireMatches).length === 5) advanceGenStage();
+}
+function toggleLightsOut(pos) {
+  const r = Math.floor(pos/3), c = pos%3;
+  for (const [nr,nc] of [[r,c],[r-1,c],[r+1,c],[r,c-1],[r,c+1]]) {
+    if (nr>=0 && nr<3 && nc>=0 && nc<3) lightsGrid[nr*3+nc] = !lightsGrid[nr*3+nc];
+  }
+}
+function drawGenerators() {
+  for (const gen of generators) {
+    const gx = sx(gen.x), dx = sx(gen.doorX);
+    // Cable from generator to door
+    ctx.strokeStyle = '#FF9800'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(gx+gen.w, gen.y+gen.h-10); ctx.lineTo(dx, gen.y+gen.h-10); ctx.stroke();
+    ctx.strokeStyle = '#E65100'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(gx+gen.w, gen.y+gen.h-14); ctx.lineTo(dx, gen.y+gen.h-14); ctx.stroke();
+    // Door
+    const doorH = Math.max(0, GROUND_Y * (1 - gen.doorAnim));
+    if (doorH > 0) {
+      ctx.fillStyle = '#263238'; ctx.fillRect(dx-3, 0, 30, doorH);  // frame
+      ctx.fillStyle = '#37474F'; ctx.fillRect(dx, 0, 24, doorH);     // body
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(dx+2, 0, 4, doorH);   // highlight
+      ctx.fillStyle = '#1C2A30'; ctx.fillRect(dx+20, 0, 4, doorH);  // shadow
+      ctx.fillStyle = '#263238';
+      for (let gy = 36; gy < doorH; gy += 36) ctx.fillRect(dx, gy, 24, 2);  // seams
+      ctx.fillStyle = '#607D8B';
+      for (let gy = 16; gy < doorH; gy += 36) {
+        ctx.beginPath(); ctx.arc(dx+6, gy, 2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(dx+18, gy, 2, 0, Math.PI*2); ctx.fill();
+      }
+      if (doorH > 8) { ctx.fillStyle='#E65100'; ctx.fillRect(dx, doorH-5, 24, 5); }
+    }
+    // Generator machine body
+    ctx.fillStyle = '#455A64'; ctx.fillRect(gx, gen.y, gen.w, gen.h);
+    ctx.fillStyle = '#607D8B'; ctx.fillRect(gx, gen.y, gen.w, 4);  // top highlight
+    ctx.fillStyle = '#2E3F47'; ctx.fillRect(gx+5, gen.y+8, gen.w-10, gen.h-14);  // panel
+    ctx.fillStyle = '#1C2A30';
+    for (let vy = gen.y+12; vy < gen.y+gen.h-18; vy += 5) ctx.fillRect(gx+7, vy, gen.w-14, 2);  // vents
+    const pulse = 0.6 + Math.sin(tick*0.1)*0.4;
+    const lc = gen.solved ? '#4CAF50' : '#FF1744';
+    ctx.shadowColor = lc; ctx.shadowBlur = 10*pulse; ctx.fillStyle = lc;
+    ctx.beginPath(); ctx.arc(gx+gen.w-10, gen.y+10, 4, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#78909C'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('GENERATOR', gx+gen.w/2, gen.y+gen.h-3);
+    ctx.textAlign = 'left';
+    // Press F prompt
+    if (!gen.solved) {
+      const p = player1 || player2;
+      if (p && Math.abs((p.x+p.w/2)-(gen.x+gen.w/2)) < 80) {
+        ctx.fillStyle = '#FFD700'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+        ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 6;
+        ctx.fillText('[F] Use Generator', gx+gen.w/2, gen.y-6);
+        ctx.shadowBlur = 0; ctx.textAlign = 'left';
+      }
+    }
+  }
+}
+function drawGeneratorMinigame() {
+  const PW=400, PH=320, PX=W/2-200, PY=H/2-160;
+  const stageNames=['WIRE LINK','SEQUENCE','PRESSURE','PATTERN','LIGHTS OUT'];
+  ctx.fillStyle='rgba(0,0,0,0.82)'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#1C2A30'; ctx.fillRect(PX,PY,PW,PH);
+  ctx.strokeStyle='#546E7A'; ctx.lineWidth=2; ctx.strokeRect(PX,PY,PW,PH);
+  ctx.fillStyle='#37474F'; ctx.fillRect(PX,PY,PW,4);
+  // Title
+  ctx.fillStyle='#90A4AE'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
+  ctx.fillText('⚡ '+stageNames[genStage]+' ⚡', W/2, PY+22);
+  // Progress dots
+  for (let i=0; i<5; i++) {
+    const dotX=W/2+(i-2)*30, dotY=PY+38;
+    ctx.fillStyle = i<genStage?'#4CAF50':i===genStage?'#FFD700':'#37474F';
+    ctx.strokeStyle = i<genStage?'#4CAF50':i===genStage?'#FFD700':'#546E7A';
+    ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(dotX,dotY,7,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    if (i<genStage) { ctx.fillStyle='#FFF'; ctx.font='bold 8px monospace'; ctx.fillText('✓',dotX,dotY+3); }
+    else { ctx.fillStyle='#546E7A'; ctx.font='7px monospace'; ctx.fillText(i+1,dotX,dotY+2.5); }
+  }
+  if (genTransition) {
+    ctx.fillStyle='#4CAF50'; ctx.font='bold 22px monospace'; ctx.textAlign='center';
+    ctx.shadowColor='#4CAF50'; ctx.shadowBlur=20;
+    ctx.fillText('STAGE COMPLETE!', W/2, H/2+8); ctx.shadowBlur=0; ctx.textAlign='left'; return;
+  }
+  if (genStage===0) drawWireStage(PX,PY,PW,PH);
+  else if (genStage===1) drawSequenceStage(PX,PY,PW,PH);
+  else if (genStage===2) drawPressureStage(PX,PY,PW,PH);
+  else if (genStage===3) drawPatternStage(PX,PY,PW,PH);
+  else if (genStage===4) drawLightsStage(PX,PY,PW,PH);
+  ctx.fillStyle='#334'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText('ESC or F to close', W/2, PY+PH-6); ctx.textAlign='left';
+}
+function drawWireStage(PX,PY,PW,PH) {
+  const LC=PX+72, RC=PX+PW-72, CY0=PY+75, CYS=40;
+  ctx.fillStyle='#607D8B'; ctx.font='8px monospace'; ctx.textAlign='center';
+  ctx.fillText('SOURCE', LC, PY+60); ctx.fillText('TARGET', RC, PY+60);
+  for (let i=0; i<5; i++) {
+    const ly=CY0+i*CYS, ry=CY0+i*CYS;
+    const lCol=WIRE_COLORS[wireLeftOrder[i]], rCol=WIRE_COLORS[wireRightOrder[i]];
+    const lMatched=wireMatches[i]!==undefined, rMatchedByAny=Object.values(wireMatches).includes(i);
+    const errFlash=wireErrorTimer>0&&wireErrorPos===i&&(wireErrorTimer%6<3), lSel=wireSelected===i;
+    ctx.strokeStyle=lCol; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(PX,ly); ctx.lineTo(LC-12,ly); ctx.stroke();
+    ctx.fillStyle=lMatched?lCol:lSel?'#FFF':'#263238'; ctx.strokeStyle=lCol; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(LC,ly,9,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    if (lSel) { ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(LC,ly,13,0,Math.PI*2); ctx.stroke(); }
+    ctx.strokeStyle=rCol; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(RC+12,ry); ctx.lineTo(PX+PW,ry); ctx.stroke();
+    ctx.fillStyle=rMatchedByAny?rCol:errFlash?'#FF1744':'#263238'; ctx.strokeStyle=rCol; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(RC,ry,9,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+  ctx.lineWidth=3;
+  for (const [lPos,rPos] of Object.entries(wireMatches)) {
+    const lp=parseInt(lPos), col=WIRE_COLORS[wireLeftOrder[lp]];
+    const ly=CY0+lp*CYS, ry=CY0+rPos*CYS; ctx.strokeStyle=col;
+    ctx.beginPath(); ctx.moveTo(LC+9,ly); ctx.bezierCurveTo(LC+80,ly,RC-80,ry,RC-9,ry); ctx.stroke();
+  }
+  ctx.fillStyle='#546E7A'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText(`${Object.keys(wireMatches).length}/5 connected`, W/2, PY+PH-18);
+}
+function drawSequenceStage(PX,PY,PW,PH) {
+  const SEQ_COL=['#F44336','#4CAF50','#2196F3','#FFD700'];
+  const btns=[{x:PX+90,y:PY+70,w:90,h:65},{x:PX+220,y:PY+70,w:90,h:65},{x:PX+90,y:PY+155,w:90,h:65},{x:PX+220,y:PY+155,w:90,h:65}];
+  let flashingBtn=-1;
+  if (seqPhase==='showing') { const step=Math.floor(seqTick/60),w=seqTick%60; if(w<40&&step<seqPattern.length) flashingBtn=seqPattern[step]; }
+  for (let i=0; i<4; i++) {
+    const b=btns[i], fl=flashingBtn===i;
+    ctx.fillStyle=fl?SEQ_COL[i]:SEQ_COL[i]+'33'; ctx.fillRect(b.x,b.y,b.w,b.h);
+    if (fl) { ctx.shadowColor=SEQ_COL[i]; ctx.shadowBlur=18; ctx.fillStyle=SEQ_COL[i]; ctx.fillRect(b.x,b.y,b.w,b.h); ctx.shadowBlur=0; }
+    ctx.strokeStyle=fl?'#FFF':SEQ_COL[i]; ctx.lineWidth=fl?3:1.5; ctx.strokeRect(b.x,b.y,b.w,b.h);
+  }
+  ctx.fillStyle='#90A4AE'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText(seqPhase==='showing'?'Watch the sequence...':('Repeat it! ('+seqPlayerIdx+'/'+seqPattern.length+')'), W/2, PY+PH-18);
+}
+function drawPressureStage(PX,PY,PW,PH) {
+  const gCX=[PX+80,PX+200,PX+320], gCY=PY+155;
+  for (let i=0; i<3; i++) {
+    const gx=gCX[i], v=gaugeValues[i], t=gaugeTargets[i], matched=v===t;
+    ctx.strokeStyle='#263238'; ctx.lineWidth=8;
+    ctx.beginPath(); ctx.arc(gx,gCY,34,Math.PI*.75,Math.PI*2.25); ctx.stroke();
+    const sa=Math.PI*.75, pct=v/9;
+    ctx.strokeStyle=matched?'#4CAF50':'#FF9800'; ctx.lineWidth=8;
+    ctx.beginPath(); ctx.arc(gx,gCY,34,sa,sa+pct*Math.PI*1.5); ctx.stroke();
+    const tA=sa+(t/9)*Math.PI*1.5;
+    ctx.strokeStyle='#FF1744'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(gx+Math.cos(tA)*26,gCY+Math.sin(tA)*26); ctx.lineTo(gx+Math.cos(tA)*42,gCY+Math.sin(tA)*42); ctx.stroke();
+    ctx.fillStyle=matched?'#4CAF50':'#FFF'; ctx.font='bold 14px monospace'; ctx.textAlign='center';
+    ctx.fillText(v,gx,gCY+5);
+    ctx.fillStyle='#FF1744'; ctx.font='7px monospace'; ctx.fillText('▶'+t,gx,gCY+18);
+    ctx.fillStyle='#37474F'; ctx.fillRect(gx-26,gCY+44,22,16); ctx.fillRect(gx+4,gCY+44,22,16);
+    ctx.fillStyle='#90A4AE'; ctx.font='bold 13px monospace';
+    ctx.fillText('-',gx-15,gCY+56); ctx.fillText('+',gx+15,gCY+56);
+  }
+  const allOk=gaugeTargets.every((t,i)=>gaugeValues[i]===t);
+  ctx.fillStyle=allOk?'#4CAF50':'#546E7A'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText(allOk?'All gauges calibrated!':'Set each gauge to the red marker value',W/2,PY+PH-18);
+}
+function drawPatternStage(PX,PY,PW,PH) {
+  const gX=PX+PW/2-66, gY=PY+68, cell=42;
+  ctx.fillStyle='#546E7A'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText(patternPhase==='show'?`Memorize! (${Math.ceil(patternTimer/60)}s)`:'Now recreate it!',W/2,PY+58);
+  for (let i=0; i<9; i++) {
+    const r=Math.floor(i/3),c=i%3, cx=gX+c*(cell+2),cy=gY+r*(cell+2);
+    const lit=patternPhase==='show'?patternTarget[i]:patternPlayer[i];
+    ctx.fillStyle=lit?'#FFD700':'#263238'; ctx.fillRect(cx,cy,cell,cell);
+    ctx.strokeStyle='#546E7A'; ctx.lineWidth=1; ctx.strokeRect(cx,cy,cell,cell);
+    if (lit&&patternPhase==='show') { ctx.shadowColor='#FFD700'; ctx.shadowBlur=10; ctx.fillStyle='#FFD700'; ctx.fillRect(cx,cy,cell,cell); ctx.shadowBlur=0; }
+  }
+  if (patternPhase==='input') {
+    ctx.fillStyle='#546E7A'; ctx.font='9px monospace'; ctx.textAlign='center';
+    const done=patternPlayer.filter((v,i)=>v===patternTarget[i]).length;
+    ctx.fillText(`${done}/9 correct`,W/2,PY+PH-18);
+  }
+}
+function drawLightsStage(PX,PY,PW,PH) {
+  const gX=PX+PW/2-66, gY=PY+68, cell=42;
+  ctx.fillStyle='#546E7A'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText('Turn ALL lights OFF',W/2,PY+58);
+  for (let i=0; i<9; i++) {
+    const r=Math.floor(i/3),c=i%3, cx=gX+c*(cell+2),cy=gY+r*(cell+2);
+    const on=lightsGrid[i];
+    ctx.fillStyle=on?'#FF1744':'#263238'; ctx.fillRect(cx,cy,cell,cell);
+    if (on) { ctx.shadowColor='#FF1744'; ctx.shadowBlur=14; ctx.fillStyle='#FF1744'; ctx.fillRect(cx,cy,cell,cell); ctx.shadowBlur=0; }
+    ctx.strokeStyle='#546E7A'; ctx.lineWidth=1; ctx.strokeRect(cx,cy,cell,cell);
+  }
+  ctx.fillStyle='#546E7A'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText(`${lightsGrid.filter(v=>!v).length}/9 off`,W/2,PY+PH-18);
 }
 
 function hasNightVision() {
@@ -1625,45 +2793,169 @@ function hasNightVision() {
 
 // ─── Enemies ─────────────────────────────────────────────────────────────────
 function drawEnemies() {
-  const darkMode = currentLevel === 2 && !hasNightVision();
+  const darkMode = currentLevel === 2 && !hasNightVision() && currentAdventure === 0;
+  const robotMode = currentAdventure === 1;
   for (const e of enemies) {
     if (!e.alive) {
-      if (e.squish > 0) { const sh = Math.max(4,10*e.squish); drawCube(e.x, e.y+e.h-sh, e.w, sh, '#E53935','#B71C1C','#EF9A9A'); }
+      if (e.squish > 0) {
+        const sh = Math.max(4,10*e.squish);
+        const dc = robotMode ? '#546E7A' : '#E53935';
+        const dd = robotMode ? '#37474F' : '#B71C1C';
+        const dl = robotMode ? '#78909C' : '#EF9A9A';
+        drawCube(e.x, e.y+e.h-sh, e.w, sh, dc, dd, dl);
+      }
       continue;
     }
     const ex = sx(e.x); if (ex+e.w < -10 || ex > W+10) continue;
     if (darkMode) continue; // body hidden in darkness — drawn by drawEnemyGlowEyes instead
     const fr = e.vx > 0;
-    drawCube(e.x, e.y, e.w, e.h, '#E53935','#B71C1C','#EF9A9A');
-    const eyeY = e.y + Math.floor(e.h*0.30);
-    ctx.fillStyle = '#000';
-    if (fr) { ctx.fillRect(ex+e.w*0.52, eyeY, 4, 4); ctx.fillRect(ex+e.w*0.73, eyeY, 4, 4); }
-    else    { ctx.fillRect(ex+e.w*0.15, eyeY, 4, 4); ctx.fillRect(ex+e.w*0.36, eyeY, 4, 4); }
-    ctx.fillStyle = '#7F0000';
-    if (fr) { ctx.fillRect(ex+e.w*.50, eyeY-5, e.w*.20, 2); ctx.fillRect(ex+e.w*.71, eyeY-4, e.w*.21, 2); }
-    else    { ctx.fillRect(ex+e.w*.08, eyeY-4, e.w*.21, 2); ctx.fillRect(ex+e.w*.30, eyeY-5, e.w*.20, 2); }
-    const mb = e.y+e.h*0.65;
-    if (fr) { ctx.fillRect(ex+e.w*.50,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.50,mb-3,2,4); ctx.fillRect(ex+e.w*.88-2,mb,2,4); }
-    else    { ctx.fillRect(ex+e.w*.12,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.12,mb,2,4);   ctx.fillRect(ex+e.w*.50-2,mb-3,2,4); }
+
+    if (robotMode) {
+      const armored = currentLevel === 2; // Level 3 — heavy variant
+
+      if (armored) {
+        // ── Armored robot — heavier, darker plating ──
+        drawCube(e.x, e.y, e.w, e.h, '#37474F', '#1C313A', '#546E7A');
+
+        // Shoulder armor plates (jut out on sides)
+        ctx.fillStyle = '#263238';
+        ctx.fillRect(ex - 4, e.y + 2, 5, e.h * 0.45);
+        ctx.fillRect(ex + e.w - 1, e.y + 2, 5, e.h * 0.45);
+        ctx.fillStyle = '#455A64';
+        ctx.fillRect(ex - 3, e.y + 3, 3, e.h * 0.43);
+        ctx.fillRect(ex + e.w, e.y + 3, 3, e.h * 0.43);
+
+        // Panel seam lines
+        ctx.fillStyle = '#1C313A';
+        ctx.fillRect(ex, e.y + e.h*0.5, e.w, 2);
+        ctx.fillRect(ex + e.w*0.5, e.y, 2, e.h);
+        // Extra cross seams
+        ctx.fillRect(ex, e.y + e.h*0.25, e.w, 1);
+        ctx.fillRect(ex, e.y + e.h*0.75, e.w, 1);
+
+        // Orange hazard stripe across chest
+        ctx.save();
+        ctx.beginPath(); ctx.rect(ex, e.y, e.w, e.h); ctx.clip();
+        ctx.fillStyle = '#E65100';
+        const strX = ex - e.h + (tick * 0.0 | 0); // static diagonal
+        for (let s = -e.w; s < e.w * 2; s += 8) {
+          ctx.fillRect(ex + s, e.y + e.h * 0.43, 4, e.h * 0.14);
+        }
+        ctx.restore();
+
+        // Pulsing energy core (center chest)
+        const pulse = 0.6 + Math.sin(tick * 0.15 + e.x * 0.02) * 0.4;
+        ctx.globalAlpha = pulse;
+        ctx.fillStyle = '#FF6F00';
+        ctx.shadowColor = '#FF6F00'; ctx.shadowBlur = 10 * pulse;
+        ctx.fillRect(ex + e.w*0.5 - 4, e.y + e.h*0.38, 8, 8);
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+
+        // 8 rivets
+        ctx.fillStyle = '#78909C';
+        for (const [rx,ry] of [
+          [ex+3,e.y+3],[ex+e.w-6,e.y+3],[ex+3,e.y+e.h-6],[ex+e.w-6,e.y+e.h-6],
+          [ex+3,e.y+e.h*0.5-1],[ex+e.w-6,e.y+e.h*0.5-1],
+          [ex+e.w*0.5-1,e.y+3],[ex+e.w*0.5-1,e.y+e.h-6]
+        ]) {
+          ctx.beginPath(); ctx.arc(rx, ry, 2, 0, Math.PI*2); ctx.fill();
+        }
+
+        // Dual antennas
+        ctx.fillStyle = '#546E7A';
+        ctx.fillRect(ex + e.w*0.3 - 1, e.y - 9, 2, 9);
+        ctx.fillRect(ex + e.w*0.7 - 1, e.y - 9, 2, 9);
+        ctx.fillStyle = '#FF1744';
+        ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(ex + e.w*0.3, e.y - 10, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + e.w*0.7, e.y - 10, 3, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Red glowing eyes (wider, more menacing)
+        const eyeY = e.y + e.h * 0.26;
+        ctx.fillStyle = '#FF1744';
+        if (fr) { ctx.fillRect(ex+e.w*0.50, eyeY, 7, 5); ctx.fillRect(ex+e.w*0.72, eyeY, 7, 5); }
+        else    { ctx.fillRect(ex+e.w*0.12, eyeY, 7, 5); ctx.fillRect(ex+e.w*0.34, eyeY, 7, 5); }
+
+        // Grille / mouth (denser)
+        ctx.fillStyle = '#0D1F26';
+        const grY = e.y + e.h*0.58;
+        if (fr) { for (let i=0; i<5; i++) ctx.fillRect(ex+e.w*.48+i*4, grY, 3, 5); }
+        else    { for (let i=0; i<5; i++) ctx.fillRect(ex+e.w*.08+i*4, grY, 3, 5); }
+
+      } else {
+        // ── Standard robot cube body ──
+        drawCube(e.x, e.y, e.w, e.h, '#546E7A', '#37474F', '#78909C');
+        // Panel seam lines
+        ctx.fillStyle = '#37474F';
+        ctx.fillRect(ex, e.y + e.h*0.5, e.w, 2);
+        ctx.fillRect(ex + e.w*0.5, e.y, 2, e.h);
+        // Corner rivets
+        ctx.fillStyle = '#90A4AE';
+        for (const [rx,ry] of [[ex+3,e.y+3],[ex+e.w-6,e.y+3],[ex+3,e.y+e.h-6],[ex+e.w-6,e.y+e.h-6]]) {
+          ctx.beginPath(); ctx.arc(rx, ry, 2, 0, Math.PI*2); ctx.fill();
+        }
+        // Antenna
+        ctx.fillStyle = '#607D8B';
+        ctx.fillRect(ex + e.w*0.5 - 1, e.y - 6, 2, 6);
+        ctx.fillStyle = '#FF1744';
+        ctx.beginPath(); ctx.arc(ex + e.w*0.5, e.y - 7, 2.5, 0, Math.PI*2); ctx.fill();
+        // Eyes
+        const eyeY = e.y + e.h * 0.28;
+        ctx.fillStyle = '#FF1744';
+        if (fr) { ctx.fillRect(ex+e.w*0.52, eyeY, 5, 4); ctx.fillRect(ex+e.w*0.73, eyeY, 5, 4); }
+        else    { ctx.fillRect(ex+e.w*0.15, eyeY, 5, 4); ctx.fillRect(ex+e.w*0.36, eyeY, 5, 4); }
+        // Grille
+        ctx.fillStyle = '#263238';
+        const grY = e.y + e.h*0.58;
+        if (fr) { for (let i=0; i<4; i++) ctx.fillRect(ex+e.w*.52+i*5, grY, 3, 5); }
+        else    { for (let i=0; i<4; i++) ctx.fillRect(ex+e.w*.12+i*5, grY, 3, 5); }
+      }
+    } else {
+      drawCube(e.x, e.y, e.w, e.h, '#E53935','#B71C1C','#EF9A9A');
+      const eyeY = e.y + Math.floor(e.h*0.30);
+      ctx.fillStyle = '#000';
+      if (fr) { ctx.fillRect(ex+e.w*0.52, eyeY, 4, 4); ctx.fillRect(ex+e.w*0.73, eyeY, 4, 4); }
+      else    { ctx.fillRect(ex+e.w*0.15, eyeY, 4, 4); ctx.fillRect(ex+e.w*0.36, eyeY, 4, 4); }
+      ctx.fillStyle = '#7F0000';
+      if (fr) { ctx.fillRect(ex+e.w*.50, eyeY-5, e.w*.20, 2); ctx.fillRect(ex+e.w*.71, eyeY-4, e.w*.21, 2); }
+      else    { ctx.fillRect(ex+e.w*.08, eyeY-4, e.w*.21, 2); ctx.fillRect(ex+e.w*.30, eyeY-5, e.w*.20, 2); }
+      const mb = e.y+e.h*0.65;
+      if (fr) { ctx.fillRect(ex+e.w*.50,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.50,mb-3,2,4); ctx.fillRect(ex+e.w*.88-2,mb,2,4); }
+      else    { ctx.fillRect(ex+e.w*.12,mb,e.w*.38,2); ctx.fillRect(ex+e.w*.12,mb,2,4);   ctx.fillRect(ex+e.w*.50-2,mb-3,2,4); }
+    }
   }
 }
 
 function drawEnemyGlowEyes() {
+  const robotMode = currentAdventure === 1;
   for (const e of enemies) {
     if (!e.alive) continue;
     const ex = sx(e.x); if (ex+e.w < -10 || ex > W+10) continue;
     const fr = e.vx > 0;
-    const eyeY = e.y + Math.floor(e.h*0.30);
+    const armored = robotMode && currentLevel === 2;
+    const eyeY = e.y + Math.floor(robotMode ? (armored ? e.h*0.26 : e.h*0.28) : e.h*0.30);
     const pulse = 0.8 + Math.sin(tick*0.12 + e.x*0.01) * 0.2;
-    ctx.shadowColor = '#FF0000';
-    ctx.shadowBlur  = 14 * pulse;
-    ctx.fillStyle   = `rgba(255,${Math.floor(30*pulse)},${Math.floor(30*pulse)},1)`;
+    ctx.shadowColor = '#FF1744';
+    ctx.shadowBlur  = (armored ? 26 : robotMode ? 18 : 14) * pulse;
+    ctx.fillStyle   = `rgba(255,${Math.floor(robotMode?23:30)*pulse|0},${Math.floor(robotMode?23:30)*pulse|0},1)`;
     if (fr) {
-      ctx.fillRect(ex+e.w*0.52, eyeY, 5, 5);
-      ctx.fillRect(ex+e.w*0.73, eyeY, 5, 5);
+      ctx.fillRect(ex+e.w*(armored?0.50:0.52), eyeY, armored?7:5, armored?5:4);
+      ctx.fillRect(ex+e.w*(armored?0.72:0.73), eyeY, armored?7:5, armored?5:4);
     } else {
-      ctx.fillRect(ex+e.w*0.15, eyeY, 5, 5);
-      ctx.fillRect(ex+e.w*0.36, eyeY, 5, 5);
+      ctx.fillRect(ex+e.w*(armored?0.12:0.15), eyeY, armored?7:5, armored?5:4);
+      ctx.fillRect(ex+e.w*(armored?0.34:0.36), eyeY, armored?7:5, armored?5:4);
+    }
+    if (robotMode) {
+      // Antenna tip glow
+      ctx.shadowColor = '#FF1744'; ctx.shadowBlur = (armored ? 14 : 10) * pulse;
+      ctx.fillStyle = '#FF1744';
+      if (armored) {
+        ctx.beginPath(); ctx.arc(ex + e.w*0.3, e.y - 10, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + e.w*0.7, e.y - 10, 3, 0, Math.PI*2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(ex + e.w*0.5, e.y - 7, 2.5, 0, Math.PI*2); ctx.fill();
+      }
     }
     ctx.shadowBlur = 0;
   }
@@ -1945,6 +3237,33 @@ function drawSkinsPanel() {
       ctx.fillStyle = '#4E342E'; ctx.fillRect(kx - 1, ky, 4, 5);
       ctx.fillStyle = '#6D4C41'; ctx.fillRect(kx - 1, ky, 4, 1);
     }
+
+    if (unlocked && skin.id === 'mechanic') {
+      // Mini brim
+      ctx.fillStyle = '#1A1A1A'; ctx.fillRect(mpx - 3, mpy - 2, sz + 6, 2);
+      // Side lugs
+      ctx.fillStyle = '#E65100';
+      ctx.fillRect(mpx - 2, mpy - 5, 3, 3);
+      ctx.fillRect(mpx + sz - 1, mpy - 5, 3, 3);
+      ctx.fillStyle = '#BF360C';
+      ctx.fillRect(mpx - 2, mpy - 3, 3, 1);
+      ctx.fillRect(mpx + sz - 1, mpy - 3, 3, 1);
+      // Dome
+      const mdW = Math.floor(sz * 0.76), mdH = Math.floor(sz * 0.55);
+      const mdX = mpx + Math.floor((sz - mdW) / 2), mdY = mpy - 2 - mdH;
+      ctx.fillStyle = '#E65100'; ctx.fillRect(mdX, mdY, mdW, mdH);
+      ctx.fillStyle = '#FF8F00'; ctx.fillRect(mdX + 1, mdY, mdW - 2, 1); ctx.fillRect(mdX, mdY + 1, 1, mdH - 2);
+      ctx.fillStyle = '#BF360C'; ctx.fillRect(mdX + mdW - 2, mdY + 1, 2, mdH - 1); ctx.fillRect(mdX + 1, mdY + mdH - 2, mdW - 3, 2);
+      // Black vent
+      ctx.fillStyle = '#1A1A1A'; ctx.fillRect(mdX + Math.floor(mdW * 0.36), mdY, Math.floor(mdW * 0.28), Math.floor(mdH * 0.5));
+      // Mini cosmetic hammer (right side)
+      const mhX = mpx + sz + 2, mhY = mpy + Math.floor(sz * 0.2);
+      ctx.fillStyle = '#8D6E63'; ctx.fillRect(mhX + 2, mhY + 4, 2, Math.floor(sz * 0.6));
+      ctx.fillStyle = '#6D4C41'; ctx.fillRect(mhX + 3, mhY + 4, 1, Math.floor(sz * 0.6));
+      ctx.fillStyle = '#546E7A'; ctx.fillRect(mhX, mhY, 6, 4);
+      ctx.fillStyle = '#78909C'; ctx.fillRect(mhX, mhY, 6, 1);
+      ctx.fillStyle = '#37474F'; ctx.fillRect(mhX, mhY + 3, 6, 1);
+    }
     ctx.globalAlpha = 1;
 
     // Name + desc
@@ -2176,6 +3495,12 @@ function drawHUD() {
       ctx.fillStyle = '#006064'; ctx.fillRect(bx, 7, 52, 14);
       ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 9px monospace';
       ctx.fillText(`NV ${(p.powerups.nightvision/60).toFixed(1)}s`, bx+2, 18);
+      bx += 56;
+    }
+    if (p.hasHammer) {
+      ctx.fillStyle = '#BF360C'; ctx.fillRect(bx, 7, 38, 14);
+      ctx.fillStyle = '#FFF'; ctx.font = 'bold 9px monospace';
+      ctx.fillText('🔨 ON', bx+2, 18);
     }
   }
 
@@ -2184,12 +3509,29 @@ function drawHUD() {
 
   if (numPlayers === 1) {
     playerHUD(player1, 'P1', 8);
-    const bx=W-215, by=12, bw=200, bh=10;
-    ctx.fillStyle='#222'; ctx.fillRect(bx,by,bw,bh);
-    const prog = Math.min(1, player1.x/(levelW-100));
-    ctx.fillStyle='#29B6F6'; ctx.fillRect(bx,by,bw*prog,bh);
-    ctx.fillStyle='#64B5F6'; ctx.fillRect(bx,by,bw*prog,3);
-    ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
+    if (currentAdventure === 1 && currentLevel === 1) {
+      // Countdown timer for laser run
+      const remaining = Math.max(0, 3600 - mfRunTimer);
+      const secs = (remaining / 60).toFixed(1);
+      const timerColor = remaining <= 300 ? '#FF1744' : remaining <= 600 ? '#FF9800' : '#FF5252';
+      ctx.fillStyle = timerColor; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+      if (remaining > 0) {
+        ctx.fillText(`⚡ DODGE: ${secs}s`, W - 107, 20);
+      } else {
+        const gp = 0.6 + Math.sin(tick * 0.18) * 0.4;
+        ctx.globalAlpha = gp;
+        ctx.fillText('▶ RUN TO STOP!', W - 107, 20);
+        ctx.globalAlpha = 1;
+      }
+      ctx.textAlign = 'left';
+    } else {
+      const bx=W-215, by=12, bw=200, bh=10;
+      ctx.fillStyle='#222'; ctx.fillRect(bx,by,bw,bh);
+      const prog = Math.min(1, player1.x/(levelW-100));
+      ctx.fillStyle='#29B6F6'; ctx.fillRect(bx,by,bw*prog,bh);
+      ctx.fillStyle='#64B5F6'; ctx.fillRect(bx,by,bw*prog,3);
+      ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
+    }
   } else {
     playerHUD(player1, 'P1', 8);
     playerHUD(player2, 'P2', 410);
@@ -2257,6 +3599,102 @@ function drawSelectScreen() {
 }
 
 // ─── Difficulty Screen ────────────────────────────────────────────────────────
+function drawAdventureScreen() {
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0a0a1a'); g.addColorStop(1,'#051525');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  for (let i = 0; i < 60; i++) {
+    const blink = Math.sin(tick*.03+i)*.4+.6;
+    ctx.globalAlpha = blink; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect((i*137+50)%W, (i*97+30)%(H-80), i%3===0?2:1, i%3===0?2:1);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'center';
+  ctx.fillStyle = '#29B6F6'; ctx.font = 'bold 42px monospace';
+  ctx.shadowColor = '#29B6F6'; ctx.shadowBlur = 20;
+  ctx.fillText('★ THE CUBE BROS ★', W/2, 90); ctx.shadowBlur = 0;
+  ctx.fillStyle = '#546E7A'; ctx.font = '14px monospace';
+  ctx.fillText('SELECT ADVENTURE', W/2, 118);
+
+  const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
+  const mfUnlocked = badges.has('adventurer');
+
+  // ── Adventure 1: Cube Kingdom ──
+  const a1Sel = menuSel === 0;
+  ctx.fillStyle = a1Sel ? 'rgba(41,182,246,0.18)' : 'rgba(255,255,255,0.04)';
+  ctx.fillRect(c1X, cY, cW, cH);
+  ctx.strokeStyle = a1Sel ? '#29B6F6' : '#334'; ctx.lineWidth = a1Sel ? 3 : 1.5;
+  ctx.strokeRect(c1X, cY, cW, cH);
+  if (a1Sel) {
+    ctx.strokeStyle = `rgba(41,182,246,${.3+Math.sin(tick*.08)*.2})`;
+    ctx.lineWidth = 6; ctx.strokeRect(c1X-1, cY-1, cW+2, cH+2);
+  }
+  const sz1 = 52, ck1X = c1X+cW/2-sz1/2, ck1Y = cY+32+Math.sin(tick*.06)*6;
+  drawMiniCube(ck1X, ck1Y, sz1, P1.mid, P1.dark, P1.light);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(ck1X+sz1*.52, ck1Y+sz1*.28, sz1*.14, sz1*.14);
+  ctx.fillRect(ck1X+sz1*.73, ck1Y+sz1*.28, sz1*.14, sz1*.14);
+  ctx.fillStyle = a1Sel ? '#B3E5FC' : '#556'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('Adventure 1', c1X+cW/2, cY+106);
+  ctx.fillStyle = a1Sel ? '#FFF' : '#889'; ctx.font = 'bold 17px monospace';
+  ctx.fillText('CUBE KINGDOM', c1X+cW/2, cY+124);
+  if (a1Sel) { ctx.fillStyle='#29B6F6'; ctx.font='12px monospace'; ctx.fillText('▶ ENTER to select ◀', c1X+cW/2, cY+cH-8); }
+
+  // ── Adventure 2: Mechanical Factory ──
+  const a2Sel = menuSel === 1;
+  if (mfUnlocked) {
+    ctx.fillStyle = a2Sel ? 'rgba(255,152,0,0.18)' : 'rgba(255,255,255,0.04)';
+    ctx.fillRect(c2X, cY, cW, cH);
+    ctx.strokeStyle = a2Sel ? '#FF9800' : '#334'; ctx.lineWidth = a2Sel ? 3 : 1.5;
+    ctx.strokeRect(c2X, cY, cW, cH);
+    if (a2Sel) {
+      ctx.strokeStyle = `rgba(255,152,0,${.3+Math.sin(tick*.08)*.2})`;
+      ctx.lineWidth = 6; ctx.strokeRect(c2X-1, cY-1, cW+2, cH+2);
+    }
+    // Gear icon drawn on canvas
+    const gX = c2X+cW/2, gY = cY+58+Math.sin(tick*.06+1)*6, gR = 22, teeth = 8;
+    ctx.save();
+    ctx.translate(gX, gY);
+    ctx.rotate(tick * 0.012);
+    ctx.fillStyle = a2Sel ? '#FF9800' : '#666';
+    ctx.beginPath();
+    for (let t = 0; t < teeth*2; t++) {
+      const ang = (t / (teeth*2)) * Math.PI*2;
+      const r = t%2===0 ? gR : gR*0.72;
+      ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = a2Sel ? '#1a0a00' : '#1a1a1a';
+    ctx.beginPath(); ctx.arc(0, 0, gR*0.42, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = a2Sel ? '#FFE0B2' : '#556'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('Adventure 2', c2X+cW/2, cY+106);
+    ctx.fillStyle = a2Sel ? '#FFF' : '#889'; ctx.font = 'bold 14px monospace';
+    ctx.fillText('MECHANICAL FACTORY', c2X+cW/2, cY+124);
+    ctx.fillStyle = a2Sel ? '#FF9800' : '#556'; ctx.font = '9px monospace';
+    ctx.fillText('Coming Soon', c2X+cW/2, cY+140);
+    if (a2Sel) { ctx.fillStyle='#FF9800'; ctx.font='12px monospace'; ctx.fillText('▶ ENTER to select ◀', c2X+cW/2, cY+cH-8); }
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fillRect(c2X, cY, cW, cH);
+    ctx.strokeStyle = '#2a2a3a'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(c2X, cY, cW, cH);
+    ctx.fillStyle = '#333'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('🔒', c2X+cW/2, cY+cH/2-14);
+    ctx.fillStyle = '#445'; ctx.font = '11px monospace';
+    ctx.fillText('MECHANICAL FACTORY', c2X+cW/2, cY+cH/2+8);
+    ctx.fillStyle = '#334'; ctx.font = '10px monospace';
+    ctx.fillText('Beat Cube Kingdom to unlock', c2X+cW/2, cY+cH/2+24);
+  }
+
+  // Arrow indicator
+  ctx.fillStyle = `rgba(41,182,246,${.7+Math.sin(tick*.1)*.3})`;
+  ctx.font='bold 22px monospace'; ctx.textAlign='left';
+  ctx.fillText('▶', (menuSel===0?c1X:c2X)-24, cY+cH/2+8);
+  ctx.fillStyle='#445'; ctx.font='12px monospace'; ctx.textAlign='center';
+  ctx.fillText('← → to choose  |  ENTER to confirm  |  R = back', W/2, 390);
+  ctx.textAlign='left';
+}
+
 function drawDifficultyScreen() {
   const g = ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,'#0a0a1a'); g.addColorStop(1,'#1a0505');
@@ -2559,14 +3997,19 @@ function drawPlayerSword() {
 // ─── Main Draw ───────────────────────────────────────────────────────────────
 function draw() {
   if (gameState === 'select')     { drawSelectScreen();     return; }
+  if (gameState === 'adventure')  { drawAdventureScreen();  return; }
   if (gameState === 'difficulty') { drawDifficultyScreen(); return; }
   if (gameState === 'transition') { drawTransition();       return; }
-  if (gameState === 'cutscene')   { drawCutscene();     return; }
-  const darkMode = currentLevel === 2 && !hasNightVision();
+  if (gameState === 'cutscene')   { drawCutscene();       return; }
+  if (gameState === 'mfcutscene') { drawMFVictoryCutscene(); return; }
+  const darkMode = currentLevel === 2 && currentAdventure === 0 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
+  if (currentAdventure === 1) drawGenerators();
   if (currentLevel < 3) drawGoalFlag();
+  if (currentAdventure === 1 && currentLevel === 1) { drawLaserBalls(); drawMFStopButton(); }
   drawEnemies();
-  if (currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); }
+  if (currentAdventure === 0 && currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); }
+  if (currentAdventure === 1 && currentLevel === 3) { drawBossLasers(); drawMFBoss(); drawMFBossIntroOverlay(); }
   drawPlayerCube(player1); drawPlayerCube(player2);
   if (currentLevel === 3) drawPlayerSword();
   drawParticles();
@@ -2578,13 +4021,25 @@ function draw() {
     drawPlayerCube(player1); drawPlayerCube(player2);
     // Only glowing red eyes visible for enemies
     drawEnemyGlowEyes();
+  } else if (currentAdventure === 1) {
+    // Robot eye glow always visible in Mechanical Factory
+    drawEnemyGlowEyes();
   }
-  // Night vision green tint
-  if (currentLevel === 2 && hasNightVision()) {
+  // Night vision green tint (Cube Kingdom only)
+  if (currentLevel === 2 && currentAdventure === 0 && hasNightVision()) {
     ctx.fillStyle = 'rgba(0,255,80,0.13)';
     ctx.fillRect(0, 0, W, H);
   }
   drawHUD();
+  // "Need Hammer!" hint when stomping MF robots unarmed
+  if (hammerHintTimer > 0) {
+    const alpha = hammerHintTimer > 80 ? 1 : hammerHintTimer / 80;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#FF6F00'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('🔨 Need Hammer!', W/2, H/2 - 60);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  }
+  if (generatorOpen) drawGeneratorMinigame();
   drawTouchControls();
   // Fire Jason banner — visible while speed boost active, fades out after
   const _jasonSpeedOn = equippedSkin === 'murderer' && ((player1 && player1.powerups.speed > 0) || (player2 && player2.powerups.speed > 0));
@@ -2623,11 +4078,18 @@ function draw() {
 // ─── Input ───────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (gameState === 'select') {
-    if (e.code==='Digit1')                               { menuSel=0; playTacoBell(); pendingPlayers=1; gameState='difficulty'; menuSel=0; }
-    else if (e.code==='Digit2')                          { menuSel=0; playTacoBell(); pendingPlayers=2; gameState='difficulty'; menuSel=0; }
+    if (e.code==='Digit1')                               { menuSel=0; playTacoBell(); pendingPlayers=1; gameState='adventure'; menuSel=0; }
+    else if (e.code==='Digit2')                          { menuSel=0; playTacoBell(); pendingPlayers=2; gameState='adventure'; menuSel=0; }
     else if (e.code==='ArrowLeft'  || e.code==='KeyA')   menuSel=0;
     else if (e.code==='ArrowRight' || e.code==='KeyD')   menuSel=1;
-    else if (e.code==='Enter' || e.code==='Space')       { playTacoBell(); pendingPlayers=menuSel+1; gameState='difficulty'; menuSel=0; }
+    else if (e.code==='Enter' || e.code==='Space')       { playTacoBell(); pendingPlayers=menuSel+1; gameState='adventure'; menuSel=0; }
+  } else if (gameState === 'adventure') {
+    if (e.code==='ArrowLeft'  || e.code==='KeyA') menuSel=0;
+    else if (e.code==='ArrowRight' || e.code==='KeyD') { if (badges.has('adventurer')) menuSel=1; }
+    else if (e.code==='Enter' || e.code==='Space') {
+      if (menuSel===0 || badges.has('adventurer')) { currentAdventure=menuSel; playTacoBell(); gameState='difficulty'; menuSel=0; }
+    }
+    else if (e.code==='KeyR') { gameState='select'; menuSel=0; }
   } else if (gameState === 'difficulty') {
     if (e.code==='ArrowLeft'  || e.code==='KeyA')   menuSel=0;
     else if (e.code==='ArrowRight' || e.code==='KeyD')   menuSel=1;
@@ -2636,7 +4098,21 @@ document.addEventListener('keydown', e => {
       playTacoBell(); initGame(pendingPlayers);
     } else if (e.code==='KeyR') { gameState='select'; menuSel=0; }
   } else {
-    if (e.code==='KeyR') gameState='select';
+    if (e.code==='KeyR') {
+      if (gameState === 'mfcutscene' && mfVictoryCutscene && mfVictoryCutscene.phase !== 'freeze') return;
+      gameState='select';
+    }
+    if (e.code==='KeyF' && gameState==='playing') {
+      if (generatorOpen) { generatorOpen=false; return; }
+      for (let i=0; i<generators.length; i++) {
+        const gen=generators[i];
+        if (!gen.solved) {
+          const p=player1||player2;
+          if (p && Math.abs((p.x+p.w/2)-(gen.x+gen.w/2))<80) { openGenerator(i); return; }
+        }
+      }
+    }
+    if (e.code==='Escape' && generatorOpen) { generatorOpen=false; }
   }
 });
 
@@ -2645,10 +4121,73 @@ canvas.addEventListener('click', e => {
   const rect2 = canvas.getBoundingClientRect();
   const mx2 = (e.clientX - rect2.left) * (W / rect2.width);
   const my2 = (e.clientY - rect2.top)  * (H / rect2.height);
+  // Generator minigame click handling
+  if (generatorOpen) {
+    if (genTransition) return;
+    const PX=W/2-200, PY=H/2-160, PW=400, PH=320;
+    if (genStage===0) {
+      const LC=PX+72,RC=PX+PW-72,CY0=PY+75,CYS=40;
+      for (let i=0;i<5;i++) {
+        if (Math.hypot(mx2-LC,my2-(CY0+i*CYS))<13&&wireMatches[i]===undefined){wireSelected=i;return;}
+        if (Math.hypot(mx2-RC,my2-(CY0+i*CYS))<13){
+          if (wireSelected!==null&&!Object.values(wireMatches).includes(i)){
+            if(wireLeftOrder[wireSelected]===wireRightOrder[i]){wireMatches[wireSelected]=i;wireSelected=null;checkWireSolved();}
+            else{wireErrorTimer=35;wireErrorPos=i;wireSelected=null;}
+          } return;
+        }
+      }
+    } else if (genStage===1) {
+      if (seqPhase!=='input') return;
+      const btns=[{x:PX+90,y:PY+70,w:90,h:65},{x:PX+220,y:PY+70,w:90,h:65},{x:PX+90,y:PY+155,w:90,h:65},{x:PX+220,y:PY+155,w:90,h:65}];
+      for (let i=0;i<4;i++){
+        const b=btns[i];
+        if(mx2>=b.x&&mx2<=b.x+b.w&&my2>=b.y&&my2<=b.y+b.h){
+          if(i===seqPattern[seqPlayerIdx]){seqPlayerIdx++;if(seqPlayerIdx>=seqPattern.length)advanceGenStage();}
+          else{seqPhase='showing';seqTick=0;seqPlayerIdx=0;}
+          return;
+        }
+      }
+    } else if (genStage===2) {
+      const gCX=[PX+80,PX+200,PX+320],gCY=PY+155;
+      for (let i=0;i<3;i++){
+        const gx=gCX[i];
+        if(mx2>=gx-26&&mx2<=gx-4&&my2>=gCY+44&&my2<=gCY+60){gaugeValues[i]=Math.max(0,gaugeValues[i]-1);}
+        if(mx2>=gx+4&&mx2<=gx+26&&my2>=gCY+44&&my2<=gCY+60){gaugeValues[i]=Math.min(9,gaugeValues[i]+1);}
+      }
+      if(gaugeTargets.every((t,i)=>gaugeValues[i]===t))advanceGenStage();
+    } else if (genStage===3) {
+      if(patternPhase!=='input')return;
+      const gX=PX+PW/2-66,gY=PY+68,cell=42;
+      for(let i=0;i<9;i++){
+        const r=Math.floor(i/3),c=i%3,cx=gX+c*(cell+2),cy=gY+r*(cell+2);
+        if(mx2>=cx&&mx2<=cx+cell&&my2>=cy&&my2<=cy+cell){
+          patternPlayer[i]=!patternPlayer[i];
+          if(patternPlayer.every((v,i)=>v===patternTarget[i]))advanceGenStage();
+          return;
+        }
+      }
+    } else if (genStage===4) {
+      const gX=PX+PW/2-66,gY=PY+68,cell=42;
+      for(let i=0;i<9;i++){
+        const r=Math.floor(i/3),c=i%3,cx=gX+c*(cell+2),cy=gY+r*(cell+2);
+        if(mx2>=cx&&mx2<=cx+cell&&my2>=cy&&my2<=cy+cell){
+          toggleLightsOut(i);
+          if(!lightsGrid.some(v=>v))advanceGenStage();
+          return;
+        }
+      }
+    }
+    return;
+  }
   const cW = 220, cH = 200, cY = 148, c1X = W/2 - cW - 20, c2X = W/2 + 20;
   if (gameState === 'select') {
-    if (mx2 >= c1X && mx2 <= c1X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); pendingPlayers=1; gameState='difficulty'; menuSel=0; return; }
-    if (mx2 >= c2X && mx2 <= c2X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); pendingPlayers=2; gameState='difficulty'; menuSel=0; return; }
+    if (mx2 >= c1X && mx2 <= c1X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); pendingPlayers=1; gameState='adventure'; menuSel=0; return; }
+    if (mx2 >= c2X && mx2 <= c2X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); pendingPlayers=2; gameState='adventure'; menuSel=0; return; }
+  }
+  if (gameState === 'adventure') {
+    const ac1X = W/2 - 220 - 20, ac2X = W/2 + 20, acY = 148, acW = 220, acH = 200;
+    if (mx2 >= ac1X && mx2 <= ac1X+acW && my2 >= acY && my2 <= acY+acH) { currentAdventure=0; playTacoBell(); gameState='difficulty'; menuSel=0; return; }
+    if (badges.has('adventurer') && mx2 >= ac2X && mx2 <= ac2X+acW && my2 >= acY && my2 <= acY+acH) { currentAdventure=1; playTacoBell(); gameState='difficulty'; menuSel=0; return; }
   }
   if (gameState === 'difficulty') {
     if (mx2 >= c1X && mx2 <= c1X+cW && my2 >= cY && my2 <= cY+cH) { difficulty='easy'; playTacoBell(); initGame(pendingPlayers); return; }
