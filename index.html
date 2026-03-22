@@ -751,7 +751,10 @@ function updatePlayer(p) {
   p.onGround = false;
   if (p.wobble > 0) p.wobble--;
   p.x += p.vx;
-  if (p.x < 0) { p.x = 0; p.vx = 0; }
+  const arenaWall = (currentAdventure === 1 && currentLevel === 3) ? 18 : 0;
+  if (p.x < arenaWall) { p.x = arenaWall; p.vx = 0; }
+  else if (p.x < 0) { p.x = 0; p.vx = 0; }
+  if (p.x + p.w > levelW - arenaWall) { p.x = levelW - arenaWall - p.w; p.vx = 0; }
   resolveX(p);
   // Door collision for MF generators
   for (const gen of generators) {
@@ -4081,7 +4084,22 @@ function draw() {
   if (currentAdventure === 1 && currentLevel === 1) { drawLaserBalls(); drawMFStopButton(); }
   drawEnemies();
   if (currentAdventure === 0 && currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); }
-  if (currentAdventure === 1 && currentLevel === 3) { drawBossLasers(); drawMFBoss(); drawMFVictoryDoor(); drawMFBossIntroOverlay(); }
+  if (currentAdventure === 1 && currentLevel === 3) {
+    // Arena walls
+    const wallW = 18;
+    const lx = sx(0), rx = sx(levelW - wallW);
+    ctx.fillStyle = '#37474F'; ctx.fillRect(lx, 0, wallW, GROUND_Y);
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(lx + wallW - 3, 0, 3, GROUND_Y);
+    ctx.fillStyle = '#37474F'; ctx.fillRect(rx, 0, wallW, GROUND_Y);
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(rx, 0, 3, GROUND_Y);
+    // Rivet details
+    ctx.fillStyle = '#607D8B';
+    for (let ry = 30; ry < GROUND_Y; ry += 60) {
+      ctx.beginPath(); ctx.arc(lx + 9, ry, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx + 9, ry, 3, 0, Math.PI*2); ctx.fill();
+    }
+    drawBossLasers(); drawMFBoss(); drawMFVictoryDoor(); drawMFBossIntroOverlay();
+  }
   drawPlayerCube(player1); drawPlayerCube(player2);
   if (currentLevel === 3) drawPlayerSword();
   drawParticles();
