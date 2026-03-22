@@ -2252,6 +2252,52 @@ function drawChests() {
 function drawGoalFlag() {
   const gx = sx(LEVEL_W - 90); if (gx < -50 || gx > W+50) return;
 
+  // Mechanical Factory: draw industrial metal door for all levels
+  if (currentAdventure === 1) {
+    const dw = 52, dh = 80;
+    const dx = gx + 14, dy = GROUND_Y - dh;
+    // Door frame (thick steel)
+    ctx.fillStyle = '#263238'; ctx.fillRect(dx - 6, dy - 6, dw + 12, dh + 6);
+    // Door panel
+    ctx.fillStyle = '#37474F'; ctx.fillRect(dx, dy, dw, dh);
+    // Steel sheen
+    ctx.fillStyle = '#546E7A'; ctx.fillRect(dx, dy, dw, 4); ctx.fillRect(dx, dy, 4, dh);
+    // Horizontal panel lines
+    ctx.fillStyle = '#263238';
+    ctx.fillRect(dx + 4, dy + dh/2 - 1, dw - 8, 2);
+    ctx.fillRect(dx + 4, dy + dh/4, dw - 8, 1);
+    ctx.fillRect(dx + 4, dy + dh*3/4, dw - 8, 1);
+    // Rivets (corners of panels)
+    ctx.fillStyle = '#78909C';
+    const rivets = [
+      [dx+6, dy+8], [dx+dw-10, dy+8],
+      [dx+6, dy+dh/2-8], [dx+dw-10, dy+dh/2-8],
+      [dx+6, dy+dh/2+6], [dx+dw-10, dy+dh/2+6],
+      [dx+6, dy+dh-12], [dx+dw-10, dy+dh-12],
+    ];
+    for (const [rx, ry] of rivets) { ctx.fillRect(rx, ry, 4, 4); }
+    // Door handle
+    ctx.fillStyle = '#FF6F00'; ctx.fillRect(dx + dw - 12, dy + dh/2 - 4, 6, 8);
+    ctx.fillStyle = '#FFB300'; ctx.fillRect(dx + dw - 11, dy + dh/2 - 3, 4, 6);
+    // Orange warning stripe at bottom
+    const stripeY = dy + dh - 10;
+    for (let i = 0; i < dw; i += 10) {
+      ctx.fillStyle = (Math.floor(i/10) % 2 === 0) ? '#FF6F00' : '#263238';
+      ctx.fillRect(dx + i, stripeY, 10, 10);
+    }
+    // Orange glow effect
+    const glow = 0.3 + Math.sin(tick * 0.08) * 0.15;
+    ctx.fillStyle = `rgba(255,111,0,${glow})`;
+    ctx.fillRect(dx - 6, dy - 6, dw + 12, 4);
+    ctx.fillRect(dx - 6, dy - 6, 4, dh + 6);
+    ctx.fillRect(dx + dw + 2, dy - 6, 4, dh + 6);
+    // "EXIT" sign above door
+    ctx.fillStyle = '#FF6F00'; ctx.fillRect(dx + 6, dy - 20, dw - 12, 14);
+    ctx.fillStyle = '#000'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('EXIT', dx + dw/2, dy - 9);
+    return;
+  }
+
   if (currentLevel === 2) {
     // Castle for Level 3
     const cx = gx, cy = GROUND_Y, cw = 80, wall = 160;
