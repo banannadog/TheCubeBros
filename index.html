@@ -411,33 +411,25 @@ const UW_LEVEL_DATA = [
     ],
     chests: [{ x: 1270, y: 272, w: 32, h: 28, type: 'speed' }],
   },
-  // Level 2: The deep trench
+  // Level 2: Fish Swarm — dodge incoming fish from the left
   {
     platforms: [
       [0, GROUND_Y, LEVEL_W, 40],
-      [150,355,70,12],[320,305,70,12],[510,265,70,12],[700,315,60,12],
-      [880,355,60,12],[1020,305,70,12],[1180,260,70,12],[1340,295,80,12],
-      [1500,345,60,12],[1640,360,60,12],[1740,325,60,12],[1840,290,60,12],
-      [1940,250,80,12],[2040,210,80,12],[2200,340,100,12],[2380,295,80,12],
-      [2530,340,70,12],[2660,285,100,12],[2830,325,56,12],[2950,270,56,12],
-      [3070,325,56,12],[3190,260,72,12],[3310,325,90,12],
+      [300,340,100,12],[700,310,100,12],[1100,280,100,12],[1500,310,100,12],
+      [1900,280,100,12],[2300,310,100,12],[2700,280,100,12],[3100,310,100,12],
+      [500,250,80,12],[900,220,80,12],[1300,250,80,12],[1700,220,80,12],
+      [2100,250,80,12],[2500,220,80,12],[2900,250,80,12],[3300,220,80,12],
     ],
     rawCoins: [
-      [170,323],[340,275],[530,235],[720,285],[1050,275],[1200,230],[1360,265],[1520,315],
-      [1760,295],[1850,260],[1950,220],[2050,180],[2230,310],[2410,265],[2690,255],
-      [2860,295],[2980,240],[3100,295],[3220,230],[3340,295],
+      [320,310],[720,280],[1120,250],[1520,280],[1920,250],[2320,280],[2720,250],[3120,280],
+      [510,220],[910,190],[1310,220],[1710,190],[2110,220],[2510,190],[2910,220],[3310,190],
+      [100,388],[600,388],[1200,388],[1800,388],[2400,388],[3000,388],
     ],
     oxyBubbles: [
-      [250,330],[600,280],[1000,300],[1350,270],[1700,310],[2050,220],[2400,310],[2700,260],[3000,295],[3300,295],
+      [400,320],[800,290],[1200,260],[1600,290],[2000,260],[2400,290],[2800,260],[3200,290],
     ],
-    enemies: [
-      mkE(400,GROUND_Y-26,280,560,2.4), mkE(800,GROUND_Y-26,680,980,2.4),
-      mkE(1260,GROUND_Y-26,1100,1460,2.6), mkE(1760,GROUND_Y-26,1600,1960,2.6),
-      mkE(2260,GROUND_Y-26,2100,2460,2.9), mkE(2710,GROUND_Y-26,2560,2870,2.9),
-      mkE(3160,GROUND_Y-26,3010,3360,2.9),
-      mkE(1180,260-26,1160,1250,2.0), mkE(2040,210-26,2020,2110,2.0),
-    ],
-    chests: [{ x: 335, y: 277, w: 32, h: 28, type: 'speed' }],
+    enemies: [],
+    chests: [{ x: 1490, y: 282, w: 32, h: 28, type: 'speed' }],
   },
   // Level 3: The sunken cavern
   {
@@ -602,6 +594,11 @@ const MAX_OXYGEN   = 100;
 let oxygenLevel    = MAX_OXYGEN;
 let oxygenBubbles  = [];
 let uwVictoryDoor  = null;
+// UW Level 2 — Fish Swarm
+let uwFishSwarm    = [];
+let uwFishTimer    = 0;
+let uwFishActive   = false;
+let uwFishWave     = 0;
 
 // Stage system (5 minigames per generator)
 let genStage       = 0;    // 0-4 current stage
@@ -802,6 +799,9 @@ function startLevel(n) {
   // MF Level 2 — Laser Run init
   mfRunTimer = 0; laserBalls = []; laserBallTimer = 0; mfStopButton = null;
   mfLasersActive = (currentAdventure === 1 && currentLevel === 1);
+  // UW Level 2 — Fish Swarm init
+  uwFishSwarm = []; uwFishTimer = 0; uwFishWave = 0;
+  uwFishActive = (currentAdventure === 2 && currentLevel === 1);
   // UW Level 4 — Shark Lair: spawn exit door immediately (boss TBD)
   if (currentAdventure === 2 && currentLevel === 3) {
     uwVictoryDoor = { x: 900/2 - 14, y: GROUND_Y - 50, w: 28, h: 50 };
@@ -855,7 +855,7 @@ function startLevel(n) {
     };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
-  particles.length = 0; moneyTrail.length = 0; heartTrail.length = 0; basicTrail.length = 0; bubbleTrail.length = 0;
+  particles.length = 0; moneyTrail.length = 0; heartTrail.length = 0; basicTrail.length = 0; bubbleTrail.length = 0; uwFishSwarm.length = 0;
   gameState = 'playing';
 }
 
@@ -1761,6 +1761,51 @@ function update() {
         }
       }
     }
+    // UW Level 2: Fish Swarm
+    if (currentLevel === 1 && uwFishActive) {
+      uwFishTimer++;
+      // Spawn a wave of 3-5 fish every 2.5 seconds (150 frames), staggered
+      if (uwFishTimer % 150 === 0) {
+        uwFishWave++;
+        const count = 3 + Math.floor(Math.random() * 3);
+        for (let f = 0; f < count; f++) {
+          const spawnY = GROUND_Y - 40 - Math.random() * 240;
+          const speed  = 5 + Math.random() * 3 + uwFishWave * 0.3;
+          const angle  = (Math.random() - 0.3) * 0.6; // mostly right, some down-angle
+          uwFishSwarm.push({
+            x: camX - 30,
+            y: spawnY + f * 45,
+            vx: speed * Math.cos(angle),
+            vy: speed * Math.sin(angle),
+            w: 28, h: 22,
+            delay: f * 18, // stagger each fish in the wave
+          });
+        }
+      }
+      // Update fish
+      for (let i = uwFishSwarm.length - 1; i >= 0; i--) {
+        const f = uwFishSwarm[i];
+        if (f.delay > 0) { f.delay--; continue; }
+        f.x += f.vx; f.y += f.vy;
+        // Bounce off ceiling/floor
+        if (f.y < 50) { f.y = 50; f.vy = Math.abs(f.vy); }
+        if (f.y + f.h > GROUND_Y) { f.y = GROUND_Y - f.h; f.vy = -Math.abs(f.vy) * 0.6; }
+        // Remove when off right edge
+        if (f.x > camX + W + 60) { uwFishSwarm.splice(i, 1); continue; }
+        // Hit player
+        for (const p of active) {
+          if (p.invincible > 0) continue;
+          if (overlap(p.x, p.y, p.w, p.h, f.x, f.y, f.w, f.h)) {
+            p.lives -= difficulty === 'hard' ? 2 : 1;
+            tookDamage = true; p.invincible = 100; p.vy = -7;
+            p.vx = f.vx > 0 ? 4 : -4;
+            spawnParticles(f.x + f.w/2, f.y + f.h/2, '#1A6B45', 10);
+            uwFishSwarm.splice(i, 1); break;
+          }
+        }
+      }
+    }
+
     // UW Level 4: victory door check
     if (currentLevel === 3 && uwVictoryDoor) {
       for (const p of active) {
@@ -4191,6 +4236,14 @@ function drawHUD() {
       }
       ctx.textAlign = 'left';
     } else if (currentAdventure === 2) {
+      // Fish swarm warning
+      if (currentLevel === 1 && uwFishActive && uwFishSwarm.length > 0) {
+        const gp = 0.6 + Math.sin(tick * 0.2) * 0.4;
+        ctx.globalAlpha = gp;
+        ctx.fillStyle = '#FF1744'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('⚠ FISH INCOMING!', W - 107, 20);
+        ctx.globalAlpha = 1; ctx.textAlign = 'left';
+      }
       // Oxygen bar
       const bx=W-215, by=5, bw=140, bh=10;
       const oxPct = Math.max(0, oxygenLevel / MAX_OXYGEN);
@@ -4642,6 +4695,46 @@ function drawMFVictoryDoor() {
   ctx.textAlign = 'left';
 }
 
+function drawUWFishSwarm() {
+  for (const f of uwFishSwarm) {
+    if (f.delay > 0) continue;
+    const fx = sx(f.x), fw = f.w, fh = f.h;
+    if (fx + fw < -10 || fx > W + 10) continue;
+    const fr = f.vx > 0; // always facing right (moving right)
+    // Body
+    ctx.fillStyle = '#C0392B'; ctx.fillRect(fx + (fr ? 5 : 0), f.y + 2, fw - 5, fh - 4);
+    ctx.fillStyle = '#E74C3C'; ctx.fillRect(fx + (fr ? 5 : 0), f.y + 2, fw - 5, 3);
+    ctx.fillStyle = '#922B21'; ctx.fillRect(fx + (fr ? 5 : 0), f.y + fh - 5, fw - 5, 3);
+    // Tail
+    ctx.fillStyle = '#922B21';
+    ctx.fillRect(fx, f.y + 1, 6, fh - 2);
+    ctx.fillRect(fx, f.y + fh/2 - 2, 8, 4);
+    // Top fin
+    ctx.fillStyle = '#922B21';
+    ctx.fillRect(fx + fw*0.35, f.y - 6, fw*0.28, 6);
+    // Scales
+    ctx.fillStyle = '#A93226';
+    for (let si = 0; si < 2; si++) {
+      ctx.beginPath(); ctx.arc(fx + fw*0.28 + si*8, f.y + fh*0.55, 3, Math.PI, 0); ctx.fill();
+    }
+    // Angry eye (glowing)
+    const eyeGlow = 0.7 + Math.sin(tick*0.2 + f.x*0.01)*0.3;
+    ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 6 * eyeGlow;
+    ctx.fillStyle = '#FF1744'; ctx.fillRect(fx + fw*0.60, f.y + fh*0.20, 7, 6);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000'; ctx.fillRect(fx + fw*0.62, f.y + fh*0.22, 3, 4);
+    // Steep eyebrow
+    ctx.fillStyle = '#7F0000';
+    ctx.fillRect(fx+fw*0.54, f.y+fh*0.10, 3, 2);
+    ctx.fillRect(fx+fw*0.62, f.y+fh*0.05, 3, 2);
+    ctx.fillRect(fx+fw*0.70, f.y, 3, 2);
+    // Open mouth
+    ctx.fillStyle = '#000'; ctx.fillRect(fx + fw*0.40, f.y + fh*0.58, fw*0.44, fh*0.24);
+    ctx.fillStyle = '#EEE';
+    for (let t2 = 0; t2 < 3; t2++) ctx.fillRect(fx+fw*0.42+t2*6, f.y+fh*0.58, 4, 4);
+  }
+}
+
 function drawUWVictoryDoor() {
   if (!uwVictoryDoor) return;
   const d = uwVictoryDoor;
@@ -4823,7 +4916,7 @@ function draw() {
   if (gameState === 'mfcutscene') { drawMFVictoryCutscene(); return; }
   const darkMode = currentLevel === 2 && currentAdventure === 0 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
-  if (currentAdventure === 2) { drawOxygenBubbles(); drawUWVictoryDoor(); }
+  if (currentAdventure === 2) { drawOxygenBubbles(); drawUWVictoryDoor(); drawUWFishSwarm(); }
   if (currentAdventure === 1) drawGenerators();
   if (currentLevel < 3 && currentAdventure !== 2) drawGoalFlag();
   if (currentAdventure === 2 && currentLevel < 3) drawGoalFlag();
