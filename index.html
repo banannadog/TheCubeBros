@@ -2088,7 +2088,74 @@ function drawFactoryBackground() {
   ctx.globalAlpha = 1;
 }
 
+function drawUnderwaterBackground() {
+  // Deep ocean gradient
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#01466B'); g.addColorStop(0.5, '#005F8A'); g.addColorStop(1, '#003F5C');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // Animated light caustic rays from surface
+  ctx.save();
+  for (let r = 0; r < 8; r++) {
+    const rx = ((r * 137 - camX * 0.04) % W + W) % W;
+    const sway = Math.sin(tick * 0.025 + r * 1.3) * 18;
+    const alpha = 0.04 + Math.sin(tick * 0.03 + r) * 0.02;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#7DE8FF';
+    ctx.beginPath();
+    ctx.moveTo(rx + sway, 0);
+    ctx.lineTo(rx + 28 + sway * 0.5, 0);
+    ctx.lineTo(rx + 60 + sway, GROUND_Y);
+    ctx.lineTo(rx + 20 + sway, GROUND_Y);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.globalAlpha = 1; ctx.restore();
+
+  // Distant coral/rock silhouettes (far parallax)
+  ctx.globalAlpha = 0.15; ctx.fillStyle = '#003050';
+  const rockOff = ((-(camX * 0.07)) % (LEVEL_W + W) + LEVEL_W + W) % (LEVEL_W + W);
+  for (const [ox, oy, ow, oh] of [[0,310,50,100],[120,280,70,130],[260,300,40,110],[400,270,90,140],[560,295,45,115],[700,260,65,150],[820,290,50,120]]) {
+    ctx.fillRect(rockOff + ox - 300, oy, ow, oh);
+    ctx.beginPath(); ctx.arc(rockOff + ox - 300 + ow/2, oy, ow/2, Math.PI, 0); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Mid-layer seaweed (medium parallax)
+  const swOff = ((-(camX * 0.18)) % (LEVEL_W + W/2) + LEVEL_W + W/2) % (LEVEL_W + W/2);
+  for (let s = 0; s < 14; s++) {
+    const sx2 = swOff + s * 190 - 200;
+    if (sx2 < -30 || sx2 > W + 30) continue;
+    const h2 = 40 + (s % 3) * 20;
+    const sway2 = Math.sin(tick * 0.04 + s * 0.9) * 5;
+    ctx.strokeStyle = s % 2 === 0 ? '#1A6B3A' : '#0F4F28';
+    ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx2, GROUND_Y);
+    ctx.quadraticCurveTo(sx2 + sway2, GROUND_Y - h2/2, sx2 + sway2*2, GROUND_Y - h2);
+    ctx.stroke();
+    // Seaweed leaf fronds
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx2 + sway2, GROUND_Y - h2*0.4);
+    ctx.quadraticCurveTo(sx2 + sway2 + 10, GROUND_Y - h2*0.55, sx2 + sway2 + 16, GROUND_Y - h2*0.4);
+    ctx.stroke();
+  }
+
+  // Floating bubbles
+  for (let b = 0; b < 20; b++) {
+    const bx = ((b * 173 + 40 - camX * 0.06) % W + W) % W;
+    const by = ((tick * (0.4 + b*0.05) + b * 60) % (GROUND_Y + 20));
+    const br = 2 + (b % 3);
+    const ba = 0.25 + Math.sin(tick * 0.05 + b) * 0.1;
+    ctx.globalAlpha = ba;
+    ctx.strokeStyle = '#80DEEA'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(bx, GROUND_Y - by, br, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawBackground() {
+  if (currentAdventure === 2) { drawUnderwaterBackground(); return; }
   if (currentAdventure === 1) { drawFactoryBackground(); return; }
   if (currentLevel === 3) { drawCastleBackground(); return; }
   const g = ctx.createLinearGradient(0, 0, 0, H);
@@ -2159,8 +2226,11 @@ function drawBackground() {
 // ─── Platforms ───────────────────────────────────────────────────────────────
 function drawPlatforms() {
   const isMF = currentAdventure === 1;
-  const [gc, gt, gl, gd] = isMF
-    ? ['#37474F','#546E7A','#78909C','#263238']   // metal ground: steel blue-gray
+  const isUW = currentAdventure === 2;
+  const [gc, gt, gl, gd] = isUW
+    ? ['#C2A45A','#E8CC80','#F0D898','#9A7C38']   // sand ground
+    : isMF
+    ? ['#37474F','#546E7A','#78909C','#263238']
     : currentLevel === 3
     ? ['#2E2E2E','#3A3A3A','#4A4A4A','#1A1A1A']
     : currentLevel === 2
@@ -2168,8 +2238,10 @@ function drawPlatforms() {
     : currentLevel === 1
     ? ['#4A1942','#7B1FA2','#9C27B0','#311B3F']
     : ['#5D4037','#388E3C','#4CAF50','#4A2F20'];
-  const [bc, bl, bd] = isMF
-    ? ['#455A64','#607D8B','#37474F']              // metal platforms: steel
+  const [bc, bl, bd] = isUW
+    ? ['#A0784A','#C49A5A','#7A5830']              // underwater rock/coral platforms
+    : isMF
+    ? ['#455A64','#607D8B','#37474F']
     : currentLevel === 3
     ? ['#383838','#555555','#222222']
     : currentLevel === 2
@@ -2198,6 +2270,23 @@ function drawPlatforms() {
           ctx.fillStyle = '#78909C';
         }
       }
+      if (isUW) {
+        // Sand ripple lines
+        ctx.fillStyle = '#B09048';
+        for (let gx = 0; gx < pw; gx += 22) ctx.fillRect(x+gx, py+5, 12, 1);
+        // Pebbles scattered along the surface
+        ctx.fillStyle = '#A07838';
+        for (let gx = 14; gx < pw; gx += 38) {
+          ctx.beginPath(); ctx.ellipse(x+gx, py+3, 4, 3, 0, 0, Math.PI*2); ctx.fill();
+        }
+        // Small coral sprigs
+        ctx.strokeStyle = '#E05060'; ctx.lineWidth = 2;
+        for (let gx = 28; gx < pw; gx += 80) {
+          ctx.beginPath(); ctx.moveTo(x+gx, py); ctx.lineTo(x+gx, py-10); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x+gx, py-6); ctx.lineTo(x+gx+6, py-12); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x+gx, py-6); ctx.lineTo(x+gx-6, py-12); ctx.stroke();
+        }
+      }
     } else {
       ctx.fillStyle = bc; ctx.fillRect(x, py, pw, ph);
       ctx.fillStyle = bl; ctx.fillRect(x, py, pw, 3);
@@ -2214,6 +2303,15 @@ function drawPlatforms() {
         // Orange warning stripe on platform edge
         ctx.fillStyle = '#E65100';
         ctx.fillRect(x, py, pw, 2);
+      }
+      if (isUW) {
+        // Coral/barnacle top on platforms
+        ctx.fillStyle = '#C05050';
+        ctx.fillRect(x, py, pw, 2);
+        ctx.fillStyle = '#E07060';
+        for (let bx = 6; bx < pw; bx += 18) {
+          ctx.beginPath(); ctx.arc(x+bx, py+1, 3, Math.PI, 0); ctx.fill();
+        }
       }
     }
   }
