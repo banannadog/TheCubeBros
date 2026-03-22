@@ -1659,7 +1659,7 @@ function update() {
     }
     for (const p of active) {
       if (p.invincible > 0 || !overlap(p.x,p.y,p.w,p.h,e.x,e.y,e.w,e.h)) continue;
-      const needHammer = currentAdventure === 1 && !p.hasHammer;
+      const needHammer = currentAdventure === 1 && currentLevel === 2 && !p.hasHammer;
       if (p.powerups.size > 0 && !needHammer) {
         // Big powerup — instant kill on any touch
         e.alive = false; e.squish = 1;
