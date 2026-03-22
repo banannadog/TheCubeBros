@@ -2613,7 +2613,7 @@ function initGenStage(stage) {
     seqPhase = 'showing'; seqTick = 0; seqPlayerIdx = 0;
   } else if (stage === 2) {
     gaugeTargets = Array.from({length:3}, () => 2 + Math.floor(Math.random()*7));
-    gaugeValues  = Array.from({length:3}, () => Math.floor(Math.random()*10));
+    gaugeValues  = Array.from({length:3}, () => 1);
   } else if (stage === 3) {
     patternTarget = Array.from({length:9}, () => Math.random() < 0.5);
     patternPlayer = Array(9).fill(false);
@@ -2626,7 +2626,7 @@ function initGenStage(stage) {
 }
 function advanceGenStage() {
   const next = genStage + 1;
-  if (next >= 5) {
+  if (next >= 4) {
     generators[activeGenIdx].solved = true;
     generatorOpen = false; activeGenIdx = null;
     // 2 seconds of invincibility for completing the generator
@@ -2705,8 +2705,8 @@ function drawGeneratorMinigame() {
   ctx.fillStyle='#90A4AE'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
   ctx.fillText('⚡ '+stageNames[genStage]+' ⚡', W/2, PY+22);
   // Progress dots
-  for (let i=0; i<5; i++) {
-    const dotX=W/2+(i-2)*30, dotY=PY+38;
+  for (let i=0; i<4; i++) {
+    const dotX=W/2+(i-1.5)*30, dotY=PY+38;
     ctx.fillStyle = i<genStage?'#4CAF50':i===genStage?'#FFD700':'#37474F';
     ctx.strokeStyle = i<genStage?'#4CAF50':i===genStage?'#FFD700':'#546E7A';
     ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(dotX,dotY,7,0,Math.PI*2); ctx.fill(); ctx.stroke();
