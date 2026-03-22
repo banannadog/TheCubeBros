@@ -1258,6 +1258,17 @@ function updateMFVictoryCutscene() {
   }
 }
 
+function drawMFHand(cx, cy, sz) {
+  // Small blue cube hand
+  ctx.fillStyle = '#42A5F5'; ctx.fillRect(cx - sz/2, cy - sz/2, sz, sz);
+  ctx.fillStyle = '#90CAF9'; ctx.fillRect(cx - sz/2, cy - sz/2, sz, 2);     // top highlight
+  ctx.fillStyle = '#1565C0'; ctx.fillRect(cx - sz/2, cy + sz/2 - 2, sz, 2); // bottom shadow
+  ctx.fillStyle = '#1976D2'; ctx.fillRect(cx + sz/2 - 2, cy - sz/2, 2, sz); // right shadow
+  // Little knuckle lines
+  ctx.fillStyle = '#1565C0';
+  ctx.fillRect(cx - sz/2 + 2, cy + sz/2 - 4, sz - 4, 1);
+}
+
 function drawHammerItem(wx, wy, angle) {
   ctx.save();
   ctx.translate(wx, wy);
@@ -1332,11 +1343,23 @@ function drawMFVictoryCutscene() {
   const p1LungeX = (cs.phase === 'throw' && cs.timer < 18) ? 5 : 0;
   drawMiniCube(cs.p1X + p1LungeX, cs.p1Y, sz, P1c.mid, P1c.dark, P1c.light);
 
-  // Hammer
+  // Hammer + hand
   if (cs.phase === 'spin') {
+    // Hammer orbits above P1
     drawHammerItem(cs.p1X + 14, cs.p1Y - 26, cs.hammerAngle);
+    // Hand grips the handle — orbits at the grip end (14px down the handle in local space)
+    const hamCX = cs.p1X + 14, hamCY = cs.p1Y - 26;
+    const handX = hamCX - 14 * Math.sin(cs.hammerAngle);
+    const handY = hamCY + 14 * Math.cos(cs.hammerAngle);
+    drawMFHand(handX, handY, 10);
   } else if (cs.phase === 'throw' || cs.phase === 'halt') {
+    // Hammer flies free
     drawHammerItem(cs.hammerX, cs.hammerY, cs.hammerAngle);
+    // Hand stays on P1: arm extends upward during early throw frames, then rests at side
+    const throwProg = Math.min(1, cs.timer / 18);
+    const armLift = cs.phase === 'throw' ? (1 - throwProg) * 18 : 0;
+    const armOffX = cs.phase === 'throw' && cs.timer < 18 ? 12 + (1 - throwProg) * 8 : 10;
+    drawMFHand(cs.p1X + p1LungeX + armOffX, cs.p1Y + 6 - armLift, 10);
   }
 
   ctx.restore(); // end camera pan
