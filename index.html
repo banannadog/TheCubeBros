@@ -461,6 +461,7 @@ let pendingPlayers = 1;
 let generators     = [];
 let generatorOpen  = false;
 let activeGenIdx   = null;
+let genStartTime   = 0;
 const MF_GEN_DEFS  = [
   { gx: 1290, doorX: 1424 },
   null,                         // Level 2: laser run — no generator
@@ -567,6 +568,7 @@ const BADGE_DEFS = [
   { id: 'nyctophobia',       name: 'Nyctophobia',              desc: 'Die on Level 3 without night vision',      color: '#1A237E', icon: '🌑' },
   { id: 'engineer',          name: 'Engineer',                 desc: 'Beat all four Mechanical Factory levels',  color: '#FF6F00', icon: '⚙' },
   { id: 'robotdestroyer',    name: 'Robot Destroyer',          desc: 'Defeat 25 robot enemies',                   color: '#546E7A', icon: '🤖' },
+  { id: 'fixer',             name: 'Fixer',                    desc: 'Fix a generator in under 30 seconds',        color: '#FF6F00', icon: '🔧' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -2757,6 +2759,7 @@ function shuffleArr(arr) {
 function openGenerator(idx) {
   generatorOpen = true; activeGenIdx = idx;
   genStage = 0; genTransition = false; genTransTimer = 0;
+  genStartTime = Date.now();
   initGenStage(0);
 }
 function initGenStage(stage) {
@@ -2787,6 +2790,10 @@ function advanceGenStage() {
     generatorOpen = false; activeGenIdx = null;
     // 2 seconds of invincibility for completing the generator
     for (const p of [player1, player2]) { if (p) p.invincible = 120; }
+    // Fixer badge: completed generator in under 30 seconds
+    if ((Date.now() - genStartTime) < 30000 && !badges.has('fixer')) {
+      badges.add('fixer'); saveBadges();
+    }
   } else {
     genNextStage = next; genTransition = true; genTransTimer = 70;
   }
