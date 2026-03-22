@@ -385,6 +385,102 @@ const MF_LEVEL_DATA = [
   },
 ];
 
+const UW_LEVEL_DATA = [
+  // Level 1: Shallow reefs
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      [200,360,80,12],[400,320,80,12],[600,360,80,12],[820,300,100,12],
+      [1060,350,80,12],[1260,300,80,12],[1460,350,80,12],[1680,290,100,12],
+      [1920,340,80,12],[2120,290,80,12],[2340,340,80,12],[2560,280,100,12],
+      [2800,330,80,12],[3000,280,80,12],[3200,330,90,12],[3380,310,90,12],
+    ],
+    rawCoins: [
+      [220,330],[440,290],[620,330],[840,270],[1080,320],[1280,270],
+      [1480,320],[1700,260],[1940,310],[2140,260],[2360,310],[2580,250],
+      [2820,300],[3020,250],[3220,300],[3400,280],
+      [100,388],[500,388],[1000,388],[1600,388],[2200,388],[2800,388],
+    ],
+    oxyBubbles: [
+      [300,340],[700,340],[1150,330],[1550,330],[1800,290],[2050,300],[2450,300],[2900,310],[3100,300],[3300,310],
+    ],
+    enemies: [
+      mkE(500,GROUND_Y-26,380,660,2.0), mkE(900,GROUND_Y-26,780,1060,2.2),
+      mkE(1400,GROUND_Y-26,1240,1560,2.2), mkE(2000,GROUND_Y-26,1820,2100,2.4),
+      mkE(2500,GROUND_Y-26,2380,2660,2.4), mkE(3000,GROUND_Y-26,2880,3150,2.6),
+    ],
+    chests: [{ x: 1270, y: 272, w: 32, h: 28, type: 'speed' }],
+  },
+  // Level 2: The deep trench
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      [150,355,70,12],[320,305,70,12],[510,265,70,12],[700,315,60,12],
+      [880,355,60,12],[1020,305,70,12],[1180,260,70,12],[1340,295,80,12],
+      [1500,345,60,12],[1640,360,60,12],[1740,325,60,12],[1840,290,60,12],
+      [1940,250,80,12],[2040,210,80,12],[2200,340,100,12],[2380,295,80,12],
+      [2530,340,70,12],[2660,285,100,12],[2830,325,56,12],[2950,270,56,12],
+      [3070,325,56,12],[3190,260,72,12],[3310,325,90,12],
+    ],
+    rawCoins: [
+      [170,323],[340,275],[530,235],[720,285],[1050,275],[1200,230],[1360,265],[1520,315],
+      [1760,295],[1850,260],[1950,220],[2050,180],[2230,310],[2410,265],[2690,255],
+      [2860,295],[2980,240],[3100,295],[3220,230],[3340,295],
+    ],
+    oxyBubbles: [
+      [250,330],[600,280],[1000,300],[1350,270],[1700,310],[2050,220],[2400,310],[2700,260],[3000,295],[3300,295],
+    ],
+    enemies: [
+      mkE(400,GROUND_Y-26,280,560,2.4), mkE(800,GROUND_Y-26,680,980,2.4),
+      mkE(1260,GROUND_Y-26,1100,1460,2.6), mkE(1760,GROUND_Y-26,1600,1960,2.6),
+      mkE(2260,GROUND_Y-26,2100,2460,2.9), mkE(2710,GROUND_Y-26,2560,2870,2.9),
+      mkE(3160,GROUND_Y-26,3010,3360,2.9),
+      mkE(1180,260-26,1160,1250,2.0), mkE(2040,210-26,2020,2110,2.0),
+    ],
+    chests: [{ x: 335, y: 277, w: 32, h: 28, type: 'speed' }],
+  },
+  // Level 3: The sunken cavern
+  {
+    platforms: [
+      [0, GROUND_Y, LEVEL_W, 40],
+      [100,370,60,12],[220,335,60,12],[360,295,60,12],[500,255,60,12],[640,295,60,12],[760,335,60,12],
+      [900,285,80,12],[1080,240,80,12],[1240,285,80,12],[1400,335,60,12],
+      [1540,295,60,12],[1660,255,60,12],[1800,215,80,12],[1960,255,80,12],[2100,295,80,12],
+      [2280,335,80,12],[2440,285,80,12],[2600,235,80,12],[2760,285,80,12],
+      [2920,335,80,12],[3080,285,80,12],[3240,335,90,12],
+    ],
+    rawCoins: [
+      [120,340],[240,305],[380,265],[520,225],[660,265],[780,305],
+      [930,255],[1110,210],[1270,255],[1420,305],[1560,265],[1690,225],
+      [1830,185],[1990,225],[2130,265],[2300,305],[2460,255],[2620,205],[2780,255],[2940,305],[3100,255],[3260,305],
+    ],
+    oxyBubbles: [
+      [300,340],[750,300],[1150,250],[1550,310],[1950,230],[2350,310],[2750,270],[3150,285],
+    ],
+    enemies: [
+      mkE(380,GROUND_Y-26,220,520,2.4), mkE(730,GROUND_Y-26,580,870,2.4),
+      mkE(1100,GROUND_Y-26,930,1240,2.6), mkE(1500,GROUND_Y-26,1370,1670,2.6),
+      mkE(1880,GROUND_Y-26,1720,2060,2.9), mkE(2300,GROUND_Y-26,2120,2480,2.9),
+      mkE(2700,GROUND_Y-26,2530,2880,3.0), mkE(3100,GROUND_Y-26,2950,3310,3.0),
+      mkE(1080,240-26,1060,1160,2.0), mkE(1800,215-26,1790,1890,2.0), mkE(2600,235-26,2590,2690,2.1),
+    ],
+    chests: [{ x: 916, y: 212, w: 32, h: 28, type: 'speed' }],
+  },
+  // Level 4: Shark Lair — boss arena
+  {
+    levelWidth: 900,
+    platforms: [
+      [0, GROUND_Y, 900, 40],
+      [140, 330, 110, 12],
+      [650, 330, 110, 12],
+    ],
+    rawCoins: [],
+    oxyBubbles: [[200,360],[450,360],[700,360]],
+    enemies: [],
+    chests: [],
+  },
+];
+
 // ─── Mutable level state ──────────────────────────────────────────────────────
 let platforms, coins, enemies, chests;
 
@@ -401,6 +497,7 @@ function spawnParticles(x, y, color, n = 8) {
 const moneyTrail = [];
 const heartTrail = [];
 const basicTrail = [];
+const bubbleTrail = [];
 function updateMoneyTrail() {
   // Spawn — money trail via equipped trail OR tycoon+speed legacy
   const wantMoney  = equippedTrail === 'money';
@@ -441,6 +538,17 @@ function updateMoneyTrail() {
         size: 8 + Math.random() * 6,
       });
     }
+    if (equippedTrail === 'bubbles') {
+      bubbleTrail.push({
+        x: p.x + p.w * 0.5 + (Math.random() - 0.5) * p.w * 0.6,
+        y: p.y + p.h * 0.4 + Math.random() * p.h * 0.3,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: -0.8 - Math.random() * 1.2,
+        life: 1,
+        decay: 0.016 + Math.random() * 0.012,
+        r: 3 + Math.random() * 4,
+      });
+    }
   }
   // Update money
   for (let i = moneyTrail.length - 1; i >= 0; i--) {
@@ -462,6 +570,13 @@ function updateMoneyTrail() {
     b.life -= b.decay;
     if (b.life <= 0) basicTrail.splice(i, 1);
   }
+  // Update bubbles
+  for (let i = bubbleTrail.length - 1; i >= 0; i--) {
+    const b = bubbleTrail[i];
+    b.x += b.vx; b.y += b.vy;
+    b.life -= b.decay;
+    if (b.life <= 0) bubbleTrail.splice(i, 1);
+  }
 }
 
 // ─── Game State ──────────────────────────────────────────────────────────────
@@ -482,6 +597,12 @@ const MF_GEN_DEFS  = [
   null,                         // Level 3: no generator
   null,
 ];
+// ── Underwater Adventure ───────────────────────────────────────────────────────
+const MAX_OXYGEN   = 100;
+let oxygenLevel    = MAX_OXYGEN;
+let oxygenBubbles  = [];
+let uwVictoryDoor  = null;
+
 // Stage system (5 minigames per generator)
 let genStage       = 0;    // 0-4 current stage
 let genTransition  = false; // showing "STAGE COMPLETE" between stages
@@ -583,6 +704,7 @@ const BADGE_DEFS = [
   { id: 'engineer',          name: 'Engineer',                 desc: 'Beat all four Mechanical Factory levels',  color: '#FF6F00', icon: '⚙' },
   { id: 'robotdestroyer',    name: 'Robot Destroyer',          desc: 'Defeat 25 robot enemies',                   color: '#546E7A', icon: '🤖' },
   { id: 'fixer',             name: 'Fixer',                    desc: 'Fix a generator in under 30 seconds',        color: '#FF6F00', icon: '🔧' },
+  { id: 'greatswim',        name: 'Great Swim',               desc: 'Beat the Underwater Adventure',             color: '#00BCD4', icon: '🐠' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -590,11 +712,13 @@ const SKIN_DEFS = [
   { id: 'murderer',  name: 'Murderer', badge: 'murderer',    desc: 'Ki Ki Ki Ma Ma Ma' },
   { id: 'mechanic',  name: 'Mechanic', badge: 'engineer',       desc: 'Orange hard hat & cosmetic hammer' },
   { id: 'robot',     name: 'R.O.B.O.T', badge: 'robotdestroyer', desc: 'You ARE the robot', hasVariant: true },
+  { id: 'swimmer',   name: 'Swimmer',   badge: 'greatswim',     desc: 'Diving mask & flippers' },
 ];
 const TRAIL_DEFS = [
   { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
   { id: 'money',  name: 'Money',  badge: 'trillionaire', desc: '"HERE COMES THE MONEY"',       color: '#FFD700', icon: '$' },
-  { id: 'hearts', name: 'Hearts', badge: 'reallylike',   desc: 'You really do love this game', color: '#FF4081', icon: '♥' },
+  { id: 'hearts',   name: 'Hearts',  badge: 'reallylike', desc: 'You really do love this game', color: '#FF4081', icon: '♥' },
+  { id: 'bubbles',  name: 'Bubbles', badge: 'greatswim',  desc: 'A trail of bubbles',           color: '#80DEEA', icon: '○' },
 ];
 // Computed after LEVEL_DATA is defined (see bottom of script init)
 let TOTAL_COINS_IN_GAME = 0;
@@ -655,14 +779,20 @@ function initGame(n) {
 function startLevel(n) {
   currentLevel = n - 1;
   // Use MF-specific level data if available, otherwise shared LEVEL_DATA
-  const d = (currentAdventure === 1 && MF_LEVEL_DATA[currentLevel]) || LEVEL_DATA[currentLevel];
+  const d = (currentAdventure === 2 && UW_LEVEL_DATA[currentLevel]) || (currentAdventure === 1 && MF_LEVEL_DATA[currentLevel]) || LEVEL_DATA[currentLevel];
   levelW = d.levelWidth || LEVEL_W;
   platforms = [...d.platforms]; // mutable copy so we can push/splice door
   coins   = d.rawCoins.map(([x,y]) => ({ x, y, collected: false, bob: Math.random()*Math.PI*2 }));
   enemies = d.enemies.map(e => ({ ...e, alive: true, squish: 0, vx: -Math.abs(e.vx) * (difficulty === 'hard' ? 1.8 : 1) }));
   chests  = d.chests.map(c => ({ ...c, opened: false }));
-  // MF: remove night vision chest (no darkness mechanic)
-  if (currentAdventure === 1) chests = chests.filter(c => c.type !== 'nightvision');
+  // MF/UW: remove night vision chest
+  if (currentAdventure === 1 || currentAdventure === 2) chests = chests.filter(c => c.type !== 'nightvision');
+  // UW: init oxygen bubbles
+  oxygenBubbles = (currentAdventure === 2 && d.oxyBubbles)
+    ? d.oxyBubbles.map(([x,y]) => ({ x, y, collected: false, bob: Math.random()*Math.PI*2 }))
+    : [];
+  oxygenLevel = MAX_OXYGEN;
+  uwVictoryDoor = null;
   // Init MF generators
   generators = []; generatorOpen = false; activeGenIdx = null;
   if (currentAdventure === 1 && MF_GEN_DEFS[currentLevel]) {
@@ -672,6 +802,10 @@ function startLevel(n) {
   // MF Level 2 — Laser Run init
   mfRunTimer = 0; laserBalls = []; laserBallTimer = 0; mfStopButton = null;
   mfLasersActive = (currentAdventure === 1 && currentLevel === 1);
+  // UW Level 4 — Shark Lair: spawn exit door immediately (boss TBD)
+  if (currentAdventure === 2 && currentLevel === 3) {
+    uwVictoryDoor = { x: 900/2 - 14, y: GROUND_Y - 50, w: 28, h: 50 };
+  }
   // MF Level 4 — Boss Arena init
   mfBoss = null; mfBossCutsceneDone = false; mfBossCutscenePhase = 'walk'; mfBossCutsceneTimer = 0; mfBossScreenFlash = 0; bossLasers = []; mfVictoryDoor = null;
   if (currentAdventure === 1 && currentLevel === 3) {
@@ -721,7 +855,7 @@ function startLevel(n) {
     };
   }
   camX = 0; tick = 0; gameOver = false; won = false;
-  particles.length = 0; moneyTrail.length = 0; heartTrail.length = 0; basicTrail.length = 0;
+  particles.length = 0; moneyTrail.length = 0; heartTrail.length = 0; basicTrail.length = 0; bubbleTrail.length = 0;
   gameState = 'playing';
 }
 
@@ -1607,6 +1741,41 @@ function update() {
 
   const active = [player1, player2].filter(p => p && p.lives > 0);
 
+  // UW: Oxygen depletion
+  if (currentAdventure === 2) {
+    oxygenLevel -= 0.055; // ~100 / (60fps * ~30s) — empties in ~30s
+    if (oxygenLevel <= 0) {
+      oxygenLevel = MAX_OXYGEN;
+      for (const p of active) { p.lives--; p.invincible = 120; tookDamage = true; }
+      spawnParticles(player1 ? player1.x + player1.w/2 : W/2, player1 ? player1.y : H/2, '#00BCD4', 12);
+    }
+    // Animate + collect oxygen bubbles
+    for (const b of oxygenBubbles) {
+      if (b.collected) continue;
+      b.bob = (b.bob + 0.07) % (Math.PI*2);
+      for (const p of active) {
+        if (overlap(p.x, p.y, p.w, p.h, b.x-8, b.y-8+Math.sin(b.bob)*4, 16, 16)) {
+          b.collected = true;
+          oxygenLevel = Math.min(MAX_OXYGEN, oxygenLevel + 35);
+          spawnParticles(b.x, b.y, '#80DEEA', 6);
+        }
+      }
+    }
+    // UW Level 4: victory door check
+    if (currentLevel === 3 && uwVictoryDoor) {
+      for (const p of active) {
+        if (overlap(p.x-4, p.y, p.w+8, p.h, uwVictoryDoor.x, uwVictoryDoor.y, uwVictoryDoor.w, uwVictoryDoor.h)) {
+          if (!badges.has('greatswim')) {
+            badges.add('greatswim');
+            localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+            badgeNotif = { name: 'Great Swim', timer: 240 };
+          }
+          won = true; break;
+        }
+      }
+    }
+  }
+
   // MF Level 2: Laser Run
   if (currentAdventure === 1 && currentLevel === 1) {
     // Permanent speed boost — keep it always active
@@ -2330,6 +2499,32 @@ function drawCoins() {
   }
 }
 
+// ─── Oxygen Bubbles ──────────────────────────────────────────────────────────
+function drawOxygenBubbles() {
+  for (const b of oxygenBubbles) {
+    if (b.collected) continue;
+    const bx = sx(b.x); if (bx < -20 || bx > W+20) continue;
+    const by = b.y + Math.sin(b.bob)*4;
+    // Outer glow ring
+    ctx.globalAlpha = 0.4 + Math.sin(b.bob*2)*0.15;
+    ctx.strokeStyle = '#80DEEA'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(bx+8, by+8, 11, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = 1;
+    // Bubble fill
+    ctx.fillStyle = 'rgba(0,188,212,0.25)';
+    ctx.beginPath(); ctx.arc(bx+8, by+8, 9, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#00BCD4'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(bx+8, by+8, 9, 0, Math.PI*2); ctx.stroke();
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath(); ctx.arc(bx+5, by+5, 3, 0, Math.PI*2); ctx.fill();
+    // "O₂" label
+    ctx.fillStyle = '#E0F7FA'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('O2', bx+8, by+12);
+  }
+  ctx.textAlign = 'left';
+}
+
 // ─── Chests ──────────────────────────────────────────────────────────────────
 function drawChests() {
   for (const c of chests) {
@@ -2804,6 +2999,35 @@ function drawPlayerCube(p) {
     }
   }
 
+  // Swimmer skin: diving mask + snorkel
+  if (equippedSkin === 'swimmer') {
+    const fr = p.facingRight;
+    // Mask strap (across forehead)
+    ctx.fillStyle = '#000'; ctx.fillRect(ex, py + Math.floor(ph*0.18), pw, 4);
+    // Mask lens (tinted goggle over eyes)
+    const lensY = py + Math.floor(ph*0.25);
+    ctx.fillStyle = 'rgba(0,188,212,0.55)';
+    if (fr) { ctx.fillRect(ex+pw*0.44, lensY, pw*0.44, ph*0.24); }
+    else    { ctx.fillRect(ex+pw*0.12, lensY, pw*0.44, ph*0.24); }
+    // Mask frame
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+    if (fr) { ctx.strokeRect(ex+pw*0.44, lensY, pw*0.44, ph*0.24); }
+    else    { ctx.strokeRect(ex+pw*0.12, lensY, pw*0.44, ph*0.24); }
+    // Lens shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    if (fr) { ctx.fillRect(ex+pw*0.47, lensY+2, pw*0.12, ph*0.08); }
+    else    { ctx.fillRect(ex+pw*0.15, lensY+2, pw*0.12, ph*0.08); }
+    // Snorkel tube (on outside face edge)
+    ctx.fillStyle = '#FF7043'; ctx.fillRect(fr ? ex+pw-2 : ex-2, py, 4, ph*0.55);
+    ctx.fillStyle = '#BF360C'; ctx.fillRect(fr ? ex+pw-2 : ex-2, py, 2, ph*0.55);
+    // Snorkel bend at top
+    ctx.fillStyle = '#FF7043'; ctx.fillRect(fr ? ex+pw-10 : ex-2, py-6, 12, 4);
+    // Flippers hint at bottom (small orange feet)
+    ctx.fillStyle = '#FF7043';
+    ctx.fillRect(ex - 3, py + ph - 4, pw + 6, 4);
+    ctx.fillStyle = '#E64A19'; ctx.fillRect(ex-3, py+ph-4, pw+6, 2);
+  }
+
   // Face drawn on top — skip for murderer or robot (they have their own eyes)
   if (equippedSkin !== 'murderer' && equippedSkin !== 'robot') {
     const eyeY = py + Math.floor(ph*0.28);
@@ -3123,6 +3347,49 @@ function drawEnemies() {
     if (darkMode) continue; // body hidden in darkness — drawn by drawEnemyGlowEyes instead
     const fr = e.vx > 0;
 
+    if (currentAdventure === 2) {
+      // ── Evil retro fish ──
+      const fw = e.w, fh = e.h;
+      const bodyColor = '#1A6B45', bodyDark = '#0E4A2E', bodyLight = '#26A066';
+      // Body
+      ctx.fillStyle = bodyColor; ctx.fillRect(ex + (fr ? 5 : 0), e.y + 3, fw - 5, fh - 6);
+      ctx.fillStyle = bodyLight; ctx.fillRect(ex + (fr ? 5 : 0), e.y + 3, fw - 5, 3);
+      ctx.fillStyle = bodyDark;  ctx.fillRect(ex + (fr ? 5 : 0), e.y + fh - 6, fw - 5, 3);
+      // Tail fin (back side)
+      ctx.fillStyle = bodyDark;
+      if (fr) { ctx.fillRect(ex, e.y + 1, 6, fh - 2); ctx.fillRect(ex, e.y + fh/2 - 2, 8, 4); }
+      else    { ctx.fillRect(ex + fw - 6, e.y + 1, 6, fh - 2); ctx.fillRect(ex + fw - 8, e.y + fh/2 - 2, 8, 4); }
+      // Top fin
+      ctx.fillStyle = bodyDark;
+      ctx.fillRect(ex + (fr ? fw*0.35 : fw*0.25), e.y - 7, fw*0.3, 7);
+      ctx.fillRect(ex + (fr ? fw*0.45 : fw*0.30), e.y - 10, fw*0.15, 4);
+      // Scales (3 arcs)
+      ctx.fillStyle = '#156B44';
+      for (let si = 0; si < 3; si++) {
+        const scx = ex + (fr ? fw*0.25 + si*8 : fw*0.15 + si*8);
+        ctx.beginPath(); ctx.arc(scx, e.y + fh*0.55, 4, Math.PI, 0); ctx.fill();
+      }
+      // Evil eye
+      const eyeX = fr ? ex + fw*0.62 : ex + fw*0.18;
+      ctx.fillStyle = '#FF1744'; ctx.fillRect(eyeX, e.y + fh*0.22, 6, 6);
+      ctx.fillStyle = '#000'; ctx.fillRect(eyeX+1, e.y + fh*0.22+1, 4, 4);
+      ctx.fillStyle = '#FFF'; ctx.fillRect(eyeX+1, e.y + fh*0.22+1, 2, 2);
+      // Evil angled eyebrow
+      ctx.fillStyle = '#7F0000';
+      if (fr) { ctx.fillRect(ex+fw*0.56, e.y+fh*0.14, 4, 2); ctx.fillRect(ex+fw*0.64, e.y+fh*0.10, 4, 2); }
+      else    { ctx.fillRect(ex+fw*0.14, e.y+fh*0.10, 4, 2); ctx.fillRect(ex+fw*0.22, e.y+fh*0.14, 4, 2); }
+      // Jagged mouth
+      ctx.fillStyle = '#000';
+      const mY = e.y + fh*0.65;
+      if (fr) { for (let i=0; i<3; i++) ctx.fillRect(ex+fw*0.44+i*6, mY+(i%2===0?0:3), 5, 4); }
+      else    { for (let i=0; i<3; i++) ctx.fillRect(ex+fw*0.10+i*6, mY+(i%2===0?0:3), 5, 4); }
+      // Teeth
+      ctx.fillStyle = '#EEE';
+      if (fr) { ctx.fillRect(ex+fw*0.44, mY, 3, 3); ctx.fillRect(ex+fw*0.56, mY, 3, 3); }
+      else    { ctx.fillRect(ex+fw*0.10, mY, 3, 3); ctx.fillRect(ex+fw*0.22, mY, 3, 3); }
+      continue;
+    }
+
     if (robotMode) {
       const armored = currentLevel === 2; // Level 3 — heavy variant
 
@@ -3303,6 +3570,14 @@ function drawParticles() {
     const sz = b.size * b.life;
     ctx.fillStyle = trailColor || '#FFFFFF';
     ctx.fillRect(sx(b.x) - sz / 2, b.y - sz / 2, sz, sz);
+  }
+  // Bubble trail
+  for (const b of bubbleTrail) {
+    ctx.globalAlpha = Math.max(0, b.life * 0.75);
+    ctx.strokeStyle = trailColor || '#80DEEA'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sx(b.x), b.y, b.r * b.life + 1, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = 'rgba(0,188,212,0.15)';
+    ctx.beginPath(); ctx.arc(sx(b.x), b.y, b.r * b.life + 1, 0, Math.PI*2); ctx.fill();
   }
   ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
@@ -3895,6 +4170,24 @@ function drawHUD() {
         ctx.globalAlpha = 1;
       }
       ctx.textAlign = 'left';
+    } else if (currentAdventure === 2) {
+      // Oxygen bar
+      const bx=W-215, by=5, bw=140, bh=10;
+      const oxPct = Math.max(0, oxygenLevel / MAX_OXYGEN);
+      const oxColor = oxPct > 0.5 ? '#00BCD4' : oxPct > 0.25 ? '#FF9800' : '#FF1744';
+      ctx.fillStyle='#111'; ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle=oxColor; ctx.fillRect(bx, by, bw*oxPct, bh);
+      ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.fillRect(bx, by, bw*oxPct, 3);
+      ctx.strokeStyle='#444'; ctx.lineWidth=1; ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle='#80DEEA'; ctx.font='bold 8px monospace'; ctx.textAlign='left';
+      ctx.fillText('O2', bx-16, by+9);
+      // Progress bar
+      const pbx=bx+bw+10, pby=12, pbw=60, pbh=10;
+      ctx.fillStyle='#222'; ctx.fillRect(pbx,pby,pbw,pbh);
+      const prog = Math.min(1, player1.x/(levelW-100));
+      ctx.fillStyle='#29B6F6'; ctx.fillRect(pbx,pby,pbw*prog,pbh);
+      ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.strokeRect(pbx,pby,pbw,pbh);
+      ctx.textAlign='left';
     } else {
       const bx=W-215, by=12, bw=200, bh=10;
       ctx.fillStyle='#222'; ctx.fillRect(bx,by,bw,bh);
@@ -4329,6 +4622,36 @@ function drawMFVictoryDoor() {
   ctx.textAlign = 'left';
 }
 
+function drawUWVictoryDoor() {
+  if (!uwVictoryDoor) return;
+  const d = uwVictoryDoor;
+  const dx = sx(d.x), dy = d.y, dw = d.w, dh = d.h;
+  if (dx + dw < -10 || dx > W + 10) return;
+  const pulse = 0.7 + Math.sin(tick * 0.1) * 0.3;
+  // Coral/stone frame
+  ctx.fillStyle = '#005F8A'; ctx.fillRect(dx - 4, dy - 4, dw + 8, dh + 8);
+  // Door body (deep blue-teal)
+  ctx.shadowColor = '#00BCD4'; ctx.shadowBlur = 16 * pulse;
+  ctx.fillStyle = '#01579B'; ctx.fillRect(dx, dy, dw, dh);
+  // Teal panel highlights
+  ctx.fillStyle = '#0097A7';
+  ctx.fillRect(dx + 3, dy + 4, dw - 6, Math.floor(dh/2) - 6);
+  ctx.fillRect(dx + 3, dy + Math.floor(dh/2) + 2, dw - 6, Math.floor(dh/2) - 6);
+  // Barnacle dots
+  ctx.fillStyle = '#80CBC4';
+  ctx.fillRect(dx+2, dy+2, 3, 3); ctx.fillRect(dx+dw-5, dy+2, 3, 3);
+  ctx.fillRect(dx+2, dy+dh-5, 3, 3); ctx.fillRect(dx+dw-5, dy+dh-5, 3, 3);
+  // Handle
+  ctx.fillStyle = '#00BCD4'; ctx.fillRect(dx+dw-8, dy+Math.floor(dh/2)-3, 5, 5);
+  ctx.shadowBlur = 0;
+  // Label
+  ctx.fillStyle = '#80DEEA'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('EXIT', dx + dw/2, dy - 5);
+  const near = [player1, player2].some(p => p && p.lives > 0 && Math.abs((p.x+p.w/2)-(d.x+dw/2)) < 55);
+  if (near) { ctx.fillStyle = '#FFF'; ctx.font = 'bold 8px monospace'; ctx.fillText('[WALK IN]', dx+dw/2, dy-16); }
+  ctx.textAlign = 'left';
+}
+
 function drawBossKey() {
   if (!bossKey || bossKey.collected) return;
   const kx = sx(bossKey.x); if (kx < -30 || kx > W+30) return;
@@ -4480,8 +4803,10 @@ function draw() {
   if (gameState === 'mfcutscene') { drawMFVictoryCutscene(); return; }
   const darkMode = currentLevel === 2 && currentAdventure === 0 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
+  if (currentAdventure === 2) { drawOxygenBubbles(); drawUWVictoryDoor(); }
   if (currentAdventure === 1) drawGenerators();
-  if (currentLevel < 3) drawGoalFlag();
+  if (currentLevel < 3 && currentAdventure !== 2) drawGoalFlag();
+  if (currentAdventure === 2 && currentLevel < 3) drawGoalFlag();
   if (currentAdventure === 1 && currentLevel === 1) { drawLaserBalls(); drawMFStopButton(); }
   drawEnemies();
   if (currentAdventure === 0 && currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); }
