@@ -3369,24 +3369,44 @@ function drawEnemies() {
         const scx = ex + (fr ? fw*0.25 + si*8 : fw*0.15 + si*8);
         ctx.beginPath(); ctx.arc(scx, e.y + fh*0.55, 4, Math.PI, 0); ctx.fill();
       }
-      // Evil eye
-      const eyeX = fr ? ex + fw*0.62 : ex + fw*0.18;
-      ctx.fillStyle = '#FF1744'; ctx.fillRect(eyeX, e.y + fh*0.22, 6, 6);
-      ctx.fillStyle = '#000'; ctx.fillRect(eyeX+1, e.y + fh*0.22+1, 4, 4);
-      ctx.fillStyle = '#FFF'; ctx.fillRect(eyeX+1, e.y + fh*0.22+1, 2, 2);
-      // Evil angled eyebrow
+      // Angry eye (glowing red, bigger)
+      const eyeX = fr ? ex + fw*0.60 : ex + fw*0.16;
+      const eyeGlow = 0.7 + Math.sin(tick*0.15 + e.x*0.01)*0.3;
+      ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 8 * eyeGlow;
+      ctx.fillStyle = '#FF1744'; ctx.fillRect(eyeX, e.y + fh*0.20, 8, 7);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#000'; ctx.fillRect(eyeX+2, e.y + fh*0.20+1, 4, 5);
+      ctx.fillStyle = '#FFF'; ctx.fillRect(eyeX+2, e.y + fh*0.20+1, 2, 2);
+      // Thick angry V-shaped eyebrow (3 steps, steep angle)
       ctx.fillStyle = '#7F0000';
-      if (fr) { ctx.fillRect(ex+fw*0.56, e.y+fh*0.14, 4, 2); ctx.fillRect(ex+fw*0.64, e.y+fh*0.10, 4, 2); }
-      else    { ctx.fillRect(ex+fw*0.14, e.y+fh*0.10, 4, 2); ctx.fillRect(ex+fw*0.22, e.y+fh*0.14, 4, 2); }
-      // Jagged mouth
+      if (fr) {
+        ctx.fillRect(ex+fw*0.54, e.y+fh*0.10, 4, 3);
+        ctx.fillRect(ex+fw*0.62, e.y+fh*0.06, 4, 3);
+        ctx.fillRect(ex+fw*0.70, e.y+fh*0.02, 4, 3);
+      } else {
+        ctx.fillRect(ex+fw*0.12, e.y+fh*0.02, 4, 3);
+        ctx.fillRect(ex+fw*0.20, e.y+fh*0.06, 4, 3);
+        ctx.fillRect(ex+fw*0.28, e.y+fh*0.10, 4, 3);
+      }
+      // Wide open angry mouth (dark cavity)
+      const mY = e.y + fh*0.60;
       ctx.fillStyle = '#000';
-      const mY = e.y + fh*0.65;
-      if (fr) { for (let i=0; i<3; i++) ctx.fillRect(ex+fw*0.44+i*6, mY+(i%2===0?0:3), 5, 4); }
-      else    { for (let i=0; i<3; i++) ctx.fillRect(ex+fw*0.10+i*6, mY+(i%2===0?0:3), 5, 4); }
-      // Teeth
-      ctx.fillStyle = '#EEE';
-      if (fr) { ctx.fillRect(ex+fw*0.44, mY, 3, 3); ctx.fillRect(ex+fw*0.56, mY, 3, 3); }
-      else    { ctx.fillRect(ex+fw*0.10, mY, 3, 3); ctx.fillRect(ex+fw*0.22, mY, 3, 3); }
+      if (fr) { ctx.fillRect(ex+fw*0.40, mY, fw*0.46, fh*0.22); }
+      else    { ctx.fillRect(ex+fw*0.14, mY, fw*0.46, fh*0.22); }
+      // Top teeth (pointy, jagged)
+      ctx.fillStyle = '#EEEEEE';
+      if (fr) {
+        for (let i=0; i<4; i++) ctx.fillRect(ex+fw*0.42+i*6, mY, 4, 5);
+      } else {
+        for (let i=0; i<4; i++) ctx.fillRect(ex+fw*0.16+i*6, mY, 4, 5);
+      }
+      // Bottom teeth (shorter)
+      ctx.fillStyle = '#CCCCCC';
+      if (fr) {
+        for (let i=0; i<3; i++) ctx.fillRect(ex+fw*0.45+i*6, mY+fh*0.22-3, 3, 3);
+      } else {
+        for (let i=0; i<3; i++) ctx.fillRect(ex+fw*0.17+i*6, mY+fh*0.22-3, 3, 3);
+      }
       continue;
     }
 
