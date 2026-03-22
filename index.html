@@ -478,6 +478,7 @@ let wireLeftOrder  = [], wireRightOrder = [], wireMatches = {}, wireSelected = n
 let wireErrorTimer = 0, wireErrorPos = -1;
 // Stage 1 — Sequence (Simon Says)
 let seqPattern = [], seqPhase = 'showing', seqTick = 0, seqPlayerIdx = 0;
+let seqPressedBtn = -1, seqPressedTimer = 0;
 // Stage 2 — Pressure (gauge calibration)
 let gaugeTargets = [], gaugeValues = [];
 // Stage 3 — Pattern (memory grid)
@@ -1575,6 +1576,7 @@ function update() {
       seqTick++;
       if (seqTick >= seqPattern.length*60+20) seqPhase='input';
     }
+    if (seqPressedTimer > 0) seqPressedTimer--;
     if (genStage===3 && patternPhase==='show') { patternTimer--; if (patternTimer<=0) patternPhase='input'; }
   }
   if (badgesPanelOpen || skinsPanelOpen || trailsPanelOpen || colorPickerOpen || generatorOpen) return;
@@ -2613,7 +2615,7 @@ function initGenStage(stage) {
     wireMatches = {}; wireSelected = null; wireErrorTimer = 0; wireErrorPos = -1;
   } else if (stage === 1) {
     seqPattern = Array.from({length:4}, () => Math.floor(Math.random()*4));
-    seqPhase = 'showing'; seqTick = 0; seqPlayerIdx = 0;
+    seqPhase = 'showing'; seqTick = 0; seqPlayerIdx = 0; seqPressedBtn = -1; seqPressedTimer = 0;
   } else if (stage === 2) {
     gaugeTargets = Array.from({length:3}, () => 2 + Math.floor(Math.random()*7));
     gaugeValues  = Array.from({length:3}, () => 1);
@@ -2762,6 +2764,7 @@ function drawSequenceStage(PX,PY,PW,PH) {
   const btns=[{x:PX+90,y:PY+70,w:90,h:65},{x:PX+220,y:PY+70,w:90,h:65},{x:PX+90,y:PY+155,w:90,h:65},{x:PX+220,y:PY+155,w:90,h:65}];
   let flashingBtn=-1;
   if (seqPhase==='showing') { const step=Math.floor(seqTick/60),w=seqTick%60; if(w<40&&step<seqPattern.length) flashingBtn=seqPattern[step]; }
+  if (seqPhase==='input' && seqPressedTimer > 0) flashingBtn = seqPressedBtn;
   for (let i=0; i<4; i++) {
     const b=btns[i], fl=flashingBtn===i;
     ctx.fillStyle=fl?SEQ_COL[i]:SEQ_COL[i]+'33'; ctx.fillRect(b.x,b.y,b.w,b.h);
@@ -4232,6 +4235,7 @@ canvas.addEventListener('click', e => {
       for (let i=0;i<4;i++){
         const b=btns[i];
         if(mx2>=b.x&&mx2<=b.x+b.w&&my2>=b.y&&my2<=b.y+b.h){
+          seqPressedBtn = i; seqPressedTimer = 18;
           if(i===seqPattern[seqPlayerIdx]){seqPlayerIdx++;if(seqPlayerIdx>=seqPattern.length)advanceGenStage();}
           else{seqPhase='showing';seqTick=0;seqPlayerIdx=0;}
           return;
