@@ -787,7 +787,7 @@ function updatePlayer(p) {
   p.y += p.vy;
   resolveY(p);
   if (p.y > H + 100) {
-    p.lives--; tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p);
+    p.lives--; tookDamage = true; checkMistakesBadge(p); checkNyctophobiaBadge(p);
     if (p.lives <= 0) return;
     p.x = Math.max(60, camX + 40);
     p.y = GROUND_Y - p.h - 10;
@@ -835,7 +835,7 @@ function updateBoss(active) {
         if (p.invincible > 0) continue;
         if (overlap(swordX, boss.y+18, 38, 14, p.x, p.y, p.w, p.h)) {
           if (difficulty === 'hard') p.lives = 0; else p.lives--;
-          tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p); p.invincible = 100; p.vy = -7;
+          tookDamage = true; checkMistakesBadge(p); checkNyctophobiaBadge(p); p.invincible = 100; p.vy = -7;
           p.vx = p.x < boss.x + boss.w/2 ? -5 : 5;
           spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF4444', 10);
         }
@@ -961,7 +961,7 @@ function updateMFBoss() {
       if (!p || p.invincible > 0) continue;
       if (Math.hypot(p.x + p.w/2 - bl.x, p.y + p.h/2 - bl.y) < bl.r + 13) {
         p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true;
-        checkMistakesBadge(); p.invincible = 100; p.vy = -7;
+        checkMistakesBadge(p); p.invincible = 100; p.vy = -7;
         p.vx = p.x < bl.x ? -5 : 5;
         spawnParticles(bl.x, bl.y, '#FF1744', 10);
         bossLasers.splice(i, 1); break;
@@ -1634,7 +1634,7 @@ function update() {
         const dx = (p.x + p.w / 2) - b.x, dy = (p.y + p.h / 2) - b.y;
         if (Math.sqrt(dx * dx + dy * dy) < b.r + Math.min(p.w, p.h) * 0.55) {
           p.lives -= difficulty === 'hard' ? 2 : 1;
-          tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p);
+          tookDamage = true; checkMistakesBadge(p); checkNyctophobiaBadge(p);
           p.invincible = 100; p.vy = -7;
           spawnParticles(b.x, b.y, '#FF1744', 10);
           laserBalls.splice(i, 1); break;
@@ -1740,7 +1740,7 @@ function update() {
         if (currentAdventure === 1) { robotKillCount++; checkRobotDestroyerBadge(); }
         break;
       } else {
-        p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true; checkMistakesBadge(); checkNyctophobiaBadge(p); p.invincible = 100; p.vy = -7;
+        p.lives -= difficulty === 'hard' ? 2 : 1; tookDamage = true; checkMistakesBadge(p); checkNyctophobiaBadge(p); p.invincible = 100; p.vy = -7;
         p.vx = p.x < e.x+e.w/2 ? -5 : 5;
         spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF7043', 8);
       }
@@ -2747,8 +2747,8 @@ function checkRobotDestroyerBadge() {
     badgeNotif = { name: 'Robot Destroyer', timer: 240 };
   }
 }
-function checkMistakesBadge() {
-  if (currentLevel === 0 && !badges.has('mistakeshappen')) {
+function checkMistakesBadge(p) {
+  if (currentLevel === 0 && p && p.lives <= 0 && !badges.has('mistakeshappen')) {
     badges.add('mistakeshappen');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Mistakes Happen', timer: 240 };
