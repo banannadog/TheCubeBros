@@ -679,6 +679,7 @@ let mfVictoryDoor = null;     // door that appears after beating Factory Command
 let jasonFlash = 0;           // frames remaining for "MAKE THEM REMEMBER" flash
 let equippedSkin  = localStorage.getItem('cb_skin')  || null;
 let equippedTrail = localStorage.getItem('cb_trail') || null;
+let ownerKeyBuf   = ''; // secret code buffer — type "owner" to unlock the Owner skin
 let trailColor    = localStorage.getItem('cb_trail_color') || null; // null = use default
 let colorPickerOpen = false;
 let _cpHue = 0, _cpSat = 1, _cpVal = 1, _cpDragging = null;
@@ -732,6 +733,7 @@ const SKIN_DEFS = [
   { id: 'mechanic',  name: 'Mechanic', badge: 'engineer',       desc: 'Orange hard hat & cosmetic hammer' },
   { id: 'robot',     name: 'R.O.B.O.T', badge: 'robotdestroyer', desc: 'You ARE the robot', hasVariant: true },
   { id: 'swimmer',   name: 'Swimmer',   badge: 'greatswim',     desc: 'Diving mask & flippers' },
+  { id: 'owner',     name: 'Owner',     badge: null, secret: true, desc: '😎 deal with it' },
 ];
 const TRAIL_DEFS = [
   { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
@@ -3195,8 +3197,52 @@ function drawPlayerCube(p) {
     ctx.fillStyle = '#E64A19'; ctx.fillRect(ex-3, py+ph-4, pw+6, 2);
   }
 
-  // Face drawn on top — skip for murderer or robot (they have their own eyes)
-  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot') {
+  if (equippedSkin === 'owner') {
+    // OWNER sign floating above head
+    const signW = pw + 14, signH = 10;
+    const signX = ex - 7, signY = py - signH - 5;
+    ctx.fillStyle = '#111'; ctx.fillRect(signX, signY, signW, signH);
+    ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 1;
+    ctx.strokeRect(signX + 0.5, signY + 0.5, signW - 1, signH - 1);
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('OWNER', ex + pw / 2, signY + 8);
+    ctx.textAlign = 'left';
+    // Sign post (little stick connecting to head)
+    ctx.fillStyle = '#888'; ctx.fillRect(ex + pw/2 - 1, signY + signH, 2, 5);
+
+    // MLG pixel sunglasses
+    const glassY = py + Math.floor(ph * 0.28);
+    const glassW = pw + 4, glassH = Math.floor(ph * 0.22);
+    const glassX = ex - 2;
+    // Bridge
+    ctx.fillStyle = '#000'; ctx.fillRect(glassX + Math.floor(glassW*0.46), glassY + Math.floor(glassH*0.3), Math.floor(glassW*0.08), Math.floor(glassH*0.4));
+    // Left lens
+    ctx.fillStyle = '#000'; ctx.fillRect(glassX, glassY, Math.floor(glassW*0.45), glassH);
+    // Right lens
+    ctx.fillStyle = '#000'; ctx.fillRect(glassX + Math.floor(glassW*0.54), glassY, Math.floor(glassW*0.45), glassH);
+    // Arm (temple) on face side
+    ctx.fillStyle = '#000';
+    if (p.facingRight) { ctx.fillRect(glassX + glassW - 1, glassY + 2, 4, 2); }
+    else               { ctx.fillRect(glassX - 4, glassY + 2, 4, 2); }
+    // Lens shine (white pixel checkers, top-left of each lens)
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(glassX + 2, glassY + 1, 2, 2);
+    ctx.fillRect(glassX + 4, glassY + 3, 2, 2);
+    ctx.fillRect(glassX + Math.floor(glassW*0.54) + 2, glassY + 1, 2, 2);
+    ctx.fillRect(glassX + Math.floor(glassW*0.54) + 4, glassY + 3, 2, 2);
+
+    // Smile
+    const mouthY = py + Math.floor(ph * 0.62);
+    const mouthW = Math.floor(pw * 0.42);
+    const mouthX = p.facingRight ? ex + Math.floor(pw * 0.38) : ex + Math.floor(pw * 0.2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(mouthX, mouthY, mouthW, 2);
+    ctx.fillRect(mouthX, mouthY - 3, 2, 3);
+    ctx.fillRect(mouthX + mouthW - 2, mouthY - 3, 2, 3);
+  }
+
+  // Face drawn on top — skip for murderer, robot, and owner (they have their own)
+  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot' && equippedSkin !== 'owner') {
     const eyeY = py + Math.floor(ph*0.28);
     ctx.fillStyle = '#000';
     if (p.facingRight) {
@@ -3968,7 +4014,7 @@ function drawSkinsPanel() {
   ctx.fillText('SKINS', W / 2, py + 22);
 
   SKIN_DEFS.forEach((skin, i) => {
-    const unlocked = badges.has(skin.badge);
+    const unlocked = skin.secret ? localStorage.getItem('cb_owner') === '1' : badges.has(skin.badge);
     const equipped  = equippedSkin === skin.id;
     const ry = py + 38 + i * 56;
     ctx.fillStyle = equipped ? 'rgba(0,229,255,0.1)' : unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.2)';
@@ -4153,7 +4199,7 @@ function drawSkinsPanel() {
     ctx.fillText(skin.name, px + 48, ry + 18);
     ctx.fillStyle = unlocked ? '#999' : '#444';
     ctx.font = '8px monospace';
-    ctx.fillText(unlocked ? skin.desc : `Locked — earn "${skin.badge}" badge`, px + 48, ry + 30);
+    ctx.fillText(unlocked ? skin.desc : skin.secret ? 'Secret skin' : `Locked — earn "${skin.badge}" badge`, px + 48, ry + 30);
 
     // Equip / Unequip button
     if (unlocked) {
@@ -5187,6 +5233,14 @@ function draw() {
 
 // ─── Input ───────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  // Secret owner code — type "owner" anywhere
+  if (e.key && e.key.length === 1) {
+    ownerKeyBuf = (ownerKeyBuf + e.key.toLowerCase()).slice(-5);
+    if (ownerKeyBuf === 'owner') {
+      localStorage.setItem('cb_owner', '1');
+      badgeNotif = { name: '😎 Owner skin unlocked!', timer: 300 };
+    }
+  }
   if (gameState === 'select') {
     if (e.code==='Digit1')                               { menuSel=0; playTacoBell(); pendingPlayers=1; gameState='adventure'; menuSel=0; }
     else if (e.code==='Digit2')                          { menuSel=0; playTacoBell(); pendingPlayers=2; gameState='adventure'; menuSel=0; }
