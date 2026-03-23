@@ -170,6 +170,10 @@ function playPowerupSound() {
 function mkE(x, y, ps, pe, spd = 1.6) {
   return { x, y, w: 26, h: 26, vx: -spd, alive: true, squish: 0, patrolStart: ps, patrolEnd: pe };
 }
+function mkJ(x, anchorY, bobAmp = 28, bobSpeed = 0.022) {
+  return { x, y: anchorY, w: 28, h: 30, anchorY, bobAmp, bobSpeed,
+           bobPhase: Math.random()*Math.PI*2, vx: 0, alive: true, squish: 0, type: 'jellyfish' };
+}
 
 const LEVEL_DATA = [
   // ── LEVEL 1 ──
@@ -450,11 +454,19 @@ const UW_LEVEL_DATA = [
       [300,340],[750,300],[1150,250],[1550,310],[1950,230],[2350,310],[2750,270],[3150,285],
     ],
     enemies: [
-      mkE(380,GROUND_Y-26,220,520,2.4), mkE(730,GROUND_Y-26,580,870,2.4),
-      mkE(1100,GROUND_Y-26,930,1240,2.6), mkE(1500,GROUND_Y-26,1370,1670,2.6),
-      mkE(1880,GROUND_Y-26,1720,2060,2.9), mkE(2300,GROUND_Y-26,2120,2480,2.9),
-      mkE(2700,GROUND_Y-26,2530,2880,3.0), mkE(3100,GROUND_Y-26,2950,3310,3.0),
-      mkE(1080,240-26,1060,1160,2.0), mkE(1800,215-26,1790,1890,2.0), mkE(2600,235-26,2590,2690,2.1),
+      // Ground-level jellyfish — block the main path
+      mkJ(300, 340, 28, 0.020), mkJ(550, 310, 26, 0.023),
+      mkJ(840, 330, 30, 0.021), mkJ(1160, 300, 28, 0.024),
+      mkJ(1440, 330, 26, 0.020), mkJ(1740, 290, 30, 0.022),
+      mkJ(2060, 320, 28, 0.021), mkJ(2360, 300, 26, 0.023),
+      mkJ(2660, 330, 30, 0.020), mkJ(2980, 310, 28, 0.024),
+      mkJ(3220, 330, 26, 0.022),
+      // Mid-air jellyfish — lurk near platforms
+      mkJ(480,  265, 22, 0.026), mkJ(750,  270, 20, 0.025),
+      mkJ(1280, 255, 22, 0.027), mkJ(1620, 260, 20, 0.025),
+      mkJ(2140, 265, 22, 0.026), mkJ(2820, 260, 20, 0.025),
+      // High jellyfish — guard the tallest platforms
+      mkJ(1090, 225, 18, 0.028), mkJ(1810, 210, 16, 0.030), mkJ(2610, 228, 18, 0.028),
     ],
     chests: [{ x: 916, y: 212, w: 32, h: 28, type: 'speed' }],
   },
@@ -648,6 +660,13 @@ let skinsPanelOpen  = false;   // pauses game when true
 let trailsPanelOpen = false;   // pauses game when true
 let badgeNotif = null;         // { name, timer } — popup above BADGES button
 let hammerHintTimer = 0;       // shows "Need Hammer!" when stomping MF robots unarmed
+// ─── CK Boss intro cutscene ───────────────────────────────────────────────────
+let ckBossCutsceneActive = false;
+let ckBossCutsceneDone   = false;
+let ckBossCutscenePhase  = 'walkin'; // 'walkin'|'stop'|'text'|'done'
+let ckBossCutsceneTimer  = 0;
+let ckBossScreenFlash    = 0;
+
 // ─── MF Boss ─────────────────────────────────────────────────────────────────
 let mfBoss = null;
 let mfBossCutsceneDone = false;
@@ -686,6 +705,7 @@ const P2 = { mid: '#66BB6A', dark: '#2E7D32', light: '#A5D6A7', leg: '#2E7D32' }
 
 // ─── Badge & Skin Definitions ─────────────────────────────────────────────────
 const BADGE_DEFS = [
+  { id: 'firststeps',   name: 'First Steps',  desc: 'Beat Level 1 in Cube Kingdom',   color: '#81C784', icon: '👣' },
   { id: 'billionaire',  name: 'Billionaire',  desc: 'Collect every coin in the game', color: '#FFD700', icon: '$' },
   { id: 'swordfighter', name: 'Swordfighter', desc: 'Defeat the King',               color: '#B0BEC5', icon: '⚔' },
   { id: 'adventurer',   name: 'Adventurer',   desc: 'Beat all four levels',           color: '#66BB6A', icon: '🗺' },
@@ -825,6 +845,7 @@ function startLevel(n) {
   // Reset Level 4 state
   boss = null; bossKey = null; ironDoor = null; castleDoors = null; victoryDoor = null; cutscene = null;
   playerHasSword = false; bossHitCooldown = 0; doorsWithoutKey = 0;
+  ckBossCutsceneActive = false; ckBossCutsceneDone = false; ckBossCutscenePhase = 'walkin'; ckBossCutsceneTimer = 0; ckBossScreenFlash = 0;
   if (currentLevel === 3) {
     const keyRoom = Math.floor(Math.random() * 5);
     bossKey = {
@@ -893,7 +914,8 @@ function updatePlayer(p) {
     if (p.onGround) p.y += 14;
   }
   const spd = MOVE_SPEED * (p.powerups.speed > 0 ? 2.0 : 1.0);
-  const cutsceneLock = currentAdventure === 1 && currentLevel === 3 && !mfBossCutsceneDone;
+  const cutsceneLock = (currentAdventure === 1 && currentLevel === 3 && !mfBossCutsceneDone)
+                    || (currentAdventure === 0 && currentLevel === 3 && ckBossCutsceneActive);
   if (!cutsceneLock) {
     if (p.ctrl.left())       { p.vx = -spd; p.facingRight = false; }
     else if (p.ctrl.right()) { p.vx =  spd; p.facingRight = true;  }
@@ -1224,6 +1246,64 @@ function drawMFBossIntroOverlay() {
   if (mfBossScreenFlash > 0) {
     ctx.fillStyle = `rgba(255,120,0,${Math.min(0.7, mfBossScreenFlash)})`;
     ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ─── CK Boss intro cutscene ───────────────────────────────────────────────────
+function updateCKBossCutscene() {
+  if (!ckBossCutsceneActive || !boss) return;
+  ckBossCutsceneTimer++;
+  const t = ckBossCutsceneTimer;
+  if (ckBossScreenFlash > 0) ckBossScreenFlash -= 0.05;
+
+  // Keep players frozen, facing right toward the king
+  for (const p of [player1, player2]) {
+    if (!p) continue; p.vx = 0; p.facingRight = true;
+  }
+
+  if (ckBossCutscenePhase === 'walkin') {
+    boss.facingRight = false;
+    if (boss.x > 4750) {
+      boss.x -= 3.0;
+    } else {
+      boss.x = 4750;
+      ckBossCutscenePhase = 'stop'; ckBossCutsceneTimer = 0;
+    }
+  } else if (ckBossCutscenePhase === 'stop') {
+    boss.facingRight = false;
+    if (t >= 65) { ckBossCutscenePhase = 'text'; ckBossCutsceneTimer = 0; }
+  } else if (ckBossCutscenePhase === 'text') {
+    boss.facingRight = false;
+    if (t >= 170) {
+      ckBossCutscenePhase = 'done';
+      ckBossCutsceneActive = false;
+      ckBossCutsceneDone = true;
+      boss.active = true;
+    }
+  }
+}
+
+function drawCKBossCutscene() {
+  if (!ckBossCutsceneActive) return;
+  const t = ckBossCutsceneTimer;
+
+  // Letterbox bars
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, 44);
+  ctx.fillRect(0, H - 44, W, 44);
+
+  if (ckBossCutscenePhase === 'text') {
+    const alpha = Math.min(1, t / 22);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(0, H/2 - 52, W, 104);
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('B O S S', W/2, H/2 - 26);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 24px monospace';
+    ctx.fillText('DESTROY THE KING', W/2, H/2 + 8);
+    ctx.fillStyle = '#FF6F00'; ctx.font = 'bold 9px monospace';
+    ctx.fillText('Grab his sword to damage him', W/2, H/2 + 30);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
   }
 }
 
@@ -1915,20 +1995,25 @@ function update() {
   // Enemies
   for (const e of enemies) {
     if (!e.alive) { if (e.squish > 0) e.squish -= 0.06; continue; }
-    e.x += e.vx;
-    if (e.x <= e.patrolStart || e.x + e.w >= e.patrolEnd) {
-      e.vx *= -1;
-      e.x = Math.max(e.patrolStart, Math.min(e.x, e.patrolEnd - e.w));
-    }
-    // Generator door blocks enemies
-    for (const gen of generators) {
-      if (gen.solved) continue;
-      const doorH = GROUND_Y * (1 - gen.doorAnim);
-      if (doorH <= 2) continue;
-      const dX = gen.doorX, dW = 24;
-      if (e.y < doorH && e.x + e.w > dX && e.x < dX + dW) {
-        if (e.vx > 0) { e.x = dX - e.w; } else { e.x = dX + dW; }
+    if (e.type === 'jellyfish') {
+      // Jellyfish bob up and down — no horizontal patrol
+      e.y = e.anchorY + Math.sin(tick * e.bobSpeed + e.bobPhase) * e.bobAmp;
+    } else {
+      e.x += e.vx;
+      if (e.x <= e.patrolStart || e.x + e.w >= e.patrolEnd) {
         e.vx *= -1;
+        e.x = Math.max(e.patrolStart, Math.min(e.x, e.patrolEnd - e.w));
+      }
+      // Generator door blocks enemies
+      for (const gen of generators) {
+        if (gen.solved) continue;
+        const doorH = GROUND_Y * (1 - gen.doorAnim);
+        if (doorH <= 2) continue;
+        const dX = gen.doorX, dW = 24;
+        if (e.y < doorH && e.x + e.w > dX && e.x < dX + dW) {
+          if (e.vx > 0) { e.x = dX - e.w; } else { e.x = dX + dW; }
+          e.vx *= -1;
+        }
       }
     }
     for (const p of active) {
@@ -1943,7 +2028,7 @@ function update() {
         if (currentAdventure === 1) { robotKillCount++; checkRobotDestroyerBadge(); }
         if (equippedSkin === 'murderer') p.knifeSwing = 24;
         break;
-      } else if (p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
+      } else if (e.type !== 'jellyfish' && p.vy > 0 && (p.y + p.h) < (e.y + e.h*0.55 + p.vy + 2)) {
         if (needHammer) {
           // Bounce off without killing — robots are armored
           p.vy = -6; hammerHintTimer = 120;
@@ -1970,6 +2055,10 @@ function update() {
     const hitGoal = (p1a && player1.x + player1.w >= levelW - 60) ||
                     (p2a && player2.x + player2.w >= levelW - 60);
     if (hitGoal) {
+      if (currentAdventure === 0 && currentLevel === 0 && !badges.has('firststeps')) {
+        badges.add('firststeps'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+        badgeNotif = { name: 'First Steps', timer: 240 };
+      }
       if (currentLevel < LEVEL_DATA.length - 1) {
         if (player1) { if (player1.lives > 0) player1.lives++; else player1.lives = 1; }
         if (player2) { if (player2.lives > 0) player2.lives++; else player2.lives = 1; }
@@ -2006,7 +2095,13 @@ function update() {
         const destY = GROUND_Y - p.baseH;
         for (const ap of active) { ap.x = door.destX; ap.y = destY; ap.vx = 0; ap.vy = 0; }
         camX = Math.max(0, Math.min(door.destX - W * 0.33, levelW - W));
-        if (door.bossEntry) boss.active = true;
+        if (door.bossEntry) {
+          // Start king walk-in cutscene — boss walks from off-screen right
+          boss.x = 4750 + 320;
+          boss.facingRight = false;
+          ckBossCutsceneActive = true; ckBossCutsceneDone = false;
+          ckBossCutscenePhase = 'walkin'; ckBossCutsceneTimer = 0;
+        }
         if (!door.isExit && !door.bossEntry && bossKey && !bossKey.collected) doorsWithoutKey++;
         doorTaken = true;
         break;
@@ -2030,6 +2125,7 @@ function update() {
         }
       }
     }
+    updateCKBossCutscene();
     updateBoss(active);
     // Victory door check
     if (victoryDoor) {
@@ -3173,7 +3269,7 @@ function advanceGenStage() {
     for (const p of [player1, player2]) { if (p) p.invincible = 120; }
     // Fixer badge: completed generator in under 30 seconds
     if ((Date.now() - genStartTime) < 30000 && !badges.has('fixer')) {
-      badges.add('fixer'); saveBadges();
+      badges.add('fixer'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     }
   } else {
     genNextStage = next; genTransition = true; genTransTimer = 70;
@@ -3381,10 +3477,17 @@ function drawEnemies() {
     if (!e.alive) {
       if (e.squish > 0) {
         const sh = Math.max(4,10*e.squish);
-        const dc = robotMode ? '#546E7A' : '#E53935';
-        const dd = robotMode ? '#37474F' : '#B71C1C';
-        const dl = robotMode ? '#78909C' : '#EF9A9A';
-        drawCube(e.x, e.y+e.h-sh, e.w, sh, dc, dd, dl);
+        if (e.type === 'jellyfish') {
+          const ex2 = sx(e.x);
+          ctx.globalAlpha = e.squish * 0.8;
+          ctx.fillStyle = '#CE93D8'; ctx.fillRect(ex2+2, e.y+e.h-sh, e.w-4, sh);
+          ctx.globalAlpha = 1;
+        } else {
+          const dc = robotMode ? '#546E7A' : '#E53935';
+          const dd = robotMode ? '#37474F' : '#B71C1C';
+          const dl = robotMode ? '#78909C' : '#EF9A9A';
+          drawCube(e.x, e.y+e.h-sh, e.w, sh, dc, dd, dl);
+        }
       }
       continue;
     }
@@ -3392,6 +3495,50 @@ function drawEnemies() {
     if (darkMode) continue; // body hidden in darkness — drawn by drawEnemyGlowEyes instead
     const fr = e.vx > 0;
 
+    if (currentAdventure === 2 && e.type === 'jellyfish') {
+      // ── Retro jellyfish ──
+      const ew = e.w, eh = e.h;
+      const pulse = 0.6 + Math.sin(tick * 0.09 + e.bobPhase) * 0.4;
+      ctx.shadowColor = '#7C4DFF'; ctx.shadowBlur = 14 * pulse;
+      // Bell dome (pixelated rows)
+      ctx.fillStyle = '#EDE7F6'; ctx.fillRect(ex+8, e.y,    12, 2); // top highlight
+      ctx.fillStyle = '#CE93D8'; ctx.fillRect(ex+5, e.y+2,  18, 2);
+      ctx.fillStyle = '#AB47BC'; ctx.fillRect(ex+3, e.y+4,  22, 3);
+      ctx.fillStyle = '#9C27B0'; ctx.fillRect(ex+1, e.y+7,  26, 4);
+      ctx.fillStyle = '#7B1FA2'; ctx.fillRect(ex+3, e.y+11, 22, 3); // bottom rim
+      // Inner glow
+      ctx.globalAlpha = 0.45 * pulse;
+      ctx.fillStyle = '#F3E5F5'; ctx.fillRect(ex+9, e.y+3, 10, 6);
+      ctx.globalAlpha = 1;
+      // Angry eyes (red glowing)
+      ctx.fillStyle = '#FF1744';
+      ctx.shadowColor = '#FF1744'; ctx.shadowBlur = 7 * pulse;
+      ctx.fillRect(ex+6,  e.y+6, 5, 4);
+      ctx.fillRect(ex+17, e.y+6, 5, 4);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(ex+7,  e.y+7, 3, 3);
+      ctx.fillRect(ex+18, e.y+7, 3, 3);
+      ctx.fillStyle = '#FFF';
+      ctx.fillRect(ex+7,  e.y+7, 1, 1);
+      ctx.fillRect(ex+18, e.y+7, 1, 1);
+      // Angry eyebrows (angled inward toward center)
+      ctx.fillStyle = '#4A148C';
+      ctx.fillRect(ex+4,  e.y+3, 4, 2); ctx.fillRect(ex+6,  e.y+4, 4, 2); // left brow
+      ctx.fillRect(ex+18, e.y+4, 4, 2); ctx.fillRect(ex+20, e.y+3, 4, 2); // right brow
+      // Wavy tentacles (pixel segments)
+      const tentXs = [ex+5, ex+11, ex+17, ex+23];
+      for (let t = 0; t < 4; t++) {
+        const phase = tick * 0.06 + t * 1.1 + e.bobPhase;
+        ctx.fillStyle = t % 2 === 0 ? '#CE93D8' : '#AB47BC';
+        for (let seg = 0; seg < 6; seg++) {
+          const tx2 = tentXs[t] + Math.round(Math.sin(phase + seg * 0.7) * 3);
+          ctx.fillRect(tx2, e.y+14+seg*3, 2, 2);
+        }
+      }
+      ctx.shadowBlur = 0;
+      continue;
+    }
     if (currentAdventure === 2) {
       // ── Evil retro fish ──
       const fw = e.w, fh = e.h;
@@ -3661,10 +3808,10 @@ function drawBadgesPanel() {
     const bx = BADGE_BTN.x, by = BADGE_BTN.y - 28 + slideY;
     ctx.globalAlpha = alpha;
     ctx.fillStyle = '#222';
-    ctx.fillRect(bx - 2, by, 120, 22);
+    ctx.fillRect(bx - 2, by, 160, 22);
     ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 1;
-    ctx.strokeRect(bx - 1.5, by + 0.5, 120, 21);
-    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'left';
+    ctx.strokeRect(bx - 1.5, by + 0.5, 160, 21);
+    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'left';
     ctx.fillText('🏅 Badge: ' + badgeNotif.name, bx + 4, by + 14);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
@@ -4922,7 +5069,7 @@ function draw() {
   if (currentAdventure === 2 && currentLevel < 3) drawGoalFlag();
   if (currentAdventure === 1 && currentLevel === 1) { drawLaserBalls(); drawMFStopButton(); }
   drawEnemies();
-  if (currentAdventure === 0 && currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); }
+  if (currentAdventure === 0 && currentLevel === 3) { drawCastleDoors(); drawBossKey(); drawBoss(); drawVictoryDoor(); drawCKBossCutscene(); }
   if (currentAdventure === 1 && currentLevel === 3) {
     // Arena walls
     const wallW = 18;
