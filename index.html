@@ -832,12 +832,12 @@ function startLevel(n) {
   // UW Level 4 — Shark Lair: spawn the shark boss
   uwShark = null; uwSharkIntroTimer = 0;
   if (currentAdventure === 2 && currentLevel === 3) {
-    uwShark = { x: 600, y: GROUND_Y - 46, w: 80, h: 46,
-                vx: -1, vy: 0, hp: 5, maxHp: 5,
+    uwShark = { x: 980, y: GROUND_Y - 46, w: 80, h: 46,
+                vx: -4, vy: 0, hp: 5, maxHp: 5,
                 invincible: 0, phase: 'intro', phaseTimer: 0,
                 alive: true, sinkOff: 0, dashCount: 0, setsCount: 0,
                 facingLeft: true };
-    uwSharkIntroTimer = 160; // title card frames
+    uwSharkIntroTimer = 200; // title card frames
   }
   // MF Level 4 — Boss Arena init
   mfBoss = null; mfBossCutsceneDone = false; mfBossCutscenePhase = 'walk'; mfBossCutsceneTimer = 0; mfBossScreenFlash = 0; bossLasers = []; mfVictoryDoor = null;
@@ -4979,8 +4979,17 @@ function updateUWShark() {
   if (!uwShark) return;
   const s = uwShark;
 
-  // Intro hold — players locked, title card shown
-  if (uwSharkIntroTimer > 0) { uwSharkIntroTimer--; return; }
+  // Intro — shark swims in from the right, then title card holds
+  if (uwSharkIntroTimer > 0) {
+    uwSharkIntroTimer--;
+    // First 80 frames: swim toward center
+    if (uwSharkIntroTimer > 120) {
+      s.x += s.vx; // swim left at -4
+      if (s.x < 420) s.x = 420; // stop in the middle
+      s.facingLeft = true;
+    }
+    return;
+  }
 
   if (!s.alive) {
     s.sinkOff += 1.8;
@@ -5194,18 +5203,18 @@ function drawUWShark() {
     }
   }
 
-  // Boss intro title card
-  if (uwSharkIntroTimer > 0) {
-    const alpha = Math.min(1, (160 - uwSharkIntroTimer) / 20);
+  // Boss intro title card — show only once shark has swum in (last 120 frames)
+  if (uwSharkIntroTimer > 0 && uwSharkIntroTimer <= 120) {
+    const alpha = Math.min(1, (120 - uwSharkIntroTimer) / 20);
     ctx.globalAlpha = alpha;
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, H/2 - 50, W, 100);
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, 44); ctx.fillRect(0, H-44, W, 44);
     ctx.fillStyle = '#00BCD4'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
     ctx.fillText('B O S S', W/2, H/2 - 24);
     ctx.fillStyle = '#FFF'; ctx.font = 'bold 22px monospace';
-    ctx.fillText('THE GREAT SHARK', W/2, H/2 + 8);
+    ctx.fillText('SHARK', W/2, H/2 + 8);
     ctx.fillStyle = '#FF6F00'; ctx.font = 'bold 9px monospace';
-    ctx.fillText('Stomp its back to damage it', W/2, H/2 + 30);
+    ctx.fillText('Dodge the attacks — stomp on it to damage it', W/2, H/2 + 30);
     ctx.globalAlpha = 1; ctx.textAlign = 'left';
   }
 }
@@ -5391,7 +5400,7 @@ function draw() {
   if (gameState === 'mfcutscene') { drawMFVictoryCutscene(); return; }
   const darkMode = currentLevel === 2 && currentAdventure === 0 && !hasNightVision();
   drawBackground(); drawPlatforms(); drawCoins(); drawChests();
-  if (currentAdventure === 2) { drawOxygenBubbles(); drawUWVictoryDoor(); drawUWFishSwarm(); }
+  if (currentAdventure === 2) { drawOxygenBubbles(); drawUWVictoryDoor(); drawUWFishSwarm(); drawUWShark(); }
   if (currentAdventure === 1) drawGenerators();
   if (currentLevel < 3 && currentAdventure !== 2) drawGoalFlag();
   if (currentAdventure === 2 && currentLevel < 3) drawGoalFlag();
