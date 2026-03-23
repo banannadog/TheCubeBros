@@ -5055,37 +5055,21 @@ function updateUWShark() {
     if (s.x + s.w >= 878) { s.x = 878 - s.w; s.vx = -dashSpd; s.facingLeft = true;  }
     if (s.phaseTimer >= 70) {
       s.dashCount++;
-      if (s.dashCount < 3) {
+      if (s.dashCount < 2) {
+        // brief pause then dash again
         s.phase = 'dashpause'; s.phaseTimer = 0;
       } else {
-        // finished 3 dashes in this set
+        // 2 dashes done — retreat
         s.dashCount = 0;
-        s.setsCount++;
-        if (s.setsCount < 2) {
-          // do another set after a short break
-          s.phase = 'setpause'; s.phaseTimer = 0;
-        } else {
-          // 2 sets done — retreat
-          s.setsCount = 0;
-          s.phase = 'retreat'; s.phaseTimer = 0;
-          s.vx = s.x < 450 ? patrolSpd : -patrolSpd;
-          s.facingLeft = s.vx < 0;
-        }
+        s.phase = 'retreat'; s.phaseTimer = 0;
+        s.vx = s.x < 450 ? patrolSpd : -patrolSpd;
+        s.facingLeft = s.vx < 0;
       }
     }
 
   } else if (s.phase === 'dashpause') {
-    if (s.phaseTimer >= 22) {
-      s.phase = 'windup'; s.phaseTimer = 0;
-      if (target) s.facingLeft = target.x < s.x + s.w/2;
-    }
-
-  } else if (s.phase === 'setpause') {
-    // bounce back a bit between sets
-    s.x += s.vx > 0 ? patrolSpd : -patrolSpd;
-    if (s.x <= 20)        { s.x = 20;        s.vx =  patrolSpd; s.facingLeft = false; }
-    if (s.x + s.w >= 878) { s.x = 878 - s.w; s.vx = -patrolSpd; s.facingLeft = true;  }
-    if (s.phaseTimer >= 60) {
+    // brief pause between the two dashes
+    if (s.phaseTimer >= 25) {
       s.phase = 'windup'; s.phaseTimer = 0;
       if (target) s.facingLeft = target.x < s.x + s.w/2;
     }
@@ -5115,8 +5099,8 @@ function updateUWShark() {
         spawnParticles(s.x + s.w/2, s.y + s.h/2, '#90A4AE', 30);
         spawnParticles(s.x + s.w/2, s.y + s.h/2, '#FF1744', 20);
       }
-    } else {
-      // Touched by shark — take damage
+    } else if (s.phase === 'dash') {
+      // Only take damage during a dash
       p.lives -= difficulty === 'hard' ? 2 : 1;
       tookDamage = true; checkMistakesBadge(p);
       p.invincible = 100; p.vy = -7;
