@@ -3269,10 +3269,10 @@ function drawPlayerCube(p) {
       sqX += sqS + 1;
     }
 
-    // Controller pixel art — upper body + two grips below
+    // Controller pixel art — upper body + two grips below (slightly smaller)
     const ctTop = sqY + sqS + 2;
-    const ctLeft = screenX + 1;
-    const ctW = screenW - 2;
+    const ctLeft = screenX + 3;
+    const ctW = screenW - 6;
     const remaining = screenH - (ctTop - screenY) - 1;
     const bodyH = Math.max(2, Math.floor(remaining * 0.55));
     const gripH = remaining - bodyH;
