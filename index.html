@@ -5120,9 +5120,11 @@ canvas.addEventListener('click', e => {
     if (mx2 >= c2X && mx2 <= c2X+cW && my2 >= cY && my2 <= cY+cH) { playTacoBell(); pendingPlayers=2; gameState='adventure'; menuSel=0; return; }
   }
   if (gameState === 'adventure') {
-    const ac1X = W/2 - 220 - 20, ac2X = W/2 + 20, acY = 148, acW = 220, acH = 200;
+    const acW = 170, acH = 205, acY = 140;
+    const ac1X = W/2-acW*1.5-15, ac2X = W/2-acW/2, ac3X = W/2+acW/2+15;
     if (mx2 >= ac1X && mx2 <= ac1X+acW && my2 >= acY && my2 <= acY+acH) { currentAdventure=0; playTacoBell(); gameState='difficulty'; menuSel=0; return; }
     if (badges.has('adventurer') && mx2 >= ac2X && mx2 <= ac2X+acW && my2 >= acY && my2 <= acY+acH) { currentAdventure=1; playTacoBell(); gameState='difficulty'; menuSel=0; return; }
+    if (badges.has('engineer') && mx2 >= ac3X && mx2 <= ac3X+acW && my2 >= acY && my2 <= acY+acH) { currentAdventure=2; playTacoBell(); gameState='difficulty'; menuSel=0; return; }
   }
   if (gameState === 'difficulty') {
     if (mx2 >= c1X && mx2 <= c1X+cW && my2 >= cY && my2 <= cY+cH) { difficulty='easy'; playTacoBell(); initGame(pendingPlayers); return; }
