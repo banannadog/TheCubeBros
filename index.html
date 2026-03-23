@@ -3275,8 +3275,8 @@ function drawPlayerCube(p) {
     const ctW = screenW - 6;
     const remaining = screenH - (ctTop - screenY) - 1;
     const bodyH = Math.max(2, Math.floor(remaining * 0.55));
-    const gripH = remaining - bodyH;
-    const gripW = Math.floor(ctW * 0.32);
+    const gripH = Math.max(0, Math.floor((remaining - bodyH) * 0.6));
+    const gripW = Math.floor(ctW * 0.24);
 
     // Upper body
     ctx.fillStyle = '#DDD';
