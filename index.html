@@ -737,7 +737,8 @@ const SKIN_DEFS = [
   { id: 'robot',     name: 'R.O.B.O.T', badge: 'robotdestroyer', desc: 'You ARE the robot', hasVariant: true },
   { id: 'swimmer',   name: 'Swimmer',   badge: 'greatswim',     desc: 'Diving mask & flippers' },
   { id: 'owner',     name: 'Owner',     badge: null, secret: true, secretKey: 'cb_owner',  desc: '😎 deal with it' },
-  { id: 'gamer',     name: 'Gamer',     badge: null, secret: true, secretKey: 'cb_gamer',  desc: '🎮 game on' },
+  { id: 'gamer',     name: 'Gamer',     badge: null, secret: true, secretKey: 'cb_gamer',     desc: '🎮 game on' },
+  { id: 'geometry',  name: 'Geometry',  badge: null, secret: true, secretKey: 'cb_geometry', desc: '🟧 can you beat level 1?' },
 ];
 const TRAIL_DEFS = [
   { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
@@ -3307,8 +3308,43 @@ function drawPlayerCube(p) {
     ctx.fillRect(ctLeft + Math.floor(ctW/2) - 1, ctTop + Math.floor(bodyH * 0.3), 3, 2);
   }
 
-  // Face drawn on top — skip for murderer, robot, owner, and gamer (they have their own)
-  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot' && equippedSkin !== 'owner' && equippedSkin !== 'gamer') {
+  if (equippedSkin === 'geometry') {
+    // Orange/yellow gradient body (override cube color)
+    const gx = ex, gy = py, gw = pw, gh = ph;
+    // Top half — bright yellow-orange
+    ctx.fillStyle = '#FFB300'; ctx.fillRect(gx, gy, gw, Math.floor(gh/2));
+    // Bottom half — deeper orange
+    ctx.fillStyle = '#F57C00'; ctx.fillRect(gx, gy + Math.floor(gh/2), gw, gh - Math.floor(gh/2));
+    // Side glow hint
+    ctx.fillStyle = 'rgba(255,220,80,0.25)'; ctx.fillRect(gx, gy, 2, gh);
+
+    // Cyan square eyes with black border
+    const eyeSize = Math.max(3, Math.floor(gw * 0.22));
+    const eyeY = gy + Math.floor(gh * 0.18);
+    const eyeL = gx + Math.floor(gw * 0.16);
+    const eyeR = gx + Math.floor(gw * 0.58);
+    // Black borders
+    ctx.fillStyle = '#000';
+    ctx.fillRect(eyeL - 1, eyeY - 1, eyeSize + 2, eyeSize + 2);
+    ctx.fillRect(eyeR - 1, eyeY - 1, eyeSize + 2, eyeSize + 2);
+    // Cyan fill
+    ctx.fillStyle = '#00E5FF';
+    ctx.fillRect(eyeL, eyeY, eyeSize, eyeSize);
+    ctx.fillRect(eyeR, eyeY, eyeSize, eyeSize);
+
+    // Cyan wide mouth bar with black border
+    const mouthH = Math.max(3, Math.floor(gh * 0.18));
+    const mouthW = Math.floor(gw * 0.72);
+    const mouthX = gx + Math.floor((gw - mouthW) / 2);
+    const mouthY = gy + Math.floor(gh * 0.62);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(mouthX - 1, mouthY - 1, mouthW + 2, mouthH + 2);
+    ctx.fillStyle = '#00E5FF';
+    ctx.fillRect(mouthX, mouthY, mouthW, mouthH);
+  }
+
+  // Face drawn on top — skip for murderer, robot, owner, gamer, and geometry (they have their own)
+  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot' && equippedSkin !== 'owner' && equippedSkin !== 'gamer' && equippedSkin !== 'geometry') {
     const eyeY = py + Math.floor(ph*0.28);
     ctx.fillStyle = '#000';
     if (p.facingRight) {
@@ -5584,9 +5620,21 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { codesPanelOpen = false; codeInput = ''; codeMsg = ''; return; }
     if (e.key === 'Enter') {
       const code = codeInput.trim().toLowerCase();
-      // No active codes right now
-      codeMsg = '❌ Invalid code';
-      void code;
+      const codeMap = {
+        'geometry': { key: 'cb_geometry', msg: '🟧 Geometry skin unlocked!', notif: '🟧 Geometry skin unlocked!' },
+      };
+      if (codeMap[code]) {
+        const entry = codeMap[code];
+        if (localStorage.getItem(entry.key) === '1') {
+          codeMsg = '✅ Already unlocked!';
+        } else {
+          localStorage.setItem(entry.key, '1');
+          codeMsg = '✅ ' + entry.msg;
+          badgeNotif = { name: entry.notif, timer: 300 };
+        }
+      } else {
+        codeMsg = '❌ Invalid code';
+      }
       codeInput = '';
       return;
     }
