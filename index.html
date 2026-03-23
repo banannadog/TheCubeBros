@@ -3311,6 +3311,8 @@ function drawPlayerCube(p) {
   if (equippedSkin === 'geometry') {
     // Orange/yellow gradient body (override cube color)
     const gx = ex, gy = py, gw = pw, gh = ph;
+    // Black outline
+    ctx.fillStyle = '#000'; ctx.fillRect(gx - 1, gy - 1, gw + 2, gh + 2);
     // Top half — bright yellow-orange
     ctx.fillStyle = '#FFB300'; ctx.fillRect(gx, gy, gw, Math.floor(gh/2));
     // Bottom half — deeper orange
