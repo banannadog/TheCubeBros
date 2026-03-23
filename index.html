@@ -1909,13 +1909,19 @@ function update() {
         // Hit player
         for (const p of active) {
           if (p.invincible > 0) continue;
-          if (overlap(p.x, p.y, p.w, p.h, f.x, f.y, f.w, f.h)) {
-            p.lives -= difficulty === 'hard' ? 2 : 1;
-            tookDamage = true; p.invincible = 100; p.vy = -7;
-            p.vx = f.vx > 0 ? 4 : -4;
-            spawnParticles(f.x + f.w/2, f.y + f.h/2, '#1A6B45', 10);
+          if (!overlap(p.x, p.y, p.w, p.h, f.x, f.y, f.w, f.h)) continue;
+          // Stomp on top of fish — kill it
+          if (p.vy > 0 && (p.y + p.h) < (f.y + f.h * 0.5 + p.vy + 2)) {
+            p.vy = -8;
+            spawnParticles(f.x + f.w/2, f.y + f.h/2, '#EF5350', 8);
             uwFishSwarm.splice(i, 1); break;
           }
+          // Touched by fish — take damage
+          p.lives -= difficulty === 'hard' ? 2 : 1;
+          tookDamage = true; p.invincible = 100; p.vy = -7;
+          p.vx = f.vx > 0 ? 4 : -4;
+          spawnParticles(f.x + f.w/2, f.y + f.h/2, '#1A6B45', 10);
+          uwFishSwarm.splice(i, 1); break;
         }
       }
     }
