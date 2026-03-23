@@ -660,6 +660,7 @@ let badges = new Set(JSON.parse(localStorage.getItem('cb_badges') || '[]'));
 let badgesPanelOpen = false;   // pauses game when true
 let badgeScrollY    = 0;       // scroll offset in px for badges panel
 let skinsPanelOpen  = false;   // pauses game when true
+let skinsScrollY    = 0;       // scroll offset in px for skins panel
 let trailsPanelOpen = false;   // pauses game when true
 let badgeNotif = null;         // { name, timer } — popup above BADGES button
 let hammerHintTimer = 0;       // shows "Need Hammer!" when stomping MF robots unarmed
@@ -4145,7 +4146,13 @@ function drawSkinsPanel() {
 
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, W, H);
 
-  const pw = 300, ph = 44 + SKIN_DEFS.length * 56 + 16;
+  const pw = 300, ph = 280;
+  const headerH = 36, footerH = 16;
+  const contentH = ph - headerH - footerH;
+  const rowH = 56;
+  const totalContentH = SKIN_DEFS.length * rowH;
+  const maxSkinsScroll = Math.max(0, totalContentH - contentH);
+  skinsScrollY = Math.max(0, Math.min(skinsScrollY, maxSkinsScroll));
   const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
   ctx.fillStyle = '#111'; ctx.fillRect(px, py, pw, ph);
   ctx.strokeStyle = '#00E5FF'; ctx.lineWidth = 2;
@@ -4153,11 +4160,16 @@ function drawSkinsPanel() {
 
   ctx.fillStyle = '#00E5FF'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
   ctx.fillText('SKINS', W / 2, py + 22);
+  ctx.fillStyle = '#333'; ctx.fillRect(px + 8, py + headerH - 2, pw - 16, 1);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(px, py + headerH, pw - 10, contentH); ctx.clip();
 
   SKIN_DEFS.forEach((skin, i) => {
     const unlocked = skin.secret ? localStorage.getItem(skin.secretKey) === '1' : badges.has(skin.badge);
     const equipped  = equippedSkin === skin.id;
-    const ry = py + 38 + i * 56;
+    const ry = py + headerH + i * rowH - skinsScrollY;
+    if (ry + rowH < py + headerH || ry > py + headerH + contentH) return;
     ctx.fillStyle = equipped ? 'rgba(0,229,255,0.1)' : unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.2)';
     ctx.fillRect(px + 8, ry, pw - 16, 50);
 
@@ -4367,9 +4379,26 @@ function drawSkinsPanel() {
     }
   });
 
+  ctx.restore();
+
+  // Separator above footer
+  ctx.fillStyle = '#333'; ctx.fillRect(px + 8, py + headerH + contentH, pw - 16, 1);
+
+  // Scrollbar
+  if (maxSkinsScroll > 0) {
+    const sbX = px + pw - 9, sbY = py + headerH, sbH = contentH;
+    ctx.fillStyle = '#222'; ctx.fillRect(sbX, sbY, 6, sbH);
+    const thumbH = Math.max(20, sbH * (contentH / totalContentH));
+    const thumbY = sbY + (skinsScrollY / maxSkinsScroll) * (sbH - thumbH);
+    ctx.fillStyle = '#00E5FF'; ctx.fillRect(sbX + 1, thumbY, 4, thumbH);
+    ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+    if (skinsScrollY > 0)           ctx.fillText('▲', px + pw - 6, py + headerH + 10);
+    if (skinsScrollY < maxSkinsScroll) ctx.fillText('▼', px + pw - 6, py + headerH + contentH - 2);
+  }
+
   ctx.textAlign = 'left';
   ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('click SKINS to close', W / 2, py + ph - 5);
+  ctx.fillText('click SKINS to close' + (maxSkinsScroll > 0 ? '  •  scroll to see all' : ''), W / 2, py + ph - 5);
   ctx.textAlign = 'left';
 }
 
@@ -5790,7 +5819,7 @@ canvas.addEventListener('click', e => {
   // CODES button
   if (inBtn(CODES_BTN)) { codesPanelOpen = !codesPanelOpen; codeInput = ''; codeMsg = ''; badgesPanelOpen = false; skinsPanelOpen = false; trailsPanelOpen = false; return; }
   // SKINS button
-  if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; badgesPanelOpen = false; trailsPanelOpen = false; return; }
+  if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; if (!skinsPanelOpen) skinsScrollY = 0; badgesPanelOpen = false; trailsPanelOpen = false; return; }
   // TRAILS button
   if (badges.has('trillionaire') && inBtn(TRAILS_BTN)) { trailsPanelOpen = !trailsPanelOpen; badgesPanelOpen = false; skinsPanelOpen = false; return; }
   // Skin equip/unequip buttons (only when panel open)
@@ -5867,9 +5896,10 @@ canvas.addEventListener('click', e => {
   canvas.addEventListener('mouseup',   () => { _cpDragging = null; });
 })();
 
-// Badges panel scroll via mouse wheel
+// Panel scroll via mouse wheel
 canvas.addEventListener('wheel', e => {
   if (badgesPanelOpen) { badgeScrollY += e.deltaY * 0.5; e.preventDefault(); }
+  if (skinsPanelOpen)  { skinsScrollY += e.deltaY * 0.5; e.preventDefault(); }
 }, { passive: false });
 
 // ─── Loop ────────────────────────────────────────────────────────────────────
