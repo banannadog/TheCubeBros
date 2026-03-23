@@ -3868,7 +3868,10 @@ function drawParticles() {
 
 // ─── HUD ─────────────────────────────────────────────────────────────────────
 // Badges button bounds (used for click detection too)
-const BADGE_BTN = { x: 5, y: H - 22, w: 68, h: 16 };
+const BADGE_BTN  = { x: 5,  y: H - 22, w: 68, h: 16 };
+const CODES_BTN  = { x: 78, y: H - 22, w: 58, h: 16 };
+let codesPanelOpen = false;
+let codeInput      = '';
 
 function drawBadgesPanel() {
   // Badge earned popup above BADGES button
@@ -3983,6 +3986,44 @@ function drawBadgesPanel() {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#666'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
   ctx.fillText('click BADGES to close' + (maxScroll > 0 ? '  •  scroll to see all' : ''), W / 2, py + ph - 5);
+  ctx.textAlign = 'left';
+}
+
+function drawCodesPanel() {
+  // CODES button
+  const btn = CODES_BTN;
+  ctx.fillStyle = codesPanelOpen ? '#4A0080' : 'rgba(0,0,0,0.7)';
+  ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+  ctx.strokeStyle = '#E040FB'; ctx.lineWidth = 1;
+  ctx.strokeRect(btn.x + 0.5, btn.y + 0.5, btn.w - 1, btn.h - 1);
+  ctx.fillStyle = '#E040FB'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('CODES', btn.x + btn.w / 2, btn.y + 11);
+  ctx.textAlign = 'left';
+
+  if (!codesPanelOpen) return;
+
+  // Panel background
+  const pw = 260, ph = 90;
+  const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(px, py, pw, ph);
+  ctx.strokeStyle = '#E040FB'; ctx.lineWidth = 2;
+  ctx.strokeRect(px + 1, py + 1, pw - 2, ph - 2);
+
+  ctx.fillStyle = '#E040FB'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('ENTER CODE', W / 2, py + 20);
+
+  // Input box
+  const ibX = px + 12, ibY = py + 30, ibW = pw - 24, ibH = 22;
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(ibX, ibY, ibW, ibH);
+  ctx.strokeStyle = '#E040FB'; ctx.lineWidth = 1;
+  ctx.strokeRect(ibX + 0.5, ibY + 0.5, ibW - 1, ibH - 1);
+  // Typed text (masked as asterisks for secrecy)
+  ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('*'.repeat(codeInput.length) + (Math.floor(tick/20)%2===0 ? '|' : ''), ibX + 6, ibY + 15);
+
+  // Hint
+  ctx.fillStyle = '#888'; ctx.font = '7px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('Press ENTER to redeem  •  ESC to close', W / 2, py + 72);
   ctx.textAlign = 'left';
 }
 
@@ -5216,6 +5257,7 @@ function draw() {
     ctx.globalAlpha = 1; ctx.textAlign = 'left';
   }
   drawBadgesPanel();
+  drawCodesPanel();
   drawSkinsPanel();
   drawTrailsPanel();
   drawColorPicker();
@@ -5240,6 +5282,22 @@ document.addEventListener('keydown', e => {
       localStorage.setItem('cb_owner', '1');
       badgeNotif = { name: '😎 Owner skin unlocked!', timer: 300 };
     }
+  }
+  // Codes panel input
+  if (codesPanelOpen) {
+    if (e.key === 'Escape') { codesPanelOpen = false; codeInput = ''; return; }
+    if (e.key === 'Enter') {
+      const code = codeInput.trim().toLowerCase();
+      if (code === 'coolguy123456789') {
+        localStorage.setItem('cb_owner', '1');
+        badgeNotif = { name: '😎 Owner skin unlocked!', timer: 300 };
+      } else {
+        badgeNotif = { name: 'Invalid code!', timer: 180 };
+      }
+      codesPanelOpen = false; codeInput = ''; return;
+    }
+    if (e.key === 'Backspace') { codeInput = codeInput.slice(0, -1); return; }
+    if (e.key.length === 1 && codeInput.length < 30) { codeInput += e.key; return; }
   }
   if (gameState === 'select') {
     if (e.code==='Digit1')                               { menuSel=0; playTacoBell(); pendingPlayers=1; gameState='adventure'; menuSel=0; }
@@ -5374,7 +5432,9 @@ canvas.addEventListener('click', e => {
   const inBtn = (btn) => mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
 
   // BADGES button
-  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; if (!badgesPanelOpen) badgeScrollY = 0; skinsPanelOpen = false; trailsPanelOpen = false; return; }
+  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; if (!badgesPanelOpen) badgeScrollY = 0; skinsPanelOpen = false; trailsPanelOpen = false; codesPanelOpen = false; return; }
+  // CODES button
+  if (inBtn(CODES_BTN)) { codesPanelOpen = !codesPanelOpen; codeInput = ''; badgesPanelOpen = false; skinsPanelOpen = false; trailsPanelOpen = false; return; }
   // SKINS button
   if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; badgesPanelOpen = false; trailsPanelOpen = false; return; }
   // TRAILS button
