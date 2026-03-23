@@ -3320,11 +3320,11 @@ function drawPlayerCube(p) {
     // Side glow hint
     ctx.fillStyle = 'rgba(255,220,80,0.25)'; ctx.fillRect(gx, gy, 2, gh);
 
-    // Cyan square eyes with black border
+    // Cyan square eyes with black border — face direction player is moving
     const eyeSize = Math.max(3, Math.floor(gw * 0.22));
     const eyeY = gy + Math.floor(gh * 0.18);
-    const eyeL = gx + Math.floor(gw * 0.16);
-    const eyeR = gx + Math.floor(gw * 0.58);
+    const eyeL = p.facingRight ? gx + Math.floor(gw * 0.52) : gx + Math.floor(gw * 0.16);
+    const eyeR = p.facingRight ? gx + Math.floor(gw * 0.73) : gx + Math.floor(gw * 0.37);
     // Black borders
     ctx.fillStyle = '#000';
     ctx.fillRect(eyeL - 1, eyeY - 1, eyeSize + 2, eyeSize + 2);
