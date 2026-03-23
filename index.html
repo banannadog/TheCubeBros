@@ -5584,17 +5584,9 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { codesPanelOpen = false; codeInput = ''; codeMsg = ''; return; }
     if (e.key === 'Enter') {
       const code = codeInput.trim().toLowerCase();
-      if (code === 'gamer') {
-        if (localStorage.getItem('cb_gamer') === '1') {
-          codeMsg = '✅ Already unlocked!';
-        } else {
-          localStorage.setItem('cb_gamer', '1');
-          codeMsg = '✅ Gamer skin unlocked!';
-          badgeNotif = { name: '🎮 Gamer skin unlocked!', timer: 300 };
-        }
-      } else {
-        codeMsg = '❌ Invalid code';
-      }
+      // No active codes right now
+      codeMsg = '❌ Invalid code';
+      void code;
       codeInput = '';
       return;
     }
