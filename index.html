@@ -3321,19 +3321,20 @@ function drawPlayerCube(p) {
     // Side glow hint
     ctx.fillStyle = 'rgba(255,220,80,0.25)'; ctx.fillRect(gx, gy, 2, gh);
 
-    // Cyan square eyes with black border — face direction player is moving
-    const eyeSize = Math.max(3, Math.floor(gw * 0.22));
-    const eyeY = gy + Math.floor(gh * 0.18);
-    const eyeL = p.facingRight ? gx + Math.floor(gw * 0.52) : gx + Math.floor(gw * 0.16);
-    const eyeR = p.facingRight ? gx + Math.floor(gw * 0.73) : gx + Math.floor(gw * 0.37);
-    // Black borders
+    // Cyan square eyes with black border
+    const eyeSize = Math.max(3, Math.floor(gw * 0.26));
+    const eyeY = gy + Math.floor(gh * 0.14);
+    const gap = Math.max(2, Math.floor(gw * 0.1));
+    const totalEyeW = eyeSize * 2 + gap;
+    const shift = p.facingRight ? Math.floor(gw * 0.1) : -Math.floor(gw * 0.1);
+    const eye1 = gx + Math.floor((gw - totalEyeW) / 2) + shift;
+    const eye2 = eye1 + eyeSize + gap;
     ctx.fillStyle = '#000';
-    ctx.fillRect(eyeL - 1, eyeY - 1, eyeSize + 2, eyeSize + 2);
-    ctx.fillRect(eyeR - 1, eyeY - 1, eyeSize + 2, eyeSize + 2);
-    // Cyan fill
+    ctx.fillRect(eye1 - 1, eyeY - 1, eyeSize + 2, eyeSize + 2);
+    ctx.fillRect(eye2 - 1, eyeY - 1, eyeSize + 2, eyeSize + 2);
     ctx.fillStyle = '#00E5FF';
-    ctx.fillRect(eyeL, eyeY, eyeSize, eyeSize);
-    ctx.fillRect(eyeR, eyeY, eyeSize, eyeSize);
+    ctx.fillRect(eye1, eyeY, eyeSize, eyeSize);
+    ctx.fillRect(eye2, eyeY, eyeSize, eyeSize);
 
     // Cyan wide mouth bar with black border
     const mouthH = Math.max(3, Math.floor(gh * 0.18));
