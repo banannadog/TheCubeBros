@@ -3254,39 +3254,56 @@ function drawPlayerCube(p) {
   }
 
   if (equippedSkin === 'gamer') {
-    // Blue screen on cube face
+    // Blue screen background
     const screenX = ex + 2, screenY = py + 2, screenW = pw - 4, screenH = ph - 4;
     ctx.fillStyle = '#1A237E'; ctx.fillRect(screenX, screenY, screenW, screenH);
-    // Pixelated colored squares (blue, green, red, yellow) in a row at top of screen
-    const sqSize = Math.max(3, Math.floor(screenW / 5));
-    const sqY = screenY + 2;
+
+    // Colored squares row at top (blue, green, red, yellow)
+    const sqS = Math.max(3, Math.floor(screenW / 5));
     const sqColors = ['#42A5F5','#66BB6A','#EF5350','#FFEE58'];
-    const totalSqW = sqColors.length * (sqSize + 1) - 1;
+    const totalSqW = sqColors.length * sqS + (sqColors.length - 1);
     let sqX = screenX + Math.floor((screenW - totalSqW) / 2);
+    const sqY = screenY + 1;
     for (const c of sqColors) {
-      ctx.fillStyle = c; ctx.fillRect(sqX, sqY, sqSize, sqSize);
-      sqX += sqSize + 1;
+      ctx.fillStyle = c; ctx.fillRect(sqX, sqY, sqS, sqS);
+      sqX += sqS + 1;
     }
-    // Controller shape in lower half — white body
-    const ctX = screenX + Math.floor(screenW * 0.15);
-    const ctY = screenY + sqSize + 4;
-    const ctW = Math.floor(screenW * 0.7);
-    const ctH = Math.floor(screenH * 0.45);
-    ctx.fillStyle = '#EEE'; ctx.fillRect(ctX, ctY, ctW, ctH);
-    // Left grip indent
-    ctx.fillStyle = '#1A237E'; ctx.fillRect(ctX, ctY + Math.floor(ctH*0.5), Math.floor(ctW*0.28), Math.floor(ctH*0.5));
-    // Right grip indent
-    ctx.fillStyle = '#1A237E'; ctx.fillRect(ctX + Math.floor(ctW*0.72), ctY + Math.floor(ctH*0.5), Math.floor(ctW*0.28), Math.floor(ctH*0.5));
-    // D-pad (left side) — 3 tiny dark pixels in a cross
-    const dpX = ctX + Math.floor(ctW*0.18), dpY = ctY + Math.floor(ctH*0.3);
+
+    // Controller pixel art — upper body + two grips below
+    const ctTop = sqY + sqS + 2;
+    const ctLeft = screenX + 1;
+    const ctW = screenW - 2;
+    const remaining = screenH - (ctTop - screenY) - 1;
+    const bodyH = Math.max(2, Math.floor(remaining * 0.55));
+    const gripH = remaining - bodyH;
+    const gripW = Math.floor(ctW * 0.32);
+
+    // Upper body
+    ctx.fillStyle = '#DDD';
+    ctx.fillRect(ctLeft, ctTop, ctW, bodyH);
+    // Left grip
+    if (gripH > 0) ctx.fillRect(ctLeft, ctTop + bodyH, gripW, gripH);
+    // Right grip
+    if (gripH > 0) ctx.fillRect(ctLeft + ctW - gripW, ctTop + bodyH, gripW, gripH);
+
+    // D-pad cross (left side of body)
+    const dpCX = ctLeft + Math.floor(ctW * 0.24);
+    const dpCY = ctTop + Math.floor(bodyH * 0.5);
     ctx.fillStyle = '#333';
-    ctx.fillRect(dpX, dpY - 1, 2, 4);   // vertical
-    ctx.fillRect(dpX - 1, dpY, 4, 2);   // horizontal
-    // Face buttons (right side) — 3 colored dots
-    const fbX = ctX + Math.floor(ctW*0.72), fbY = ctY + Math.floor(ctH*0.2);
-    ctx.fillStyle = '#EF5350'; ctx.fillRect(fbX,   fbY,   2, 2);
-    ctx.fillStyle = '#66BB6A'; ctx.fillRect(fbX+3, fbY+1, 2, 2);
-    ctx.fillStyle = '#42A5F5'; ctx.fillRect(fbX+1, fbY+3, 2, 2);
+    ctx.fillRect(dpCX - 2, dpCY - 1, 5, 1); // horizontal bar
+    ctx.fillRect(dpCX - 1, dpCY - 2, 1, 5); // vertical bar
+
+    // Face buttons — diamond of 4 colored 1px dots (right side)
+    const fbCX = ctLeft + Math.floor(ctW * 0.76);
+    const fbCY = ctTop + Math.floor(bodyH * 0.45);
+    ctx.fillStyle = '#EF5350'; ctx.fillRect(fbCX,     fbCY - 2, 2, 2); // top (red)
+    ctx.fillStyle = '#FFEE58'; ctx.fillRect(fbCX + 2, fbCY,     2, 2); // right (yellow)
+    ctx.fillStyle = '#42A5F5'; ctx.fillRect(fbCX - 2, fbCY,     2, 2); // left (blue)
+    ctx.fillStyle = '#66BB6A'; ctx.fillRect(fbCX,     fbCY + 2, 2, 2); // bottom (green)
+
+    // Center bump (start button)
+    ctx.fillStyle = '#AAA';
+    ctx.fillRect(ctLeft + Math.floor(ctW/2) - 1, ctTop + Math.floor(bodyH * 0.3), 3, 2);
   }
 
   // Face drawn on top — skip for murderer, robot, owner, and gamer (they have their own)
