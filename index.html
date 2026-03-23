@@ -722,6 +722,8 @@ const BADGE_DEFS = [
   { id: 'robotdestroyer',    name: 'Robot Destroyer',          desc: 'Defeat 25 robot enemies',                   color: '#546E7A', icon: '🤖' },
   { id: 'fixer',             name: 'Fixer',                    desc: 'Fix a generator in under 30 seconds',        color: '#FF6F00', icon: '🔧' },
   { id: 'greatswim',        name: 'Great Swim',               desc: 'Beat the Underwater Adventure',             color: '#00BCD4', icon: '🐠' },
+  { id: 'teamwork',         name: 'Teamwork',                 desc: 'Beat any adventure in 2-player mode',        color: '#42A5F5', icon: '🤝' },
+  { id: 'teamworkdream',    name: 'Teamwork Makes The Dream Work', desc: 'Beat any adventure on Hard in 2-player mode', color: '#7E57C2', icon: '💪' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -1451,6 +1453,14 @@ function startMFVictoryCutscene() {
     badges.add('engineer'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Engineer', timer: 240 };
   }
+  if (player2 && !badges.has('teamwork')) {
+    badges.add('teamwork'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Teamwork', timer: 240 };
+  }
+  if (player2 && difficulty === 'hard' && !badges.has('teamworkdream')) {
+    badges.add('teamworkdream'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Teamwork Makes The Dream Work', timer: 300 };
+  }
   camX = 0;
   const p1X = 230, p1Y = GROUND_Y - 28;
   const p2X = 530, p2Y = GROUND_Y - 28;
@@ -1638,6 +1648,14 @@ function startCutscene() {
     badges.add('adventurer');
     localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Adventurer', timer: 240 };
+  }
+  if (player2 && !badges.has('teamwork')) {
+    badges.add('teamwork'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Teamwork', timer: 240 };
+  }
+  if (player2 && difficulty === 'hard' && !badges.has('teamworkdream')) {
+    badges.add('teamworkdream'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Teamwork Makes The Dream Work', timer: 300 };
   }
   if (!tookDamage && !badges.has('invincible')) {
     badges.add('invincible');
@@ -1894,6 +1912,14 @@ function update() {
             badges.add('greatswim');
             localStorage.setItem('cb_badges', JSON.stringify([...badges]));
             badgeNotif = { name: 'Great Swim', timer: 240 };
+          }
+          if (player2 && !badges.has('teamwork')) {
+            badges.add('teamwork'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+            badgeNotif = { name: 'Teamwork', timer: 240 };
+          }
+          if (player2 && difficulty === 'hard' && !badges.has('teamworkdream')) {
+            badges.add('teamworkdream'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+            badgeNotif = { name: 'Teamwork Makes The Dream Work', timer: 300 };
           }
           won = true; break;
         }
