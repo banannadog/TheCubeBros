@@ -3286,12 +3286,13 @@ function drawPlayerCube(p) {
     // Right grip
     if (gripH > 0) ctx.fillRect(ctLeft + ctW - gripW, ctTop + bodyH, gripW, gripH);
 
-    // D-pad cross (left side of body)
+    // Circle (left side of body, instead of D-pad)
     const dpCX = ctLeft + Math.floor(ctW * 0.24);
     const dpCY = ctTop + Math.floor(bodyH * 0.5);
     ctx.fillStyle = '#333';
-    ctx.fillRect(dpCX - 2, dpCY - 1, 5, 1); // horizontal bar
-    ctx.fillRect(dpCX - 1, dpCY - 2, 1, 5); // vertical bar
+    ctx.beginPath();
+    ctx.arc(dpCX, dpCY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
 
     // Face buttons — diamond of 4 colored 1px dots (right side)
     const fbCX = ctLeft + Math.floor(ctW * 0.76);
