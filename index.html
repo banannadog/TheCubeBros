@@ -606,6 +606,9 @@ const MAX_OXYGEN   = 100;
 let oxygenLevel    = MAX_OXYGEN;
 let oxygenBubbles  = [];
 let uwVictoryDoor  = null;
+// UW Level 4 — Shark Boss
+let uwShark          = null;
+let uwSharkIntroTimer = 0;   // countdown before fight starts
 // UW Level 2 — Fish Swarm
 let uwFishSwarm    = [];
 let uwFishTimer    = 0;
@@ -826,9 +829,15 @@ function startLevel(n) {
   // UW Level 2 — Fish Swarm init
   uwFishSwarm = []; uwFishTimer = 0; uwFishWave = 0;
   uwFishActive = (currentAdventure === 2 && currentLevel === 1);
-  // UW Level 4 — Shark Lair: spawn exit door immediately (boss TBD)
+  // UW Level 4 — Shark Lair: spawn the shark boss
+  uwShark = null; uwSharkIntroTimer = 0;
   if (currentAdventure === 2 && currentLevel === 3) {
-    uwVictoryDoor = { x: 900/2 - 14, y: GROUND_Y - 50, w: 28, h: 50 };
+    uwShark = { x: 600, y: GROUND_Y - 46, w: 80, h: 46,
+                vx: -1, vy: 0, hp: 5, maxHp: 5,
+                invincible: 0, phase: 'intro', phaseTimer: 0,
+                alive: true, sinkOff: 0, dashCount: 0, setsCount: 0,
+                facingLeft: true };
+    uwSharkIntroTimer = 160; // title card frames
   }
   // MF Level 4 — Boss Arena init
   mfBoss = null; mfBossCutsceneDone = false; mfBossCutscenePhase = 'walk'; mfBossCutsceneTimer = 0; mfBossScreenFlash = 0; bossLasers = []; mfVictoryDoor = null;
@@ -919,7 +928,8 @@ function updatePlayer(p) {
   }
   const spd = MOVE_SPEED * (p.powerups.speed > 0 ? 2.0 : 1.0);
   const cutsceneLock = (currentAdventure === 1 && currentLevel === 3 && !mfBossCutsceneDone)
-                    || (currentAdventure === 0 && currentLevel === 3 && ckBossCutsceneActive);
+                    || (currentAdventure === 0 && currentLevel === 3 && ckBossCutsceneActive)
+                    || (currentAdventure === 2 && currentLevel === 3 && uwSharkIntroTimer > 0);
   if (!cutsceneLock) {
     if (p.ctrl.left())       { p.vx = -spd; p.facingRight = false; }
     else if (p.ctrl.right()) { p.vx =  spd; p.facingRight = true;  }
@@ -1906,7 +1916,8 @@ function update() {
       }
     }
 
-    // UW Level 4: victory door check
+    // UW Level 4: shark boss + victory door
+    if (currentLevel === 3) updateUWShark();
     if (currentLevel === 3 && uwVictoryDoor) {
       for (const p of active) {
         if (overlap(p.x-4, p.y, p.w+8, p.h, uwVictoryDoor.x, uwVictoryDoor.y, uwVictoryDoor.w, uwVictoryDoor.h)) {
@@ -4960,6 +4971,242 @@ function drawUWFishSwarm() {
     ctx.fillStyle = '#000'; ctx.fillRect(fx + fw*0.40, f.y + fh*0.58, fw*0.44, fh*0.24);
     ctx.fillStyle = '#EEE';
     for (let t2 = 0; t2 < 3; t2++) ctx.fillRect(fx+fw*0.42+t2*6, f.y+fh*0.58, 4, 4);
+  }
+}
+
+// ─── UW Shark Boss ────────────────────────────────────────────────────────────
+function updateUWShark() {
+  if (!uwShark) return;
+  const s = uwShark;
+
+  // Intro hold — players locked, title card shown
+  if (uwSharkIntroTimer > 0) { uwSharkIntroTimer--; return; }
+
+  if (!s.alive) {
+    s.sinkOff += 1.8;
+    if (s.sinkOff > 50 && !uwVictoryDoor) {
+      uwVictoryDoor = { x: 900/2 - 14, y: GROUND_Y - 50, w: 28, h: 50 };
+      spawnParticles(900/2, GROUND_Y - 50, '#00BCD4', 20);
+    }
+    return;
+  }
+
+  if (s.invincible > 0) s.invincible--;
+  s.phaseTimer++;
+  s.y = GROUND_Y - s.h; // always stay on ground
+
+  const patrolSpd  = 1.8;
+  const dashSpd    = 7;
+
+  // Get nearest player X for targeting
+  const active = [player1, player2].filter(p => p && p.lives > 0);
+  const target = active.reduce((best, p) => {
+    if (!best) return p;
+    return Math.abs(p.x - s.x) < Math.abs(best.x - s.x) ? p : best;
+  }, null);
+
+  if (s.phase === 'intro') {
+    if (s.phaseTimer > 20) { s.phase = 'patrol'; s.phaseTimer = 0; s.vx = -patrolSpd; }
+
+  } else if (s.phase === 'patrol') {
+    s.x += s.vx;
+    if (s.x <= 20)         { s.x = 20;        s.vx =  patrolSpd; s.facingLeft = false; }
+    if (s.x + s.w >= 878)  { s.x = 878 - s.w; s.vx = -patrolSpd; s.facingLeft = true;  }
+    if (s.phaseTimer >= 130) {
+      s.phase = 'windup'; s.phaseTimer = 0;
+      // face the player
+      if (target) s.facingLeft = target.x < s.x + s.w/2;
+    }
+
+  } else if (s.phase === 'windup') {
+    // pause briefly, facing target
+    if (target) s.facingLeft = target.x < s.x + s.w/2;
+    if (s.phaseTimer >= 35) {
+      s.phase = 'dash'; s.phaseTimer = 0;
+      s.vx = s.facingLeft ? -dashSpd : dashSpd;
+    }
+
+  } else if (s.phase === 'dash') {
+    s.x += s.vx;
+    if (s.x <= 20)        { s.x = 20;        s.vx = dashSpd;  s.facingLeft = false; }
+    if (s.x + s.w >= 878) { s.x = 878 - s.w; s.vx = -dashSpd; s.facingLeft = true;  }
+    if (s.phaseTimer >= 70) {
+      s.dashCount++;
+      if (s.dashCount < 3) {
+        s.phase = 'dashpause'; s.phaseTimer = 0;
+      } else {
+        // finished 3 dashes in this set
+        s.dashCount = 0;
+        s.setsCount++;
+        if (s.setsCount < 2) {
+          // do another set after a short break
+          s.phase = 'setpause'; s.phaseTimer = 0;
+        } else {
+          // 2 sets done — retreat
+          s.setsCount = 0;
+          s.phase = 'retreat'; s.phaseTimer = 0;
+          s.vx = s.x < 450 ? patrolSpd : -patrolSpd;
+          s.facingLeft = s.vx < 0;
+        }
+      }
+    }
+
+  } else if (s.phase === 'dashpause') {
+    if (s.phaseTimer >= 22) {
+      s.phase = 'windup'; s.phaseTimer = 0;
+      if (target) s.facingLeft = target.x < s.x + s.w/2;
+    }
+
+  } else if (s.phase === 'setpause') {
+    // bounce back a bit between sets
+    s.x += s.vx > 0 ? patrolSpd : -patrolSpd;
+    if (s.x <= 20)        { s.x = 20;        s.vx =  patrolSpd; s.facingLeft = false; }
+    if (s.x + s.w >= 878) { s.x = 878 - s.w; s.vx = -patrolSpd; s.facingLeft = true;  }
+    if (s.phaseTimer >= 60) {
+      s.phase = 'windup'; s.phaseTimer = 0;
+      if (target) s.facingLeft = target.x < s.x + s.w/2;
+    }
+
+  } else if (s.phase === 'retreat') {
+    s.x += s.vx > 0 ? patrolSpd * 1.5 : -patrolSpd * 1.5;
+    if (s.x <= 20)        { s.x = 20;        s.vx =  patrolSpd; s.facingLeft = false; }
+    if (s.x + s.w >= 878) { s.x = 878 - s.w; s.vx = -patrolSpd; s.facingLeft = true;  }
+    if (s.phaseTimer >= 90) {
+      s.phase = 'patrol'; s.phaseTimer = 0;
+    }
+  }
+
+  // Player collisions
+  for (const p of active) {
+    if (p.invincible > 0) continue;
+    if (!overlap(p.x, p.y, p.w, p.h, s.x, s.y, s.w, s.h)) continue;
+    // Stomp on back (top 45% of shark) — damages shark
+    if (s.invincible === 0 && p.vy > 0 && (p.y + p.h) < (s.y + s.h * 0.45 + p.vy + 2)) {
+      s.hp--;
+      s.invincible = 90;
+      p.vy = -10;
+      spawnParticles(s.x + s.w/2, s.y + 4, '#90A4AE', 12);
+      spawnParticles(s.x + s.w/2, s.y + 4, '#EF5350', 8);
+      if (s.hp <= 0) {
+        s.alive = false; s.sinkOff = 0;
+        spawnParticles(s.x + s.w/2, s.y + s.h/2, '#90A4AE', 30);
+        spawnParticles(s.x + s.w/2, s.y + s.h/2, '#FF1744', 20);
+      }
+    } else {
+      // Touched by shark — take damage
+      p.lives -= difficulty === 'hard' ? 2 : 1;
+      tookDamage = true; checkMistakesBadge(p);
+      p.invincible = 100; p.vy = -7;
+      p.vx = p.x < s.x + s.w/2 ? -5 : 5;
+      spawnParticles(p.x+p.w/2, p.y+p.h/2, '#FF7043', 8);
+    }
+  }
+}
+
+function drawUWShark() {
+  if (!uwShark) return;
+  const s = uwShark;
+  if (!s.alive && s.sinkOff > 85) return;
+  if (s.invincible > 0 && Math.floor(s.invincible/4)%2===1) return;
+
+  const bx = sx(s.x);
+  const by = s.y + (s.alive ? 0 : s.sinkOff);
+  const fr = s.vx <= 0; // facing left by default (swimming toward player spawn)
+
+  const hurt = s.hp === 1;
+  const bc  = hurt ? '#C62828' : '#607D8B';
+  const bd  = hurt ? '#8B0000' : '#455A64';
+  const bl  = hurt ? '#FFCDD2' : '#90A4AE';
+
+  ctx.save();
+  // Flip horizontally when facing right
+  if (!fr) { ctx.translate(bx + s.w, 0); ctx.scale(-1, 1); }
+  const dx = fr ? bx : 0;
+
+  // Tail fins
+  ctx.fillStyle = bd;
+  ctx.fillRect(dx, by+2, 12, 13);
+  ctx.fillRect(dx, by+25, 12, 13);
+  ctx.fillStyle = bc;
+  ctx.fillRect(dx+2, by+4, 7, 9);
+  ctx.fillRect(dx+2, by+27, 7, 9);
+
+  // Main body
+  ctx.fillStyle = bc; ctx.fillRect(dx+10, by+7, 52, 26);
+  ctx.fillStyle = bl; ctx.fillRect(dx+10, by+7, 52, 4);  // top shine
+  ctx.fillStyle = bd; ctx.fillRect(dx+10, by+29, 52, 4); // bottom shadow
+  // Belly
+  ctx.fillStyle = '#ECEFF1'; ctx.fillRect(dx+12, by+21, 48, 11);
+
+  // Head/snout
+  ctx.fillStyle = bc; ctx.fillRect(dx+60, by+10, 10, 20);
+  ctx.fillStyle = bd; ctx.fillRect(dx+68, by+13, 2, 10); // snout tip
+
+  // Dorsal fin
+  ctx.fillStyle = bd;
+  ctx.fillRect(dx+26, by+1, 24, 7);
+  ctx.fillRect(dx+30, by-5, 16, 6);
+  ctx.fillRect(dx+35, by-9, 8, 5);
+  ctx.fillStyle = bc; ctx.fillRect(dx+27, by+1, 6, 4); // shine on fin
+
+  // Pectoral fin (lower)
+  ctx.fillStyle = bd;
+  ctx.fillRect(dx+28, by+33, 22, 6);
+  ctx.fillRect(dx+32, by+38, 12, 4);
+
+  // Eye
+  ctx.fillStyle = '#1A237E'; ctx.fillRect(dx+54, by+11, 7, 7);
+  ctx.fillStyle = '#FFF'; ctx.fillRect(dx+55, by+12, 2, 2);
+  // Angry eyebrow
+  ctx.fillStyle = '#000';
+  ctx.fillRect(dx+51, by+8, 4, 2);
+  ctx.fillRect(dx+55, by+7, 4, 2);
+  ctx.fillRect(dx+59, by+6, 3, 2);
+
+  // Open mouth + teeth
+  ctx.fillStyle = '#1A237E'; ctx.fillRect(dx+59, by+25, 11, 9);
+  ctx.fillStyle = '#FFF';
+  for (let i=0; i<3; i++) ctx.fillRect(dx+60+i*3, by+25, 2, 4);
+  ctx.fillRect(dx+60, by+30, 2, 3);
+  ctx.fillRect(dx+63, by+30, 2, 3);
+  ctx.fillRect(dx+66, by+30, 2, 3);
+
+  ctx.restore();
+
+  // HP bar (above shark)
+  if (s.alive) {
+    const hbW = 90, hbX = sx(s.x + s.w/2) - 45, hbY = s.y - 20;
+    ctx.fillStyle = '#333'; ctx.fillRect(hbX, hbY, hbW, 7);
+    ctx.fillStyle = s.hp===3?'#4CAF50':s.hp===2?'#FF9800':'#F44336';
+    ctx.fillRect(hbX, hbY, hbW*(s.hp/s.maxHp), 7);
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.strokeRect(hbX, hbY, hbW, 7);
+    ctx.fillStyle = '#00BCD4'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('GREAT SHARK', sx(s.x + s.w/2), hbY - 3);
+    ctx.textAlign = 'left';
+
+    // Stomp hint (only before first hit)
+    if (s.hp === s.maxHp && s.invincible === 0 && uwSharkIntroTimer === 0) {
+      const hp = 0.5 + Math.sin(tick*0.08)*0.5;
+      ctx.globalAlpha = hp;
+      ctx.fillStyle = '#FFF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('▼  Stomp its back!', sx(s.x + s.w/2), hbY - 14);
+      ctx.globalAlpha = 1; ctx.textAlign = 'left';
+    }
+  }
+
+  // Boss intro title card
+  if (uwSharkIntroTimer > 0) {
+    const alpha = Math.min(1, (160 - uwSharkIntroTimer) / 20);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, H/2 - 50, W, 100);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, 44); ctx.fillRect(0, H-44, W, 44);
+    ctx.fillStyle = '#00BCD4'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('B O S S', W/2, H/2 - 24);
+    ctx.fillStyle = '#FFF'; ctx.font = 'bold 22px monospace';
+    ctx.fillText('THE GREAT SHARK', W/2, H/2 + 8);
+    ctx.fillStyle = '#FF6F00'; ctx.font = 'bold 9px monospace';
+    ctx.fillText('Stomp its back to damage it', W/2, H/2 + 30);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left';
   }
 }
 
