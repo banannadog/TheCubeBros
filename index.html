@@ -3833,12 +3833,20 @@ function drawBadgesPanel() {
     const alpha  = t < 40 ? t / 40 : 1;
     const bx = BADGE_BTN.x, by = BADGE_BTN.y - 28 + slideY;
     ctx.globalAlpha = alpha;
+    const longName = badgeNotif.name.length > 18;
+    const boxH = longName ? 34 : 22;
+    const boxW = 160;
     ctx.fillStyle = '#222';
-    ctx.fillRect(bx - 2, by, 160, 22);
+    ctx.fillRect(bx - 2, by, boxW, boxH);
     ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 1;
-    ctx.strokeRect(bx - 1.5, by + 0.5, 160, 21);
+    ctx.strokeRect(bx - 1.5, by + 0.5, boxW, boxH - 1);
     ctx.fillStyle = '#FFD700'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('🏅 Badge: ' + badgeNotif.name, bx + 4, by + 14);
+    if (longName) {
+      ctx.fillText('🏅 Badge:', bx + 4, by + 11);
+      ctx.fillText(badgeNotif.name, bx + 4, by + 26);
+    } else {
+      ctx.fillText('🏅 Badge: ' + badgeNotif.name, bx + 4, by + 14);
+    }
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
