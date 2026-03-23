@@ -740,6 +740,7 @@ const SKIN_DEFS = [
   { id: 'owner',     name: 'Owner',     badge: null, secret: true, secretKey: 'cb_owner',  desc: '😎 deal with it' },
   { id: 'gamer',     name: 'Gamer',     badge: null, secret: true, secretKey: 'cb_gamer',     desc: '🎮 game on' },
   { id: 'geometry',  name: 'Geometry',  badge: null, secret: true, secretKey: 'cb_geometry', desc: '🟧 can you beat level 1?' },
+  { id: 'rocks',     name: 'Rocks',     badge: null, secret: true, secretKey: 'cb_rocks',    desc: '🪨 ancient' },
 ];
 const TRAIL_DEFS = [
   { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
@@ -3347,8 +3348,53 @@ function drawPlayerCube(p) {
     ctx.fillRect(mouthX, mouthY, mouthW, mouthH);
   }
 
-  // Face drawn on top — skip for murderer, robot, owner, gamer, and geometry (they have their own)
-  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot' && equippedSkin !== 'owner' && equippedSkin !== 'gamer' && equippedSkin !== 'geometry') {
+  if (equippedSkin === 'rocks') {
+    // Stone idol — dark gray base
+    const rx = ex, ry2 = py, rw = pw, rh = ph;
+    ctx.fillStyle = '#555'; ctx.fillRect(rx, ry2, rw, rh);
+
+    // Low-poly angular lighter patches (simulate faceted stone)
+    ctx.fillStyle = '#888';
+    ctx.fillRect(rx,                    ry2,                   Math.floor(rw*0.45), Math.floor(rh*0.35)); // top-left
+    ctx.fillRect(rx + Math.floor(rw*0.55), ry2 + Math.floor(rh*0.1), Math.floor(rw*0.45), Math.floor(rh*0.3)); // top-right
+    ctx.fillStyle = '#777';
+    ctx.fillRect(rx,                    ry2 + Math.floor(rh*0.35), Math.floor(rw*0.35), Math.floor(rh*0.3)); // mid-left
+    ctx.fillStyle = '#999';
+    ctx.fillRect(rx + Math.floor(rw*0.3), ry2 + Math.floor(rh*0.15), Math.floor(rw*0.4), Math.floor(rh*0.25)); // center highlight
+    ctx.fillStyle = '#666';
+    ctx.fillRect(rx + Math.floor(rw*0.4), ry2 + Math.floor(rh*0.6), Math.floor(rw*0.6), Math.floor(rh*0.4)); // bottom-right
+
+    // Heavy brow ridge
+    ctx.fillStyle = '#444';
+    ctx.fillRect(rx + Math.floor(rw*0.05), ry2 + Math.floor(rh*0.28), Math.floor(rw*0.9), Math.floor(rh*0.12));
+    ctx.fillStyle = '#999';
+    ctx.fillRect(rx + Math.floor(rw*0.05), ry2 + Math.floor(rh*0.28), Math.floor(rw*0.9), 1); // top shine
+
+    // Dark eye sockets
+    const esY = ry2 + Math.floor(rh * 0.42);
+    const esH = Math.max(3, Math.floor(rh * 0.2));
+    const esW = Math.max(3, Math.floor(rw * 0.24));
+    ctx.fillStyle = '#222';
+    ctx.fillRect(rx + Math.floor(rw * 0.1),  esY, esW, esH);
+    ctx.fillRect(rx + Math.floor(rw * 0.62), esY, esW, esH);
+    // Eye glint
+    ctx.fillStyle = '#777';
+    ctx.fillRect(rx + Math.floor(rw * 0.1) + 1,  esY + 1, 2, 1);
+    ctx.fillRect(rx + Math.floor(rw * 0.62) + 1, esY + 1, 2, 1);
+
+    // Nose (angular ridge down center)
+    ctx.fillStyle = '#888';
+    ctx.fillRect(rx + Math.floor(rw*0.4), ry2 + Math.floor(rh*0.42), Math.floor(rw*0.2), Math.floor(rh*0.35));
+    ctx.fillStyle = '#666';
+    ctx.fillRect(rx + Math.floor(rw*0.4) + Math.floor(rw*0.2) - 1, ry2 + Math.floor(rh*0.42), 1, Math.floor(rh*0.35)); // shadow side
+
+    // Grim flat mouth line
+    ctx.fillStyle = '#333';
+    ctx.fillRect(rx + Math.floor(rw*0.15), ry2 + Math.floor(rh*0.78), Math.floor(rw*0.7), Math.max(2, Math.floor(rh*0.07)));
+  }
+
+  // Face drawn on top — skip for murderer, robot, owner, gamer, geometry, and rocks (they have their own)
+  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot' && equippedSkin !== 'owner' && equippedSkin !== 'gamer' && equippedSkin !== 'geometry' && equippedSkin !== 'rocks') {
     const eyeY = py + Math.floor(ph*0.28);
     ctx.fillStyle = '#000';
     if (p.facingRight) {
@@ -5653,7 +5699,8 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       const code = codeInput.trim().toLowerCase();
       const codeMap = {
-        'geometry': { key: 'cb_geometry', msg: '🟧 Geometry skin unlocked!', notif: '🟧 Geometry skin unlocked!' },
+        'geometry':   { key: 'cb_geometry', msg: '🟧 Geometry skin unlocked!',  notif: '🟧 Geometry skin unlocked!' },
+        'ilikerocks': { key: 'cb_rocks',    msg: '🪨 Rocks skin unlocked!',      notif: '🪨 Rocks skin unlocked!' },
       };
       if (codeMap[code]) {
         const entry = codeMap[code];
