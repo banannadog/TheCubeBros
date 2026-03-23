@@ -4840,6 +4840,20 @@ function drawTransition() {
       ctx.fillStyle='#FFD700'; ctx.font='bold 13px monospace';
       ctx.fillText('Stomp on it to damage it', W/2, H/2+82);
     }
+  } else if (currentAdventure === 2) {
+    // Underwater Adventure hints
+    if (nextLvl === 2) {
+      ctx.fillStyle='#80DEEA'; ctx.font='13px monospace';
+      ctx.fillText('Level 2: Watch the oxygen meter — grab bubbles!', W/2, H/2+62);
+    } else if (nextLvl === 3) {
+      ctx.fillStyle='#80DEEA'; ctx.font='13px monospace';
+      ctx.fillText('Level 3: Jellyfish ahead — you can\'t stomp them!', W/2, H/2+62);
+    } else {
+      ctx.fillStyle='#EF9A9A'; ctx.font='13px monospace';
+      ctx.fillText('Level 4: The Great Shark awaits!', W/2, H/2+62);
+      ctx.fillStyle='#FFD700'; ctx.font='bold 13px monospace';
+      ctx.fillText('Dodge the attacks — stomp on its back!', W/2, H/2+82);
+    }
   } else {
     // Cube Kingdom hints
     if (nextLvl === 2) {
