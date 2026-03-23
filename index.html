@@ -729,6 +729,7 @@ const BADGE_DEFS = [
   { id: 'greatswim',        name: 'Great Swim',               desc: 'Beat the Underwater Adventure',             color: '#00BCD4', icon: '🐠' },
   { id: 'teamwork',         name: 'Teamwork',                 desc: 'Beat any adventure in 2-player mode',        color: '#42A5F5', icon: '🤝' },
   { id: 'teamworkdream',    name: 'Teamwork Makes The Dream Work', desc: 'Beat any adventure on Hard in 2-player mode', color: '#7E57C2', icon: '💪' },
+  { id: 'lightwork',       name: 'Light Work No Reaction',       desc: 'Beat any adventure on Hard mode',            color: '#FF7043', icon: '😐' },
 ];
 const SKIN_DEFS = [
   { id: 'tycoon',    name: 'Rich',     badge: 'billionaire', desc: 'Golden top hat & business suit' },
@@ -1477,6 +1478,10 @@ function startMFVictoryCutscene() {
     badges.add('teamworkdream'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Teamwork Makes The Dream Work', timer: 300 };
   }
+  if (difficulty === 'hard' && !badges.has('lightwork')) {
+    badges.add('lightwork'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Light Work No Reaction', timer: 300 };
+  }
   camX = 0;
   const p1X = 230, p1Y = GROUND_Y - 28;
   const p2X = 530, p2Y = GROUND_Y - 28;
@@ -1672,6 +1677,10 @@ function startCutscene() {
   if (player2 && difficulty === 'hard' && !badges.has('teamworkdream')) {
     badges.add('teamworkdream'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
     badgeNotif = { name: 'Teamwork Makes The Dream Work', timer: 300 };
+  }
+  if (difficulty === 'hard' && !badges.has('lightwork')) {
+    badges.add('lightwork'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+    badgeNotif = { name: 'Light Work No Reaction', timer: 300 };
   }
   if (!tookDamage && !badges.has('invincible')) {
     badges.add('invincible');
@@ -1943,6 +1952,10 @@ function update() {
           if (player2 && difficulty === 'hard' && !badges.has('teamworkdream')) {
             badges.add('teamworkdream'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
             badgeNotif = { name: 'Teamwork Makes The Dream Work', timer: 300 };
+          }
+          if (difficulty === 'hard' && !badges.has('lightwork')) {
+            badges.add('lightwork'); localStorage.setItem('cb_badges', JSON.stringify([...badges]));
+            badgeNotif = { name: 'Light Work No Reaction', timer: 300 };
           }
           won = true; break;
         }
