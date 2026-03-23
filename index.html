@@ -736,7 +736,8 @@ const SKIN_DEFS = [
   { id: 'mechanic',  name: 'Mechanic', badge: 'engineer',       desc: 'Orange hard hat & cosmetic hammer' },
   { id: 'robot',     name: 'R.O.B.O.T', badge: 'robotdestroyer', desc: 'You ARE the robot', hasVariant: true },
   { id: 'swimmer',   name: 'Swimmer',   badge: 'greatswim',     desc: 'Diving mask & flippers' },
-  { id: 'owner',     name: 'Owner',     badge: null, secret: true, desc: '😎 deal with it' },
+  { id: 'owner',     name: 'Owner',     badge: null, secret: true, secretKey: 'cb_owner',  desc: '😎 deal with it' },
+  { id: 'gamer',     name: 'Gamer',     badge: null, secret: true, secretKey: 'cb_gamer',  desc: '🎮 game on' },
 ];
 const TRAIL_DEFS = [
   { id: 'basic',  name: 'Basic',  badge: null,           desc: 'A simple trail',               color: '#FFFFFF', icon: '·' },
@@ -3252,8 +3253,44 @@ function drawPlayerCube(p) {
     ctx.fillRect(mouthX + mouthW - 2, mouthY - 3, 2, 3);
   }
 
-  // Face drawn on top — skip for murderer, robot, and owner (they have their own)
-  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot' && equippedSkin !== 'owner') {
+  if (equippedSkin === 'gamer') {
+    // Blue screen on cube face
+    const screenX = ex + 2, screenY = py + 2, screenW = pw - 4, screenH = ph - 4;
+    ctx.fillStyle = '#1A237E'; ctx.fillRect(screenX, screenY, screenW, screenH);
+    // Pixelated colored squares (blue, green, red, yellow) in a row at top of screen
+    const sqSize = Math.max(3, Math.floor(screenW / 5));
+    const sqY = screenY + 2;
+    const sqColors = ['#42A5F5','#66BB6A','#EF5350','#FFEE58'];
+    const totalSqW = sqColors.length * (sqSize + 1) - 1;
+    let sqX = screenX + Math.floor((screenW - totalSqW) / 2);
+    for (const c of sqColors) {
+      ctx.fillStyle = c; ctx.fillRect(sqX, sqY, sqSize, sqSize);
+      sqX += sqSize + 1;
+    }
+    // Controller shape in lower half — white body
+    const ctX = screenX + Math.floor(screenW * 0.15);
+    const ctY = screenY + sqSize + 4;
+    const ctW = Math.floor(screenW * 0.7);
+    const ctH = Math.floor(screenH * 0.45);
+    ctx.fillStyle = '#EEE'; ctx.fillRect(ctX, ctY, ctW, ctH);
+    // Left grip indent
+    ctx.fillStyle = '#1A237E'; ctx.fillRect(ctX, ctY + Math.floor(ctH*0.5), Math.floor(ctW*0.28), Math.floor(ctH*0.5));
+    // Right grip indent
+    ctx.fillStyle = '#1A237E'; ctx.fillRect(ctX + Math.floor(ctW*0.72), ctY + Math.floor(ctH*0.5), Math.floor(ctW*0.28), Math.floor(ctH*0.5));
+    // D-pad (left side) — 3 tiny dark pixels in a cross
+    const dpX = ctX + Math.floor(ctW*0.18), dpY = ctY + Math.floor(ctH*0.3);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(dpX, dpY - 1, 2, 4);   // vertical
+    ctx.fillRect(dpX - 1, dpY, 4, 2);   // horizontal
+    // Face buttons (right side) — 3 colored dots
+    const fbX = ctX + Math.floor(ctW*0.72), fbY = ctY + Math.floor(ctH*0.2);
+    ctx.fillStyle = '#EF5350'; ctx.fillRect(fbX,   fbY,   2, 2);
+    ctx.fillStyle = '#66BB6A'; ctx.fillRect(fbX+3, fbY+1, 2, 2);
+    ctx.fillStyle = '#42A5F5'; ctx.fillRect(fbX+1, fbY+3, 2, 2);
+  }
+
+  // Face drawn on top — skip for murderer, robot, owner, and gamer (they have their own)
+  if (equippedSkin !== 'murderer' && equippedSkin !== 'robot' && equippedSkin !== 'owner' && equippedSkin !== 'gamer') {
     const eyeY = py + Math.floor(ph*0.28);
     ctx.fillStyle = '#000';
     if (p.facingRight) {
@@ -3880,6 +3917,10 @@ function drawParticles() {
 // ─── HUD ─────────────────────────────────────────────────────────────────────
 // Badges button bounds (used for click detection too)
 const BADGE_BTN  = { x: 5,  y: H - 22, w: 68, h: 16 };
+const CODES_BTN  = { x: 78, y: H - 22, w: 54, h: 16 };
+let codesPanelOpen = false;
+let codeInput = '';
+let codeMsg = '';
 
 function drawBadgesPanel() {
   // Badge earned popup above BADGES button
@@ -3917,6 +3958,38 @@ function drawBadgesPanel() {
   ctx.fillStyle = '#FFD700'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
   ctx.fillText('BADGES', btn.x + btn.w / 2, btn.y + 11);
   ctx.textAlign = 'left';
+
+  // CODES button
+  const cb = CODES_BTN;
+  ctx.fillStyle = codesPanelOpen ? '#1A237E' : 'rgba(0,0,0,0.7)';
+  ctx.fillRect(cb.x, cb.y, cb.w, cb.h);
+  ctx.strokeStyle = '#7C4DFF'; ctx.lineWidth = 1;
+  ctx.strokeRect(cb.x + 0.5, cb.y + 0.5, cb.w - 1, cb.h - 1);
+  ctx.fillStyle = '#7C4DFF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('CODES', cb.x + cb.w / 2, cb.y + 11);
+  ctx.textAlign = 'left';
+
+  // Codes input panel
+  if (codesPanelOpen) {
+    const cpw = 240, cph = 80, cpx = 5, cpy = H - 22 - cph - 4;
+    ctx.fillStyle = 'rgba(10,10,30,0.95)'; ctx.fillRect(cpx, cpy, cpw, cph);
+    ctx.strokeStyle = '#7C4DFF'; ctx.lineWidth = 1; ctx.strokeRect(cpx+0.5, cpy+0.5, cpw-1, cph-1);
+    ctx.fillStyle = '#7C4DFF'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('Enter code:', cpx+8, cpy+18);
+    // Input box
+    ctx.fillStyle = '#111'; ctx.fillRect(cpx+8, cpy+24, cpw-16, 18);
+    ctx.strokeStyle = '#7C4DFF'; ctx.strokeRect(cpx+8.5, cpy+24.5, cpw-17, 17);
+    ctx.fillStyle = '#FFF'; ctx.font = '9px monospace';
+    ctx.fillText('*'.repeat(codeInput.length) + (Math.floor(tick/20)%2===0?'|':''), cpx+12, cpy+37);
+    // Message
+    if (codeMsg) {
+      ctx.fillStyle = codeMsg.startsWith('✅') ? '#76FF03' : '#FF5252';
+      ctx.font = 'bold 8px monospace';
+      ctx.fillText(codeMsg, cpx+8, cpy+56);
+    }
+    ctx.fillStyle = '#555'; ctx.font = '7px monospace';
+    ctx.fillText('ENTER to submit  •  ESC to close', cpx+8, cpy+70);
+  }
 
   if (!badgesPanelOpen) return;
 
@@ -4026,7 +4099,7 @@ function drawSkinsPanel() {
   ctx.fillText('SKINS', W / 2, py + 22);
 
   SKIN_DEFS.forEach((skin, i) => {
-    const unlocked = skin.secret ? localStorage.getItem('cb_owner') === '1' : badges.has(skin.badge);
+    const unlocked = skin.secret ? localStorage.getItem(skin.secretKey) === '1' : badges.has(skin.badge);
     const equipped  = equippedSkin === skin.id;
     const ry = py + 38 + i * 56;
     ctx.fillStyle = equipped ? 'rgba(0,229,255,0.1)' : unlocked ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.2)';
@@ -5488,6 +5561,30 @@ function draw() {
 
 // ─── Input ───────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  // Codes panel input — intercept all typing when open
+  if (codesPanelOpen) {
+    if (e.key === 'Escape') { codesPanelOpen = false; codeInput = ''; codeMsg = ''; return; }
+    if (e.key === 'Enter') {
+      const code = codeInput.trim().toLowerCase();
+      if (code === 'gamer') {
+        if (localStorage.getItem('cb_gamer') === '1') {
+          codeMsg = '✅ Already unlocked!';
+        } else {
+          localStorage.setItem('cb_gamer', '1');
+          codeMsg = '✅ Gamer skin unlocked!';
+          badgeNotif = { name: '🎮 Gamer skin unlocked!', timer: 300 };
+        }
+      } else {
+        codeMsg = '❌ Invalid code';
+      }
+      codeInput = '';
+      return;
+    }
+    if (e.key === 'Backspace') { codeInput = codeInput.slice(0,-1); return; }
+    if (e.key.length === 1 && codeInput.length < 24) { codeInput += e.key; return; }
+    return; // swallow all other keys while panel open
+  }
+
   // Secret owner code — type "owner" anywhere
   if (e.key && e.key.length === 1) {
     ownerKeyBuf = (ownerKeyBuf + e.key.toLowerCase()).slice(-5);
@@ -5629,7 +5726,9 @@ canvas.addEventListener('click', e => {
   const inBtn = (btn) => mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
 
   // BADGES button
-  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; if (!badgesPanelOpen) badgeScrollY = 0; skinsPanelOpen = false; trailsPanelOpen = false; return; }
+  if (inBtn(BADGE_BTN)) { badgesPanelOpen = !badgesPanelOpen; if (!badgesPanelOpen) badgeScrollY = 0; skinsPanelOpen = false; trailsPanelOpen = false; codesPanelOpen = false; return; }
+  // CODES button
+  if (inBtn(CODES_BTN)) { codesPanelOpen = !codesPanelOpen; codeInput = ''; codeMsg = ''; badgesPanelOpen = false; skinsPanelOpen = false; trailsPanelOpen = false; return; }
   // SKINS button
   if (inBtn(SKINS_BTN)) { skinsPanelOpen = !skinsPanelOpen; badgesPanelOpen = false; trailsPanelOpen = false; return; }
   // TRAILS button
