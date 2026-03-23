@@ -3349,48 +3349,49 @@ function drawPlayerCube(p) {
   }
 
   if (equippedSkin === 'rocks') {
-    // Stone idol — dark gray base
+    // Stone idol — matches the low-poly angular face image
     const rx = ex, ry2 = py, rw = pw, rh = ph;
-    ctx.fillStyle = '#555'; ctx.fillRect(rx, ry2, rw, rh);
 
-    // Low-poly angular lighter patches (simulate faceted stone)
-    ctx.fillStyle = '#888';
-    ctx.fillRect(rx,                    ry2,                   Math.floor(rw*0.45), Math.floor(rh*0.35)); // top-left
-    ctx.fillRect(rx + Math.floor(rw*0.55), ry2 + Math.floor(rh*0.1), Math.floor(rw*0.45), Math.floor(rh*0.3)); // top-right
-    ctx.fillStyle = '#777';
-    ctx.fillRect(rx,                    ry2 + Math.floor(rh*0.35), Math.floor(rw*0.35), Math.floor(rh*0.3)); // mid-left
+    // Base: very dark gray
+    ctx.fillStyle = '#3A3A3A'; ctx.fillRect(rx, ry2, rw, rh);
+
+    // Upper-left light facet (forehead, large)
     ctx.fillStyle = '#999';
-    ctx.fillRect(rx + Math.floor(rw*0.3), ry2 + Math.floor(rh*0.15), Math.floor(rw*0.4), Math.floor(rh*0.25)); // center highlight
-    ctx.fillStyle = '#666';
-    ctx.fillRect(rx + Math.floor(rw*0.4), ry2 + Math.floor(rh*0.6), Math.floor(rw*0.6), Math.floor(rh*0.4)); // bottom-right
+    ctx.fillRect(rx, ry2, Math.floor(rw*0.6), Math.floor(rh*0.38));
 
-    // Heavy brow ridge
+    // Upper-right darker facet
+    ctx.fillStyle = '#666';
+    ctx.fillRect(rx + Math.floor(rw*0.6), ry2, Math.floor(rw*0.4), Math.floor(rh*0.45));
+
+    // Left cheek / jaw facet (medium gray)
+    ctx.fillStyle = '#777';
+    ctx.fillRect(rx, ry2 + Math.floor(rh*0.38), Math.floor(rw*0.38), Math.floor(rh*0.62));
+
+    // Right lower dark shadow
     ctx.fillStyle = '#444';
-    ctx.fillRect(rx + Math.floor(rw*0.05), ry2 + Math.floor(rh*0.28), Math.floor(rw*0.9), Math.floor(rh*0.12));
-    ctx.fillStyle = '#999';
-    ctx.fillRect(rx + Math.floor(rw*0.05), ry2 + Math.floor(rh*0.28), Math.floor(rw*0.9), 1); // top shine
+    ctx.fillRect(rx + Math.floor(rw*0.62), ry2 + Math.floor(rh*0.45), Math.floor(rw*0.38), Math.floor(rh*0.55));
 
-    // Dark eye sockets
-    const esY = ry2 + Math.floor(rh * 0.42);
-    const esH = Math.max(3, Math.floor(rh * 0.2));
-    const esW = Math.max(3, Math.floor(rw * 0.24));
+    // Center nose column — lighter angular ridge
+    ctx.fillStyle = '#AAA';
+    ctx.fillRect(rx + Math.floor(rw*0.35), ry2 + Math.floor(rh*0.2), Math.floor(rw*0.28), Math.floor(rh*0.55));
+    // Nose shadow right side
+    ctx.fillStyle = '#555';
+    ctx.fillRect(rx + Math.floor(rw*0.35) + Math.floor(rw*0.22), ry2 + Math.floor(rh*0.2), Math.floor(rw*0.06), Math.floor(rh*0.55));
+
+    // Dark brow/eye shadow strip across upper-mid
     ctx.fillStyle = '#222';
-    ctx.fillRect(rx + Math.floor(rw * 0.1),  esY, esW, esH);
-    ctx.fillRect(rx + Math.floor(rw * 0.62), esY, esW, esH);
-    // Eye glint
-    ctx.fillStyle = '#777';
-    ctx.fillRect(rx + Math.floor(rw * 0.1) + 1,  esY + 1, 2, 1);
-    ctx.fillRect(rx + Math.floor(rw * 0.62) + 1, esY + 1, 2, 1);
+    ctx.fillRect(rx, ry2 + Math.floor(rh*0.35), rw, Math.floor(rh*0.14));
 
-    // Nose (angular ridge down center)
-    ctx.fillStyle = '#888';
-    ctx.fillRect(rx + Math.floor(rw*0.4), ry2 + Math.floor(rh*0.42), Math.floor(rw*0.2), Math.floor(rh*0.35));
-    ctx.fillStyle = '#666';
-    ctx.fillRect(rx + Math.floor(rw*0.4) + Math.floor(rw*0.2) - 1, ry2 + Math.floor(rh*0.42), 1, Math.floor(rh*0.35)); // shadow side
+    // Left eye socket (dark hollow)
+    ctx.fillStyle = '#111';
+    ctx.fillRect(rx + Math.floor(rw*0.05), ry2 + Math.floor(rh*0.38), Math.floor(rw*0.28), Math.floor(rh*0.18));
 
-    // Grim flat mouth line
-    ctx.fillStyle = '#333';
-    ctx.fillRect(rx + Math.floor(rw*0.15), ry2 + Math.floor(rh*0.78), Math.floor(rw*0.7), Math.max(2, Math.floor(rh*0.07)));
+    // Right eye socket
+    ctx.fillRect(rx + Math.floor(rw*0.62), ry2 + Math.floor(rh*0.38), Math.floor(rw*0.33), Math.floor(rh*0.18));
+
+    // Mouth — thin dark slit
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fillRect(rx + Math.floor(rw*0.1), ry2 + Math.floor(rh*0.8), Math.floor(rw*0.55), Math.max(2, Math.floor(rh*0.06)));
   }
 
   // Face drawn on top — skip for murderer, robot, owner, gamer, geometry, and rocks (they have their own)
