@@ -133,164 +133,6 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 document.addEventListener('keydown', () => { if (audioCtx.state === 'suspended') audioCtx.resume(); });
 document.addEventListener('click',   () => { if (audioCtx.state === 'suspended') audioCtx.resume(); });
 
-// ─── Music ───────────────────────────────────────────────────────────────────
-let musicTrack = null;
-let musicNodes  = [];
-let musicLoopId = null;
-
-const musicMaster = audioCtx.createGain();
-musicMaster.gain.value = 0.55;
-musicMaster.connect(audioCtx.destination);
-
-// freq, start-offset, duration, osc type, volume, stereo pan (-1 left … +1 right)
-function mVoice(freq, start, dur, type, vol, pan) {
-  const osc    = audioCtx.createOscillator();
-  const gain   = audioCtx.createGain();
-  const panner = audioCtx.createStereoPanner();
-  osc.type = type;
-  osc.frequency.value = freq;
-  panner.pan.value = pan;
-  const t = audioCtx.currentTime + start;
-  gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(vol, t + 0.012);
-  gain.gain.setValueAtTime(vol, t + dur * 0.72);
-  gain.gain.linearRampToValueAtTime(0, t + dur);
-  osc.connect(gain); gain.connect(panner); panner.connect(musicMaster);
-  osc.start(t); osc.stop(t + dur + 0.05);
-  musicNodes.push(osc);
-}
-
-function stopMusic() {
-  if (musicLoopId) { clearTimeout(musicLoopId); musicLoopId = null; }
-  musicNodes.forEach(n => { try { n.stop(); } catch(e){} });
-  musicNodes = []; musicTrack = null;
-}
-
-function playMusic(name) {
-  if (musicTrack === name) return;
-  stopMusic(); musicTrack = name;
-  if (audioCtx.state === 'suspended') audioCtx.resume().then(() => _startMusicLoop(name));
-  else _startMusicLoop(name);
-}
-
-function _startMusicLoop(name) {
-  if (musicTrack !== name) return;
-  const fns  = { menu: _playMenuBar,  level: _playLevelBar,  boss: _playBossBar };
-  const lens = { menu: 3.84,          level: 2.74,           boss: 2.4 };
-  const bars = { menu: 8,             level: 8,              boss: 4 };
-  const fn = fns[name], barLen = lens[name], totalBars = bars[name];
-  if (!fn) return;
-  for (let i = 0; i < totalBars; i++) fn(i * barLen);
-  musicLoopId = setTimeout(() => { musicNodes = []; _startMusicLoop(name); }, totalBars * barLen * 1000 - 80);
-}
-
-// ── MENU THEME (100 BPM, C major, 8 bars) ────────────────────────────────────
-// Voices: lead melody (left) · inner harmony (right) · bass (center-right) · soft chord pad (center)
-function _playMenuBar(off) {
-  const b = 60/100;
-  // Lead melody — square, panned left
-  const mel = [
-    [523,0],[659,1],[784,2],[659,3], [523,4],[392,5],[440,6],[523,7],
-    [587,8],[740,9],[880,10],[740,11],[659,12],[523,13],[440,14],[392,15],
-    [523,16],[659,17],[784,18],[1047,19],[880,20],[784,21],[659,22],[523,23],
-    [440,24],[523,25],[659,26],[784,27],[523,28],[392,29],[330,30],[261,31],
-  ];
-  mel.forEach(([f,n]) => mVoice(f, off+n*b, b*0.82, 'square', 0.07, -0.5));
-
-  // Inner harmony (a minor third below the melody) — triangle, panned right
-  const harm = [
-    [415,0],[523,1],[622,2],[523,3],[415,4],[311,5],[349,6],[415,7],
-    [466,8],[587,9],[698,10],[587,11],[523,12],[415,13],[349,14],[311,15],
-    [415,16],[523,17],[622,18],[831,19],[698,20],[622,21],[523,22],[415,23],
-    [349,24],[415,25],[523,26],[622,27],[415,28],[311,29],[262,30],[208,31],
-  ];
-  harm.forEach(([f,n]) => mVoice(f, off+n*b, b*0.75, 'triangle', 0.045, 0.5));
-
-  // Bass — sine, panned slight right, long notes
-  const bass = [
-    [131,0],[131,2],[165,4],[165,6],[175,8],[175,10],[196,12],[196,14],
-    [131,16],[131,18],[196,20],[196,22],[131,24],[110,26],[131,28],[98,30],
-  ];
-  bass.forEach(([f,n]) => mVoice(f, off+n*b, b*1.8, 'sine', 0.12, 0.2));
-
-  // Chord pad — very soft sine on root + fifth every 4 beats, center
-  [[131,0],[175,8],[131,16],[131,24]].forEach(([f,n]) => {
-    mVoice(f,     off+n*b, b*3.8, 'sine', 0.035, 0);
-    mVoice(f*1.5, off+n*b, b*3.8, 'sine', 0.02,  0);
-  });
-}
-
-// ── LEVEL THEME (140 BPM, G major, 8 bars) ───────────────────────────────────
-// Voices: lead melody (left) · counter-melody (right) · bass (center) · rhythm arp (center-left)
-function _playLevelBar(off) {
-  const b = 60/140;
-  // Lead — square, left
-  const mel = [
-    [784,0],[784,0.5],[880,1],[784,1.5],[659,2],[784,3],
-    [698,4],[698,4.5],[784,5],[698,5.5],[587,6],[659,7],
-    [784,8],[880,8.5],[988,9],[880,9.5],[784,10],[659,11],
-    [698,12],[587,12.5],[523,13],[587,13.5],[659,14],[784,15],
-    [880,16],[988,16.5],[1047,17],[988,17.5],[880,18],[784,19],
-    [784,20],[698,20.5],[659,21],[587,21.5],[523,22],[392,23],
-    [523,24],[587,24.5],[659,25],[784,25.5],[880,26],[784,27],
-    [784,28],[659,28.5],[523,29],[392,30],[330,31],
-  ];
-  mel.forEach(([f,n]) => mVoice(f, off+n*b, b*0.68, 'square', 0.065, -0.45));
-
-  // Counter-melody — triangle, right
-  const ctr = [
-    [494,0],[523,1],[587,2],[523,3],[440,4],[440,5],[494,6],[440,7],
-    [494,8],[587,9],[659,10],[587,11],[440,12],[370,13],[330,14],[370,15],
-    [587,16],[659,17],[784,18],[659,19],[587,20],[494,21],[440,22],[294,23],
-    [330,24],[370,25],[440,26],[523,27],[494,28],[440,29],[330,30],[294,31],
-  ];
-  ctr.forEach(([f,n]) => mVoice(f, off+n*b, b*0.65, 'triangle', 0.045, 0.45));
-
-  // Bass — triangle, center-right
-  const bass = [
-    [196,0],[196,1],[196,2],[196,3],[175,4],[175,5],[175,6],[175,7],
-    [196,8],[196,9],[220,10],[220,11],[175,12],[175,13],[196,14],[196,15],
-    [220,16],[220,17],[247,18],[247,19],[196,20],[196,21],[175,22],[175,23],
-    [131,24],[131,25],[165,26],[165,27],[196,28],[196,29],[196,30],[196,31],
-  ];
-  bass.forEach(([f,n]) => mVoice(f, off+n*b, b*0.9, 'triangle', 0.11, 0.15));
-
-  // Rhythm arp — eighth-note chord tones, sine, slight left
-  const arp = [196,247,294,247, 175,220,262,220, 196,247,294,247, 175,220,262,220,
-               220,262,330,262, 196,247,294,247, 131,196,247,196, 165,196,247,196];
-  arp.forEach((f,i) => mVoice(f, off+i*b*0.5, b*0.32, 'sine', 0.04, -0.15));
-}
-
-// ── BOSS THEME (160 BPM, A minor, 4 bars) ────────────────────────────────────
-// Voices: lead (left) · power octave (right) · bass (center) · tension arp (center)
-function _playBossBar(off) {
-  const b = 60/160;
-  // Lead — sawtooth, left
-  const mel = [
-    [523,0],[554,0.5],[523,1],[494,1.5],[466,2],[494,2.5],[523,3],[554,3.5],
-    [587,4],[523,4.5],[466,5],[523,5.5],[494,6],[466,6.5],[440,7],[466,7.5],
-    [523,8],[659,8.5],[784,9],[880,9.5],[784,10],[659,10.5],[587,11],[523,11.5],
-    [494,12],[466,12.5],[440,13],[415,13.5],[440,14],[466,14.5],[494,15],[523,15.5],
-  ];
-  mel.forEach(([f,n]) => mVoice(f, off+n*b, b*0.62, 'sawtooth', 0.055, -0.45));
-
-  // Power line (one octave below lead) — square, right
-  mel.forEach(([f,n]) => mVoice(f/2, off+n*b, b*0.55, 'square', 0.06, 0.45));
-
-  // Bass — triangle, center, driving eighth notes
-  const bass = [
-    [110,0],[110,0.5],[110,1],[110,1.5],[110,2],[110,2.5],[138,3],[138,3.5],
-    [123,4],[123,4.5],[123,5],[123,5.5],[110,6],[110,6.5],[98,7],[98,7.5],
-    [110,8],[110,8.5],[164,9],[164,9.5],[146,10],[146,10.5],[138,11],[138,11.5],
-    [110,12],[110,12.5],[98,13],[98,13.5],[87,14],[87,14.5],[110,15],[110,15.5],
-  ];
-  bass.forEach(([f,n]) => mVoice(f, off+n*b, b*0.78, 'triangle', 0.1, 0.0));
-
-  // Tension arp — fast sawtooth, center
-  const tarp = [440,523,659,523, 415,494,622,494, 440,523,659,784, 415,494,622,784,
-                440,554,659,880, 415,523,659,784, 440,523,659,523, 392,494,622,784];
-  tarp.forEach((f,i) => mVoice(f, off+i*b*0.5, b*0.28, 'sawtooth', 0.028, -0.1));
-}
 
 const tacoBell = new Audio('https://www.myinstants.com/media/sounds/taco-bell-bong-sfx.mp3');
 tacoBell.volume = 0.7;
@@ -6289,21 +6131,6 @@ function resetOnline() {
   remoteKeys={left:false,right:false,up:false}; latestRemoteState=null;
 }
 
-function updateMusic() {
-  if (gameState === 'select' || gameState === 'adventure' || gameState === 'difficulty') {
-    playMusic('menu');
-  } else if (gameState === 'playing' || gameState === 'cutscene' || gameState === 'mfcutscene' || gameState === 'transition') {
-    const bossActive = boss && boss.active && boss.lives > 0;
-    const sharkActive = uwShark && uwShark.state !== 'intro' && currentLevel === 3 && currentAdventure === 2;
-    if (bossActive || sharkActive) {
-      playMusic('boss');
-    } else {
-      playMusic('level');
-    }
-  } else {
-    stopMusic();
-  }
-}
 
 function loop() {
   tick++;
@@ -6320,7 +6147,7 @@ function loop() {
     update();
     if(onlineMode&&isHost&&onlineConnected) sendOnlineState();
   }
-  updateMusic(); draw(); requestAnimationFrame(loop);
+  draw(); requestAnimationFrame(loop);
 }
 loop();
 </script>
