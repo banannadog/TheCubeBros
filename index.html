@@ -5888,7 +5888,7 @@ canvas.addEventListener('click', e => {
     const bx=W/2-130,bw=260;
     if(mx2>=bx&&mx2<=bx+bw){
       if(my2>=160&&my2<=212){createOnlineRoom();return;}
-      if(my2>=230&&my2<=282){onlineSubState='joining';joinCodeBuffer='';return;}
+      if(my2>=230&&my2<=282){onlineSubState='joining';joinCodeBuffer='';try{if(!myPeer){myPeer=new Peer();myPeer.on('error',()=>{if(onlineSubState!=='menu'){onlineError='Could not connect';onlineSubState='error';}});}}catch(ex){}return;}
     }
   }
   if(gameState==='select'){
@@ -6084,10 +6084,11 @@ function createOnlineRoom() {
 function joinOnlineRoom() {
   const code=joinCodeBuffer.trim().toUpperCase(); if(code.length<4)return;
   try {
-    myPeer=new Peer(); onlineSubState='connecting';
-    myPeer.on('open', ()=>{ const conn=myPeer.connect('cb'+code.toLowerCase(),{reliable:true}); peerConn=conn; isHost=false; setupPeerConn(conn); });
-    myPeer.on('error', ()=>{ onlineError='Could not connect'; onlineSubState='error'; });
-  } catch(e) { onlineError='PeerJS not available'; onlineSubState='error'; }
+    if(!myPeer) myPeer=new Peer();
+    onlineSubState='connecting'; isHost=false;
+    const conn=myPeer.connect('cb'+code.toLowerCase(),{reliable:true});
+    peerConn=conn; setupPeerConn(conn);
+  } catch(e) { onlineError='Could not connect'; onlineSubState='error'; }
 }
 function setupPeerConn(conn) {
   conn.on('open', ()=>{
