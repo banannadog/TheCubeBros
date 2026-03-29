@@ -5665,9 +5665,14 @@ function drawOnlineScreen() {
     ctx.fillText(joinCodeBuffer.padEnd(6,'_'),W/2,cby+46);
     ctx.fillStyle='#445'; ctx.font='12px monospace';
     ctx.fillText('ENTER to connect   |   R to go back',W/2,258);
+  } else if(onlineSubState==='creating'){
+    ctx.fillStyle='#80DEEA'; ctx.font='bold 16px monospace';
+    ctx.fillText('Creating room'+'.'.repeat((Math.floor(tick/20)%3)+1),W/2,220);
+    ctx.fillStyle='#445'; ctx.font='12px monospace'; ctx.fillText('R to cancel',W/2,370);
   } else if(onlineSubState==='connecting'){
     ctx.fillStyle='#80DEEA'; ctx.font='bold 16px monospace';
     ctx.fillText('Connecting'+'.'.repeat((Math.floor(tick/20)%3)+1),W/2,220);
+    ctx.fillStyle='#445'; ctx.font='12px monospace'; ctx.fillText('R to cancel',W/2,370);
   } else if(onlineSubState==='waitingstart'){
     ctx.fillStyle='#66BB6A'; ctx.font='bold 16px monospace'; ctx.fillText('Connected!',W/2,180);
     ctx.fillStyle='#80DEEA'; ctx.font='12px monospace';
@@ -6075,11 +6080,11 @@ function createOnlineRoom() {
   try {
     const code = Math.random().toString(36).substring(2,8).toUpperCase();
     myRoomCode = code;
+    onlineSubState = 'creating';
     myPeer = new Peer('cb'+code.toLowerCase());
     myPeer.on('open', () => { onlineSubState='waiting'; });
     myPeer.on('connection', conn => { if(peerConn)return; peerConn=conn; isHost=true; setupPeerConn(conn); });
-    myPeer.on('error', err => { onlineError=err.type==='unavailable-id'?'Code taken, try again':'Connection error'; onlineSubState='error'; });
-    onlineSubState='waiting';
+    myPeer.on('error', err => { onlineError=err.type==='unavailable-id'?'Code taken, try again':'Server error'; onlineSubState='error'; });
   } catch(e) { onlineError='PeerJS not available'; onlineSubState='error'; }
 }
 function joinOnlineRoom() {
@@ -6087,12 +6092,17 @@ function joinOnlineRoom() {
   try {
     if(!myPeer) myPeer=new Peer();
     onlineSubState='connecting'; isHost=false;
-    const conn=myPeer.connect('cb'+code.toLowerCase(),{reliable:true});
-    peerConn=conn; setupPeerConn(conn);
+    const doConnect = () => {
+      const conn=myPeer.connect('cb'+code.toLowerCase(),{reliable:true,serialization:'json'});
+      peerConn=conn; setupPeerConn(conn);
+    };
+    if(myPeer.open) doConnect(); else myPeer.once('open', doConnect);
   } catch(e) { onlineError='Could not connect'; onlineSubState='error'; }
 }
 function setupPeerConn(conn) {
+  const connTimeout = setTimeout(()=>{ if(!onlineConnected){ onlineError='Connection timed out'; onlineSubState='error'; } }, 15000);
   conn.on('open', ()=>{
+    clearTimeout(connTimeout);
     onlineConnected=true; onlineMode=true;
     if(isHost){ pendingPlayers=2; gameState='adventure'; menuSel=0; }
     else { onlineSubState='waitingstart'; }
@@ -6105,8 +6115,8 @@ function setupPeerConn(conn) {
       else if(data.t==='state'){ latestRemoteState=data; }
     }
   });
-  conn.on('close', ()=>{ onlineConnected=false; onlineMode=false; gameState='select'; onlineError='Disconnected'; });
-  conn.on('error', ()=>{ onlineConnected=false; onlineError='Connection error'; });
+  conn.on('close', ()=>{ clearTimeout(connTimeout); onlineConnected=false; onlineMode=false; gameState='select'; });
+  conn.on('error', ()=>{ clearTimeout(connTimeout); onlineConnected=false; onlineError='Connection failed'; onlineSubState='error'; });
 }
 function sendOnlineState() {
   if(!peerConn||!onlineConnected)return;
@@ -6130,7 +6140,7 @@ function resetOnline() {
   if(myPeer){try{myPeer.destroy();}catch(e){} myPeer=null;}
   peerConn=null; onlineMode=false; isHost=false; onlineConnected=false;
   onlineSubState='menu'; myRoomCode=''; joinCodeBuffer=''; onlineError='';
-  remoteKeys={left:false,right:false,up:false}; latestRemoteState=null;
+  remoteKeys={left:false,right:false,up:false,attack:false}; latestRemoteState=null;
 }
 
 
