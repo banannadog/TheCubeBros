@@ -5850,13 +5850,14 @@ document.addEventListener('keydown', e => {
       playTacoBell(); initGame(pendingPlayers);
     } else if (e.code==='KeyR') { gameState='select'; menuSel=0; }
   } else if (gameState === 'online') {
-    if (e.code==='KeyR' || e.code==='Escape') {
-      if(onlineSubState==='menu') { resetOnline(); gameState='select'; menuSel=2; }
-      else { resetOnline(); onlineSubState='menu'; }
-    } else if (onlineSubState==='joining') {
-      if(e.key&&e.key.length===1&&/[A-Za-z0-9]/.test(e.key)&&joinCodeBuffer.length<6) joinCodeBuffer+=e.key.toUpperCase();
+    if (onlineSubState==='joining') {
+      if(e.code==='Escape') { resetOnline(); onlineSubState='menu'; }
+      else if(e.key&&e.key.length===1&&/[A-Za-z0-9]/.test(e.key)&&joinCodeBuffer.length<6) joinCodeBuffer+=e.key.toUpperCase();
       else if(e.code==='Backspace') joinCodeBuffer=joinCodeBuffer.slice(0,-1);
       else if((e.code==='Enter'||e.code==='Space')&&joinCodeBuffer.length>=4) joinOnlineRoom();
+    } else if (e.code==='KeyR' || e.code==='Escape') {
+      if(onlineSubState==='menu') { resetOnline(); gameState='select'; menuSel=2; }
+      else { resetOnline(); onlineSubState='menu'; }
     }
   } else {
     if (e.code==='KeyR') {
