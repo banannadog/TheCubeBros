@@ -649,7 +649,7 @@ let player1, player2;
 // ─── Online Multiplayer ──────────────────────────────────────────────────────
 let onlineMode=false, isHost=false, myPeer=null, peerConn=null;
 let onlineSubState='menu', myRoomCode='', joinCodeBuffer='', onlineError='';
-let remoteKeys={left:false,right:false,up:false}, latestRemoteState=null, onlineConnected=false;
+let remoteKeys={left:false,right:false,up:false,attack:false}, latestRemoteState=null, onlineConnected=false;
 let camX, tick, gameOver, won;
 let levelW = LEVEL_W;          // dynamic per-level width
 let boss = null;               // boss entity
@@ -6094,12 +6094,12 @@ function joinOnlineRoom() {
 function setupPeerConn(conn) {
   conn.on('open', ()=>{
     onlineConnected=true; onlineMode=true;
-    if(isHost){ gameState='adventure'; menuSel=0; }
+    if(isHost){ pendingPlayers=2; gameState='adventure'; menuSel=0; }
     else { onlineSubState='waitingstart'; }
   });
   conn.on('data', data=>{
     if(isHost){
-      if(data.t==='in'){ remoteKeys.left=!!data.l; remoteKeys.right=!!data.r; remoteKeys.up=!!data.u; }
+      if(data.t==='in'){ remoteKeys.left=!!data.l; remoteKeys.right=!!data.r; remoteKeys.up=!!data.u; remoteKeys.attack=!!data.a; }
     } else {
       if(data.t==='start'){ currentAdventure=data.adv; difficulty=data.diff; pendingPlayers=2; initGame(2); }
       else if(data.t==='state'){ latestRemoteState=data; }
@@ -6139,12 +6139,12 @@ function loop() {
   if(onlineMode&&!isHost){
     if(latestRemoteState){applyOnlineState(latestRemoteState);latestRemoteState=null;}
     if(peerConn&&onlineConnected&&gameState==='playing'){
-      try{peerConn.send({t:'in',l:keys['KeyA']||keys['ArrowLeft'],r:keys['KeyD']||keys['ArrowRight'],u:keys['KeyW']||keys['Space']||keys['ArrowUp']||keys['Enter']});}catch(ex){}
+      try{peerConn.send({t:'in',l:keys['KeyA']||keys['ArrowLeft'],r:keys['KeyD']||keys['ArrowRight'],u:keys['KeyW']||keys['Space']||keys['ArrowUp']||keys['Enter'],a:keys['Slash']});}catch(ex){}
     }
   } else {
     if(onlineMode&&isHost&&gameState==='playing'){
       keys['ArrowLeft']=remoteKeys.left; keys['ArrowRight']=remoteKeys.right;
-      keys['ArrowUp']=remoteKeys.up; keys['Enter']=remoteKeys.up;
+      keys['ArrowUp']=remoteKeys.up; keys['Enter']=remoteKeys.up; keys['Slash']=remoteKeys.attack;
     }
     update();
     if(onlineMode&&isHost&&onlineConnected) sendOnlineState();
